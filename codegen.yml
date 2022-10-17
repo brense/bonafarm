@@ -1,0 +1,10 @@
+schema: ./src/graphql/schema.graphql
+generates:
+  ./src/graphql/index.ts:
+    plugins:
+      - typescript
+  ./src/graphql/fragmentTypes.json:
+    plugins:
+      - fragment-matcher
+config:
+  skipTypename: true
