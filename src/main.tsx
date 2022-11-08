@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, ApolloClientProvider } from './config'
 import App from './App'
+import './index.css'
 
 const rootContainer = document.getElementById('root')
 

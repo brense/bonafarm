@@ -34,6 +34,7 @@
     "nopeus": "^0.0.18",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-qr-reader": "^3.0.0-beta-1",
     "react-router-dom": "^6.4.2",
     "sirv": "^2.0.2",
     "uuid": "^9.0.0"

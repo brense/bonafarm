@@ -1,5 +1,6 @@
-import { Typography } from '@mui/material'
 import { gql, useQuery } from '@apollo/client'
+import { Route, Routes } from 'react-router-dom'
+import Home from './pages/Home'
 
 const okQuery = gql`query {
   ok
@@ -10,5 +11,8 @@ export default function App() {
 
   console.log(data)
 
-  return <Typography>Hello world</Typography>
+  return <Routes>
+    <Route path="/" element={<Home />} />
+    <Route path="/:id" element={<span>Voorraad</span>} />
+  </Routes>
 }
