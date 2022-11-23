@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef, useEffect } from 'react'
 import { Box, Button, DialogActions, DialogContent, Icon, Slide, TextField } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
@@ -12,9 +12,9 @@ export default function AddItem() {
   const match = useMatch('/voorraad/add')
   const { state } = useLocation()
   const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>()
 
   const handleClose = useCallback(() => {
-    console.log('close dialog')
     navigate(state?.referrer ? state.referrer : '/')
   }, [state, navigate])
 
@@ -24,10 +24,16 @@ export default function AddItem() {
     handleClose()
   }, [handleClose])
 
+  useEffect(() => {
+    if (Boolean(match)) {
+      inputRef.current?.focus()
+    }
+  }, [match])
+
   return <CustomDialog title="Item toevoegen" open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
     <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
-        <TextField label="Naam" variant="filled" margin="normal" fullWidth />
+        <TextField label="Naam" variant="filled" margin="normal" inputRef={inputRef} fullWidth />
         <TextField label="Locatie" variant="filled" margin="normal" fullWidth />
       </DialogContent>
       <DialogActions>
