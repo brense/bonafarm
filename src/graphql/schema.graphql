@@ -2,6 +2,17 @@
 ### Do not make changes to this file directly
 
 
+type Item {
+  id: String
+  name: String
+}
+
 type Query {
   ok: Boolean!
+}
+
+type Storage {
+  id: String
+  items: [Item]
+  name: String
 }

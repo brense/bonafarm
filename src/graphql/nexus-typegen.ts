@@ -28,7 +28,16 @@ export interface NexusGenScalars {
 }
 
 export interface NexusGenObjects {
+  Item: { // root type
+    id?: string | null; // String
+    name?: string | null; // String
+  }
   Query: {};
+  Storage: { // root type
+    id?: string | null; // String
+    items?: Array<NexusGenRootTypes['Item'] | null> | null; // [Item]
+    name?: string | null; // String
+  }
 }
 
 export interface NexusGenInterfaces {
@@ -42,14 +51,32 @@ export type NexusGenRootTypes = NexusGenObjects
 export type NexusGenAllTypes = NexusGenRootTypes & NexusGenScalars
 
 export interface NexusGenFieldTypes {
+  Item: { // field return type
+    id: string | null; // String
+    name: string | null; // String
+  }
   Query: { // field return type
     ok: boolean; // Boolean!
+  }
+  Storage: { // field return type
+    id: string | null; // String
+    items: Array<NexusGenRootTypes['Item'] | null> | null; // [Item]
+    name: string | null; // String
   }
 }
 
 export interface NexusGenFieldTypeNames {
+  Item: { // field return type name
+    id: 'String'
+    name: 'String'
+  }
   Query: { // field return type name
     ok: 'Boolean'
+  }
+  Storage: { // field return type name
+    id: 'String'
+    items: 'Item'
+    name: 'String'
   }
 }
 

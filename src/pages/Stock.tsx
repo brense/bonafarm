@@ -8,8 +8,8 @@ export default function Stock() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (value === 'adding' && pathname !== '/add') {
-      navigate('/add', { state: { referrer: pathname } })
+    if (value === 'adding' && pathname !== '/voorraad/add') {
+      navigate('/voorraad/add', { state: { referrer: pathname } })
       setValue(null)
     }
   }, [value, pathname, navigate])

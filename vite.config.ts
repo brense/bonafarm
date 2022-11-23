@@ -5,12 +5,10 @@ import apolloServerPlugin from 'vite-plugin-apollo-server'
 import mkcert from 'vite-plugin-mkcert'
 import { schema } from './src/_makeSchema'
 
-const { PORT = 3000 } = process.env
-
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    port: Number(PORT),
+    port: 3000,
     open: true
   },
   build: {
