@@ -3,6 +3,10 @@
     {
       "source": "/(api|graphql)/(.*)",
       "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
