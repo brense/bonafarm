@@ -3,12 +3,12 @@
 
 
 type Item {
-  id: String
+  amount: Float
   name: String
 }
 
 type Query {
-  ok: Boolean!
+  storages: [Storage]
 }
 
 type Storage {

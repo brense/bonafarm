@@ -6,8 +6,9 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app'
 dotenv.config()
 
 if (getApps().length === 0) {
-  const { FIREBASE_SERVICE_ACCOUNT = '' } = process.env
-  initializeApp({ credential: cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT)) })
+  const { FIREBASE_SERVICE_ACCOUNT = '{}' } = process.env
+  const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT)
+  serviceAccount.project_id && initializeApp({ credential: cert(serviceAccount) })
 }
 
 export const schema = makeNexusSchema({

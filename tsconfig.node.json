@@ -1,9 +1,17 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "composite": true,
     "module": "esnext",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["vite.config.ts", "api", "src/types", "src/makeSchema.ts", "src/_makeSchema.ts"]
+  "include": [
+    "vite.config.ts",
+    "api",
+    "src/types",
+    "src/makeSchema.ts",
+    "src/_makeSchema.ts"
+  ]
 }
