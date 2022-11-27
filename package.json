@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "vite --host",
+    "start": "vite",
     "build": "vite build",
     "codegen": "graphql-codegen",
     "storybook": "start-storybook -p 6006",
@@ -45,9 +45,11 @@
   "devDependencies": {
     "@babel/core": "^7.20.2",
     "@babel/eslint-parser": "^7.19.1",
-    "@graphql-codegen/cli": "^2.14.0",
+    "@graphql-codegen/cli": "^2.14.1",
     "@graphql-codegen/fragment-matcher": "^3.3.1",
     "@graphql-codegen/typescript": "^2.8.2",
+    "@graphql-codegen/typescript-operations": "^2.5.7",
+    "@graphql-codegen/typescript-react-apollo": "^3.3.7",
     "@storybook/addon-actions": "^6.5.12",
     "@storybook/addon-essentials": "^6.5.13",
     "@storybook/addon-interactions": "^6.5.13",
@@ -76,12 +78,16 @@
     "typescript": "^4.9.3",
     "vite": "^3.2.4",
     "vite-plugin-eslint": "^1.8.1",
+    "vite-plugin-graphql-codegen": "^2.3.1",
     "vite-plugin-mkcert": "^1.10.1"
   },
   "overrides": {
     "react-qr-reader": {
       "react": "$react",
       "react-dom": "$react-dom"
+    },
+    "vite-plugin-graphql": {
+      "vite": "$vite"
     }
   }
 }

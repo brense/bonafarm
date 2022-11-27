@@ -9,7 +9,7 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
 })
 
 export default function AddItem() {
-  const match = useMatch('/voorraad/add')
+  const match = useMatch('/stock/add')
   const { state } = useLocation()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>()

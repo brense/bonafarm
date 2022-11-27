@@ -1,0 +1,21 @@
+query Storages($storageId: String) {
+  storages(id: $storageId) {
+    id
+    title
+    order
+    canEmpty
+    items {
+      slug
+      title
+      amount
+    }
+    logs {
+      id
+      type
+      date
+      amount
+      slug
+      title
+    }
+  }
+}

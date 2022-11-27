@@ -1,20 +1,44 @@
 import { objectType } from 'nexus'
 import { getFirestore } from 'firebase-admin/firestore'
-import Item from './Item'
+import Log from './Log'
+import StockItem from './StockItem'
 
 const Storage = objectType({
+  nonNullDefaults: {
+    input: true,
+    output: true
+  },
   name: 'Storage',
   definition(t) {
     t.string('id')
-    t.string('name')
+    t.string('title')
+    t.int('order')
+    t.boolean('canEmpty')
     t.list.field('items', {
-      type: Item,
+      type: StockItem,
       resolve: async (root) => {
+        if (root.canEmpty) return []
         const firestore = getFirestore()
-        const docRefs = await firestore.collection(`storages/${root.id}/items`).listDocuments()
-        const snapshots = await firestore.getAll(...docRefs)
-        const items = snapshots.map(doc => ({ id: doc.id, ...doc.data() }))
-        return items
+        const snapshot = await firestore.collection(`storages/${root.id}/logs`).orderBy('date').get()
+        return snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() as { type: string, title: string, slug: string, amount: number } }))
+          .filter(d => d.type === 'mutation')
+          .reduce((arr, { title, slug, amount }) => {
+            if (slug) {
+              const index = arr.findIndex((d: any) => d.slug === slug)
+              index >= 0 ? (arr[index].amount += amount) : arr.push({ title, slug, amount })
+            }
+            return arr
+          }, [] as any[])
+      }
+    })
+    t.list.field('logs', {
+      type: Log,
+      resolve: async (root, _, ctx) => {
+        const firestore = getFirestore()
+        const q = firestore.collection(`storages/${root.id}/logs`).orderBy('date', 'desc')
+        const snapshot = await q.limit(ctx.allLogs ? 100 : 3).get()
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date.toDate().getTime() }))
       }
     })
   }

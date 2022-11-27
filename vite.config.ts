@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import eslint from 'vite-plugin-eslint'
 import apolloServerPlugin from 'vite-plugin-apollo-server'
 import mkcert from 'vite-plugin-mkcert'
+import codegen from 'vite-plugin-graphql-codegen'
 import { schema } from './src/_makeSchema'
 
 // https://vitejs.dev/config/
@@ -14,5 +15,5 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
-  plugins: [react(), eslint(), mkcert(), apolloServerPlugin({ schema })]
+  plugins: [react(), eslint(), mkcert(), codegen(), apolloServerPlugin({ schema })]
 })

@@ -2,17 +2,35 @@
 ### Do not make changes to this file directly
 
 
-type Item {
-  amount: Float
-  name: String
+type Log {
+  amount: Int
+  date: String!
+  id: String!
+  slug: String
+  title: String
+  type: LogType!
+}
+
+enum LogType {
+  emptied
+  mutation
 }
 
 type Query {
-  storages: [Storage]
+  storages(id: String): [Storage!]!
+}
+
+type StockItem {
+  amount: Int!
+  slug: String!
+  title: String!
 }
 
 type Storage {
-  id: String
-  items: [Item]
-  name: String
+  canEmpty: Boolean!
+  id: String!
+  items: [StockItem!]!
+  logs: [Log!]!
+  order: Int!
+  title: String!
 }
