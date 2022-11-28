@@ -16,7 +16,7 @@ export type Scalars = {
 };
 
 export type Log = {
-  amount?: Maybe<Scalars['Int']>;
+  amount?: Maybe<Scalars['Float']>;
   date: Scalars['String'];
   id: Scalars['String'];
   slug?: Maybe<Scalars['String']>;
@@ -24,10 +24,27 @@ export type Log = {
   type: LogType;
 };
 
+export type LogInput = {
+  amount?: InputMaybe<Scalars['Float']>;
+  slug?: InputMaybe<Scalars['String']>;
+  storageId: Scalars['String'];
+  title?: InputMaybe<Scalars['String']>;
+  type?: InputMaybe<LogType>;
+};
+
 export enum LogType {
   Emptied = 'emptied',
   Mutation = 'mutation'
 }
+
+export type Mutation = {
+  addLog?: Maybe<Scalars['String']>;
+};
+
+
+export type MutationAddLogArgs = {
+  item: LogInput;
+};
 
 export type Query = {
   storages: Array<Storage>;
@@ -39,7 +56,7 @@ export type QueryStoragesArgs = {
 };
 
 export type StockItem = {
-  amount: Scalars['Int'];
+  amount: Scalars['Float'];
   slug: Scalars['String'];
   title: Scalars['String'];
 };
@@ -53,6 +70,13 @@ export type Storage = {
   title: Scalars['String'];
 };
 
+export type AddLogMutationVariables = Exact<{
+  item: LogInput;
+}>;
+
+
+export type AddLogMutation = { addLog?: string | null };
+
 export type StoragesQueryVariables = Exact<{
   storageId?: InputMaybe<Scalars['String']>;
 }>;
@@ -61,6 +85,37 @@ export type StoragesQueryVariables = Exact<{
 export type StoragesQuery = { storages: Array<{ id: string, title: string, order: number, canEmpty: boolean, items: Array<{ slug: string, title: string, amount: number }>, logs: Array<{ id: string, type: LogType, date: string, amount?: number | null, slug?: string | null, title?: string | null }> }> };
 
 
+export const AddLogDocument = gql`
+    mutation AddLog($item: LogInput!) {
+  addLog(item: $item)
+}
+    `;
+export type AddLogMutationFn = Apollo.MutationFunction<AddLogMutation, AddLogMutationVariables>;
+
+/**
+ * __useAddLogMutation__
+ *
+ * To run a mutation, you first call `useAddLogMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useAddLogMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [addLogMutation, { data, loading, error }] = useAddLogMutation({
+ *   variables: {
+ *      item: // value for 'item'
+ *   },
+ * });
+ */
+export function useAddLogMutation(baseOptions?: Apollo.MutationHookOptions<AddLogMutation, AddLogMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<AddLogMutation, AddLogMutationVariables>(AddLogDocument, options);
+      }
+export type AddLogMutationHookResult = ReturnType<typeof useAddLogMutation>;
+export type AddLogMutationResult = Apollo.MutationResult<AddLogMutation>;
+export type AddLogMutationOptions = Apollo.BaseMutationOptions<AddLogMutation, AddLogMutationVariables>;
 export const StoragesDocument = gql`
     query Storages($storageId: String) {
   storages(id: $storageId) {

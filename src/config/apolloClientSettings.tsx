@@ -2,7 +2,7 @@ import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client'
 import React from 'react'
 
 const uri = `/api`
-const cache = new InMemoryCache()
+const cache = new InMemoryCache({ addTypename: false })
 
 const client = new ApolloClient({ uri, cache })
 

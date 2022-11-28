@@ -9,7 +9,7 @@ const StockItem = objectType({
   definition(t) {
     t.string('slug')
     t.string('title')
-    t.int('amount')
+    t.float('amount')
   }
 })
 

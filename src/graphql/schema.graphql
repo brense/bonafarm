@@ -3,7 +3,7 @@
 
 
 type Log {
-  amount: Int
+  amount: Float
   date: String!
   id: String!
   slug: String
@@ -11,9 +11,21 @@ type Log {
   type: LogType!
 }
 
+input LogInput {
+  amount: Float
+  slug: String
+  storageId: String!
+  title: String
+  type: LogType
+}
+
 enum LogType {
   emptied
   mutation
+}
+
+type Mutation {
+  addLog(item: LogInput!): String
 }
 
 type Query {
@@ -21,7 +33,7 @@ type Query {
 }
 
 type StockItem {
-  amount: Int!
+  amount: Float!
   slug: String!
   title: String!
 }
