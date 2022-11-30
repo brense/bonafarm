@@ -1,7 +1,7 @@
 import { IconButton, Box, Alert, Button, ButtonBaseProps, Card, Stack, CardHeader, Divider, Grid, ButtonBase, Typography, List, BottomNavigation, ListItem, ListItemText, ListItemSecondaryAction, BottomNavigationAction, Icon, Paper, Snackbar } from '@mui/material'
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useStoragesQuery, useAddLogMutation } from '../graphql'
+import { useStoragesQuery, useAddLogMutation, LogType } from '../graphql'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 moment.locale('nl')
@@ -13,12 +13,11 @@ function BigButton({ children, color, size = 'large', ...rest }: ButtonBaseProps
 }
 
 export default function Storage() {
-  const [value, setValue] = useState(null)
   const { pathname } = useLocation()
   const { storageId } = useParams<{ storageId?: string }>()
   const navigate = useNavigate()
   const { data } = useStoragesQuery({ variables: { storageId } })
-  const [addLog, result] = useAddLogMutation()
+  const [addLog] = useAddLogMutation()
   const storage = useMemo(() => data?.storages ? data.storages[0] : { items: [], logs: [], canEmpty: false }, [data])
   const [moveItem, setMoveItem] = useState<{ amount: number, slug: string, title: string } | null>(null)
 
@@ -34,12 +33,9 @@ export default function Storage() {
     setMoveItem(null)
   }, [moveItem])
 
-  useEffect(() => {
-    if (value === 'adding' && pathname !== '/stock/add') {
-      navigate('/stock/add', { state: { referrer: pathname } })
-      setValue(null)
-    }
-  }, [value, pathname, navigate])
+  const handleEmpty = useCallback(async () => {
+    storageId && await addLog({ variables: { item: { storageId, type: LogType.Emptied } }, refetchQueries: ['Storages'] })
+  }, [addLog, storageId])
 
   return <>
     {storage.items.length > 0 && <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>
@@ -64,9 +60,9 @@ export default function Storage() {
       </ListItem>)}
     </List>
     <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
-      <BottomNavigation showLabels={true} value={value} onChange={(e, v) => setValue(v === value ? null : v)}>
-        <BottomNavigationAction value="adding" label="Item toevoegen" icon={<Icon>add_circle</Icon>} />
-        {storage.canEmpty && <BottomNavigationAction value="editing" label="Leegmaken" icon={<Icon>cancel</Icon>} />}
+      <BottomNavigation showLabels={true}>
+        <BottomNavigationAction onClick={() => navigate('/stock/add', { state: { referrer: pathname } })} label="Item toevoegen" icon={<Icon>add_circle</Icon>} />
+        {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} />}
       </BottomNavigation>
     </Paper>
     <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 90, sm: 0 } }} onClose={() => setMoveItem(null)}>

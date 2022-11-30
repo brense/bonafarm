@@ -9,7 +9,7 @@ export default function CustomAppBar({ children, onBack, hideBackButton = false 
   return <>
     <AppBar position="absolute" sx={{bgcolor: 'primary.main'}}>
       <Toolbar sx={{ pr: 3, pl: hideBackButton ? 1.5 : 1 }} disableGutters>
-        {!hideBackButton ? <IconButton onClick={e => onBack ? onBack(e) : navigate('/')} sx={{ mr: 1 }}><Icon>chevron_left</Icon></IconButton> : <Icon fontSize="large" sx={{mr:1}}><img src="/favicon.svg" alt="De voer app" /></Icon>}
+        {!hideBackButton ? <IconButton onClick={e => onBack ? onBack(e) : navigate(-1)} sx={{ mr: 1 }}><Icon>chevron_left</Icon></IconButton> : <Icon fontSize="large" sx={{mr:1}}><img src="/favicon.svg" alt="De voer app" /></Icon>}
         <Typography variant="h5">{children || `De voer app`}</Typography>
       </Toolbar>
     </AppBar>
