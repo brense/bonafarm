@@ -1,14 +1,17 @@
 {
   "name": "De voer app",
   "short_name": "Voer app",
-  "start_url": "https://bonafarm-one.vercel.app/",
+  "url": "https://bonafarm-one.vercel.app/",
+  "manifestUrl": "https://bonafarm-one.vercel.app//manifest.json",
   "display": "standalone",
   "description": "Voer app voor kinderboerderij en waterspeeltuin Tanthof",
   "lang": "nl",
   "dir": "auto",
-  "theme_color": "#000000",
+  "theme_color": "#71E2F0",
   "background_color": "#000000",
-  "orientation": "any",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
   "icons": [
     {
       "src": "/manifest-icon-192.maskable.png",
@@ -45,8 +48,8 @@
   ],
   "shortcuts": [
     {
-      "name":"Voer app",
-      "url":"https://bonafarm-one.vercel.app/"
+      "name": "Voer app",
+      "url": "https://bonafarm-one.vercel.app/"
     }
   ]
 }
