@@ -1,8 +1,8 @@
 {
   "name": "De voer app",
   "short_name": "Voer app",
-  "url": "https://bonafarm-one.vercel.app/",
-  "manifestUrl": "https://bonafarm-one.vercel.app//manifest.json",
+  "url": "https://voer.rensebakker.nl/",
+  "manifestUrl": "https://voer.rensebakker.nl/manifest.json",
   "display": "standalone",
   "description": "Voer app voor kinderboerderij en waterspeeltuin Tanthof",
   "lang": "nl",
@@ -49,7 +49,7 @@
   "shortcuts": [
     {
       "name": "Voer app",
-      "url": "https://bonafarm-one.vercel.app/"
+      "url": "https://voer.rensebakker.nl/"
     }
   ]
 }
