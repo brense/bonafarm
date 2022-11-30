@@ -50,8 +50,8 @@ export default function Storage() {
           <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
             <BigButton color="error" onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
             <BigButton size="small" color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
-            <BigButton size="small" color="primary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
-            <BigButton color="primary" onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
+            <BigButton size="small" color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
+            <BigButton color="secondary" onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
           </Stack>
         </Card>
       </Grid>)}
@@ -60,7 +60,7 @@ export default function Storage() {
     <List disablePadding dense sx={{ maxWidth: 600, mb: 7 }}>
       {storage.logs.map(item => <ListItem key={item.id}>
         <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-        {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
+        {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
       </ListItem>)}
     </List>
     <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>

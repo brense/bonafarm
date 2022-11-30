@@ -7,7 +7,7 @@
   "description": "Voer app voor kinderboerderij en waterspeeltuin Tanthof",
   "lang": "nl",
   "dir": "auto",
-  "theme_color": "#71E2F0",
+  "theme_color": "#E91E63",
   "background_color": "#000000",
   "orientation": "portrait-primary",
   "scope": "/",

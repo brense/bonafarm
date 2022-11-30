@@ -25,7 +25,7 @@ export default function Stock() {
           {storage.logs.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent' }}>Laatste wijzigingen</ListSubheader>} disablePadding dense>
             {storage.logs.map(item => <ListItem key={item.id}>
               <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-              {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
+              {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
             </ListItem>)}
           </List>}
         </CardActionArea>
