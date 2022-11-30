@@ -1,4 +1,4 @@
-import { Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress } from '@mui/material'
+import { Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, CardMedia } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { useStoragesQuery } from '../graphql'
 import moment from 'moment'
@@ -18,6 +18,12 @@ export default function Stock() {
         <Card>
           <CardActionArea onClick={() => navigate(`/stock/${storage.id}`)}>
             <CardHeader title={storage.title} />
+            {storage.image && <CardMedia
+              component="img"
+              height="194"
+              image={storage.image}
+              alt={storage.title}
+            />}
             {storage.items.length > 0 && <Divider />}
             {storage.items.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent' }}>Inhoud</ListSubheader>} disablePadding>
               {storage.items.map(item => <ListItem key={item.slug}>

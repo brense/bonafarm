@@ -54,6 +54,7 @@ export interface NexusGenObjects {
   Storage: { // root type
     canEmpty: boolean; // Boolean!
     id: string; // String!
+    image?: string | null; // String
     order: number; // Int!
     title: string; // String!
   }
@@ -92,6 +93,7 @@ export interface NexusGenFieldTypes {
   Storage: { // field return type
     canEmpty: boolean; // Boolean!
     id: string; // String!
+    image: string | null; // String
     items: NexusGenRootTypes['StockItem'][]; // [StockItem!]!
     logs: NexusGenRootTypes['Log'][]; // [Log!]!
     order: number; // Int!
@@ -122,6 +124,7 @@ export interface NexusGenFieldTypeNames {
   Storage: { // field return type name
     canEmpty: 'Boolean'
     id: 'String'
+    image: 'String'
     items: 'StockItem'
     logs: 'Log'
     order: 'Int'

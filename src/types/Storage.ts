@@ -1,4 +1,4 @@
-import { objectType } from 'nexus'
+import { nullable, objectType } from 'nexus'
 import { getFirestore } from 'firebase-admin/firestore'
 import Log from './Log'
 import StockItem from './StockItem'
@@ -13,6 +13,7 @@ const Storage = objectType({
     t.string('id')
     t.string('title')
     t.int('order')
+    t.field('image', { type: nullable('String') })
     t.boolean('canEmpty')
     t.list.field('items', {
       type: StockItem,

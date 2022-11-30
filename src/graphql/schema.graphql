@@ -41,6 +41,7 @@ type StockItem {
 type Storage {
   canEmpty: Boolean!
   id: String!
+  image: String
   items: [StockItem!]!
   logs: [Log!]!
   order: Int!
