@@ -3,7 +3,7 @@ import { startServerAndCreateNextHandler } from '@as-integrations/next'
 import { schema } from '../src/_makeSchema'
 
 const server = new ApolloServer({
-  // csrfPrevention: true,
+  csrfPrevention: false,
   schema
 })
 
