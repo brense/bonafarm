@@ -10,7 +10,7 @@ const app = express()
 const httpServer = http.createServer(app)
 
 const server = new ApolloServer({
-  csrfPrevention: true,
+  csrfPrevention: false,
   schema,
   plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
 })
