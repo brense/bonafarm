@@ -1,10 +1,26 @@
+import http from 'http'
+import express from 'express'
 import { ApolloServer } from '@apollo/server'
-import { startServerAndCreateNextHandler } from '@as-integrations/next'
+import { expressMiddleware } from '@apollo/server/express4'
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
 import { schema } from '../src/_makeSchema'
 
+const app = express()
+const httpServer = http.createServer(app)
+
 const server = new ApolloServer({
-  csrfPrevention: false,
-  schema
+  csrfPrevention: true,
+  schema,
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
 })
 
-export default startServerAndCreateNextHandler(server)
+export default new Promise(async resolve => {
+  await server.start()
+  app.use(
+    '/api',
+    expressMiddleware(server, {
+      context: async ({ req }) => ({ token: req.headers.token }),
+    }),
+  )
+  resolve(httpServer)
+})
