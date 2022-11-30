@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useEffect } from 'react'
 import { Box, Button, DialogActions, DialogContent, Icon, Slide, TextField } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
-import { useLocation, useMatch, useNavigate } from 'react-router-dom'
+import { useMatch, useNavigate, useLocation } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
@@ -10,19 +10,25 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
 
 export default function AddItem() {
   const match = useMatch('/stock/add')
-  const { state } = useLocation()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>()
+  const { state } = useLocation()
 
   const handleClose = useCallback(() => {
-    navigate(state?.referrer ? state.referrer : '/')
-  }, [state, navigate])
+    navigate(-1)
+  }, [navigate])
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     console.log(e)
     handleClose()
   }, [handleClose])
+
+  useEffect(() => {
+    if (state?.item) {
+      console.log(state.item)
+    }
+  }, [state])
 
   useEffect(() => {
     if (Boolean(match)) {
