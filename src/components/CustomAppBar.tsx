@@ -10,7 +10,7 @@ export default function CustomAppBar({ children, onBack, hideBackButton = false 
     <AppBar position="absolute">
       <Toolbar sx={{ pr: 3, pl: hideBackButton ? 3 : 1 }} disableGutters>
         {!hideBackButton && <IconButton onClick={e => onBack ? onBack(e) : navigate('/')} sx={{ mr: 1 }}><Icon>chevron_left</Icon></IconButton>}
-        <Typography variant="h5">{children || `KiBo Tanthof voer app`}</Typography>
+        <Typography variant="h5">{children || `De voer app`}</Typography>
       </Toolbar>
     </AppBar>
     <Offset />

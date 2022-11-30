@@ -15,5 +15,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
-  plugins: [react(), eslint(), mkcert(), codegen(), apolloServerPlugin({ schema })]
+  plugins: [
+    react(),
+    eslint(),
+    mkcert(),
+    codegen(),
+    apolloServerPlugin({ schema })
+  ]
 })
