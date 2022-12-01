@@ -1,5 +1,5 @@
 import { Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, CardMedia } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useStoragesQuery } from '../graphql'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
@@ -8,6 +8,7 @@ import { useAppBarContext } from '../App'
 moment.locale('nl')
 
 export default function Stock() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { data, loading } = useStoragesQuery()
   useAppBarContext(() => ({ showLogo: false }))
@@ -15,7 +16,7 @@ export default function Stock() {
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>
     {data?.storages?.map(storage => <Grid key={storage.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
       <Card>
-        <CardActionArea onClick={() => navigate(`/stock/${storage.id}`)}>
+        <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })}>
           <CardHeader title={storage.title} />
           {storage.image && <CardMedia
             component="img"

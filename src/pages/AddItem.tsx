@@ -3,9 +3,10 @@ import { Autocomplete, Box, Button, createFilterOptions, DialogActions, DialogCo
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate, useLocation } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-import { useStoragesQuery } from '../graphql'
+import { useAddLogMutation, useStoragesQuery } from '../graphql'
 
-const filter = createFilterOptions<{ title: string, slug: string, inputValue?: string }>()
+const itemFilter = createFilterOptions<{ title: string, slug: string, inputValue?: string }>()
+const storageFilter = createFilterOptions<{ title: string, id: string, inputValue?: string }>()
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -16,7 +17,8 @@ export default function AddItem() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>()
   const { state } = useLocation()
-  const { data, loading } = useStoragesQuery()
+  const { data } = useStoragesQuery()
+  const [addLog] = useAddLogMutation()
   const itemOptions = useMemo(() => data?.storages.reduce((arr, storage) => {
     if (storage.items.length > 0) {
       storage.items.forEach(({ amount, ...item }) => {
@@ -26,25 +28,33 @@ export default function AddItem() {
     }
     return arr
   }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
-  const [name, setName] = useState<{ title: string, slug: string, inputValue?: string } | null>()
+  const storageOptions = useMemo<Array<{ id: string, title: string, inputValue?: string }>>(() => data?.storages.map(({ title, id }) => ({ title, id })) || [], [data])
+  const [item, setItem] = useState<{ title: string, slug: string, inputValue?: string } | null>()
+  const [storage, setStorage] = useState<{ title: string, id: string, inputValue?: string } | null>()
 
   const handleClose = useCallback(() => {
-    setName(null)
+    setItem(null)
+    setStorage(null)
     navigate(-1)
   }, [navigate])
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log(e)
+    const title = item?.inputValue || item?.title
+    const slug = item?.slug !== '' ? item?.slug : title?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
+    const amount = Math.abs(state?.item?.amount) || 1
+    storage?.id && await addLog({ variables: { item: { storageId: storage?.id, slug, title, amount } }, refetchQueries: ['Storages'] })
     handleClose()
-  }, [handleClose])
+  }, [handleClose, item, storage, state?.item, addLog])
 
   useEffect(() => {
     if (state?.item) {
-      console.log(state.item)
-      setName(state.item)
+      setItem(state.item)
+      setStorage(storageOptions.find(s => s.id === state.item.slug))
+    } else {
+      setStorage(storageOptions.find(s => s.id === match?.params.storageId))
     }
-  }, [state])
+  }, [state, match, storageOptions])
 
   useEffect(() => {
     if (Boolean(match)) {
@@ -56,14 +66,13 @@ export default function AddItem() {
     <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
         <Autocomplete
-          value={name || { title: '', slug: '' }}
+          value={item || { title: '', slug: '' }}
           onChange={(event, newValue) => {
-            console.log('on change', newValue)
+            setItem(newValue)
           }}
           isOptionEqualToValue={(opt, val) => opt.slug === val.slug}
           filterOptions={(options, params) => {
-            const filtered = filter(options, params)
-
+            const filtered = itemFilter(options, params)
             if (params.inputValue.length >= 3) {
               filtered.push({
                 inputValue: params.inputValue,
@@ -71,12 +80,10 @@ export default function AddItem() {
                 slug: ''
               })
             }
-
             return filtered
           }}
           options={itemOptions}
           getOptionLabel={(option) => {
-            // e.g value selected with enter, right from the input
             if (typeof option === 'string') {
               return option;
             }
@@ -92,11 +99,44 @@ export default function AddItem() {
           renderInput={(params) => <TextField {...params} variant="filled" margin="normal" label="Naam" inputRef={inputRef} />}
           fullWidth
         />
-        <TextField label="Locatie" variant="filled" margin="normal" fullWidth />
+        <Autocomplete
+          value={storage || { title: '', id: '' }}
+          onChange={(event, newValue) => {
+            setStorage(newValue)
+          }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterOptions={(options, params) => {
+            const filtered = storageFilter(options, params)
+            if (params.inputValue.length >= 3) {
+              filtered.push({
+                inputValue: params.inputValue,
+                title: `"${params.inputValue}" toevoegen`,
+                id: ''
+              })
+            }
+            return filtered
+          }}
+          options={storageOptions}
+          getOptionLabel={(option) => {
+            if (typeof option === 'string') {
+              return option;
+            }
+            if (option.inputValue) {
+              return option.inputValue
+            }
+            return option.title
+          }}
+          selectOnFocus
+          clearOnBlur
+          handleHomeEndKeys
+          renderOption={(props, option) => <li {...props}>{option.title}</li>}
+          renderInput={(params) => <TextField {...params} variant="filled" margin="normal" label="Opslag" />}
+          fullWidth
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Annuleren</Button>
-        <Button color="success" type="submit"><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
+        <Button color="success" type="submit" disabled={!item || !storage}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
       </DialogActions>
     </Box>
   </CustomDialog>
