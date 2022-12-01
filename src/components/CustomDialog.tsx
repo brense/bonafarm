@@ -8,7 +8,7 @@ export default function CustomDialog({ onClose, children, title, hideAppBar = fa
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   return <Dialog fullScreen={isMobile} {...props} onClose={onClose}>
-    {!hideAppBar && <AppBar onBack={e => onClose ? onClose(e, 'backdropClick') : navigate('/')} hideIcon={!isMobile} children={title} />}
+    {!hideAppBar && <AppBar onBack={e => onClose ? onClose(e, 'backdropClick') : navigate('/')} hideIcon={!isMobile} showLogo={false} children={title} />}
     {!hideAppBar && <Toolbar />}
     {children}
   </Dialog>

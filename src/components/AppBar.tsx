@@ -1,7 +1,7 @@
 import { AppBar as MuiAppBar, Toolbar, Typography, IconButton, Icon } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 
-export default function AppBar({ children, onBack, hideIcon = false, showLogo = false }: React.PropsWithChildren<{ onBack?: (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => any, hideIcon?: boolean, showLogo?: boolean }>) {
+export default function AppBar({ children, onBack, hideIcon = false, showLogo = true }: React.PropsWithChildren<{ onBack?: (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => any, hideIcon?: boolean, showLogo?: boolean }>) {
   const navigate = useNavigate()
 
   return <>
