@@ -16,7 +16,7 @@ function BigButton({ children, color, size = 'large', ...rest }: ButtonBaseProps
 
 export default function Storage() {
   const { pathname } = useLocation()
-  const { storageId } = useParams<{ storageId?: string }>()
+  const { storageId } = useParams<{ storageId: string }>()
   const navigate = useNavigate()
   const { data, loading } = useStoragesQuery({ variables: { storageId } })
   const [addLog] = useAddLogMutation()
@@ -31,9 +31,9 @@ export default function Storage() {
   }, [addLog, storageId])
 
   const handleMoveItem = useCallback(() => {
-    navigate('/stock/add', { state: { item: { ...moveItem } } })
+    navigate(`/stock/${storageId}/add`, { state: { item: { ...moveItem }, referer: `/stock/${storageId}` } })
     setMoveItem(null)
-  }, [moveItem, navigate])
+  }, [moveItem, storageId, navigate])
 
   const handleEmpty = useCallback(async () => {
     storageId && await addLog({ variables: { item: { storageId, type: LogType.Emptied } }, refetchQueries: ['Storages'] })
@@ -65,11 +65,11 @@ export default function Storage() {
       </List>
       <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
         <BottomNavigation showLabels={true}>
-          <BottomNavigationAction onClick={() => navigate('/stock/add', { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
+          <BottomNavigationAction onClick={() => navigate(`/stock/${storageId}/add`, { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
           {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} />}
         </BottomNavigation>
       </Paper>
-      <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 56, sm: 0 } }} onClose={() => setMoveItem(null)}>
+      <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 56, sm: 16 } }} onClose={() => setMoveItem(null)}>
         <Alert severity="info" sx={{ width: '100%' }} action={<Box display="flex" alignItems="center"><Button color="inherit" size="small" onClick={handleMoveItem}>Ja</Button><IconButton color="inherit" onClick={() => setMoveItem(null)}><Icon fontSize="small">close</Icon></IconButton></Box>}>
           Wil je deze voorraad verplaatsen?
         </Alert>

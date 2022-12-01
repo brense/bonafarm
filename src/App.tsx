@@ -19,7 +19,7 @@ export default function App() {
     <Offset />
     <Box sx={{ flex: 1, overflow: 'auto' }}>
       <React.Suspense fallback={<CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent>}>
-        <Routes>
+        <Routes location={location.state?.referrer || location.pathname}>
           <Route path="/" element={<Home />} />
           <Route path="/stock" element={<Stock />} />
           <Route path="/stock/:storageId" element={<Storage />} />

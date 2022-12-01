@@ -18,5 +18,3 @@ export const schema = makeNexusSchema({
     schema: path.resolve(__dirname, './graphql/schema.graphql')
   }
 })
-
-console.log('SCHEMA', schema)
