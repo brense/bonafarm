@@ -1,6 +1,6 @@
 import { Dialog, Toolbar, DialogProps, useTheme, useMediaQuery } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import CustomAppBar from './CustomAppBar'
+import AppBar from './AppBar'
 
 export default function CustomDialog({ onClose, children, title, hideAppBar = false, ...props }: DialogProps & { hideAppBar?: boolean }) {
   const navigate = useNavigate()
@@ -8,7 +8,7 @@ export default function CustomDialog({ onClose, children, title, hideAppBar = fa
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   return <Dialog fullScreen={isMobile} {...props} onClose={onClose}>
-    {!hideAppBar && <CustomAppBar onBack={e => onClose ? onClose(e, 'backdropClick') : navigate('/')} hideBackButton={!isMobile} children={title} />}
+    {!hideAppBar && <AppBar onBack={e => onClose ? onClose(e, 'backdropClick') : navigate('/')} hideIcon={!isMobile} children={title} />}
     {!hideAppBar && <Toolbar />}
     {children}
   </Dialog>

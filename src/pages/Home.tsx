@@ -4,18 +4,20 @@ import CardButtonWithIcon from '../components/CardButtonWithIcon'
 import QrReaderDialog from '../components/QrReaderDialog'
 import { useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
-import CustomAppBar from '../components/CustomAppBar'
+import { useAppBarContext } from '../App'
 
 export default function Home() {
   const [showScanner, setShowScanner] = useState(false)
   const navigate = useNavigate()
+
+  useAppBarContext(() => ({ showLogo: true }))
+
   const handleScannerClose = useCallback(() => {
     setShowScanner(false)
     window.location.href = `${window.location.protocol}//${window.location.host}/`
   }, [])
 
   return <>
-    <CustomAppBar hideBackButton />
     <CenteredContent>
       <Stack direction="column" gap={2}>
         <QrReaderDialog open={showScanner} onClose={handleScannerClose} />

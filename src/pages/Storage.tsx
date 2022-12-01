@@ -4,8 +4,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useStoragesQuery, useAddLogMutation, LogType } from '../graphql'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
-import CustomAppBar from '../components/CustomAppBar'
 import CenteredContent from '../components/CenteredContent'
+import { useAppBarContext } from '../App'
 moment.locale('nl')
 
 function BigButton({ children, color, size = 'large', ...rest }: ButtonBaseProps & { size?: 'large' | 'small' }) {
@@ -23,6 +23,8 @@ export default function Storage() {
   const storage = useMemo(() => data?.storages ? data.storages[0] : { title: null, items: [], logs: [], canEmpty: false }, [data])
   const [moveItem, setMoveItem] = useState<{ amount: number, slug: string, title: string } | null>(null)
 
+  useAppBarContext(() => ({ showLogo: false, children: storage?.title }), [storage])
+
   const handleMutation = useCallback(async (item: { amount: number, title: string, slug: string }) => {
     storageId && await addLog({ variables: { item: { storageId, ...item } }, refetchQueries: ['Storages'] })
     if (item.amount < 0) {
@@ -39,41 +41,38 @@ export default function Storage() {
     storageId && await addLog({ variables: { item: { storageId, type: LogType.Emptied } }, refetchQueries: ['Storages'] })
   }, [addLog, storageId])
 
-  return <>
-    {storage.title ? <CustomAppBar>{storage.title}</CustomAppBar> : <CustomAppBar />}
-    {loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <>
-      {storage.items.length > 0 && <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>
-        {storage.items.map(item => <Grid key={item.slug} item xs={12} sm={6} md={4} lg={3} xl={2}>
-          <Card>
-            <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount} stuks</Typography></Box>} disableTypography />
-            <Divider />
-            <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
-              <BigButton color="error" onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
-              <BigButton size="small" color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
-              <BigButton size="small" color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
-              <BigButton color="secondary" onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
-            </Stack>
-          </Card>
-        </Grid>)}
-      </Grid>}
-      {storage.logs.length > 0 && <Divider>Laatste wijzigingen</Divider>}
-      <List disablePadding dense sx={{ maxWidth: 600, mb: 7 }}>
-        {storage.logs.map(item => <ListItem key={item.id}>
-          <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-          {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
-        </ListItem>)}
-      </List>
-      <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
-        <BottomNavigation showLabels={true}>
-          <BottomNavigationAction onClick={() => navigate(`/stock/${storageId}/add`, { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
-          {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} />}
-        </BottomNavigation>
-      </Paper>
-      <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 56, sm: 16 } }} onClose={() => setMoveItem(null)}>
-        <Alert severity="info" sx={{ width: '100%' }} action={<Box display="flex" alignItems="center"><Button color="inherit" size="small" onClick={handleMoveItem}>Ja</Button><IconButton color="inherit" onClick={() => setMoveItem(null)}><Icon fontSize="small">close</Icon></IconButton></Box>}>
-          Wil je deze voorraad verplaatsen?
-        </Alert>
-      </Snackbar>
-    </>}
+  return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <>
+    {storage.items.length > 0 && <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>
+      {storage.items.map(item => <Grid key={item.slug} item xs={12} sm={6} md={4} lg={3} xl={2}>
+        <Card>
+          <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount} stuks</Typography></Box>} disableTypography />
+          <Divider />
+          <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
+            <BigButton color="error" onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
+            <BigButton size="small" color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
+            <BigButton size="small" color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
+            <BigButton color="secondary" onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
+          </Stack>
+        </Card>
+      </Grid>)}
+    </Grid>}
+    {storage.logs.length > 0 && <Divider>Laatste wijzigingen</Divider>}
+    <List disablePadding dense sx={{ maxWidth: 600, mb: 7 }}>
+      {storage.logs.map(item => <ListItem key={item.id}>
+        <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
+        {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
+      </ListItem>)}
+    </List>
+    <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
+      <BottomNavigation showLabels={true}>
+        <BottomNavigationAction onClick={() => navigate(`/stock/${storageId}/add`, { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
+        {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} />}
+      </BottomNavigation>
+    </Paper>
+    <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 56, sm: 16 } }} onClose={() => setMoveItem(null)}>
+      <Alert severity="info" sx={{ width: '100%' }} action={<Box display="flex" alignItems="center"><Button color="inherit" size="small" onClick={handleMoveItem}>Ja</Button><IconButton color="inherit" onClick={() => setMoveItem(null)}><Icon fontSize="small">close</Icon></IconButton></Box>}>
+        Wil je deze voorraad verplaatsen?
+      </Alert>
+    </Snackbar>
   </>
 }
