@@ -10,7 +10,7 @@ moment.locale('nl')
 export default function Stock() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { data, loading } = useStoragesQuery()
+  const { data, loading } = useStoragesQuery({ fetchPolicy: 'no-cache' })
   useAppBarContext(() => ({ showLogo: false }))
 
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>

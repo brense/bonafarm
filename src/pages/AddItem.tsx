@@ -17,7 +17,7 @@ export default function AddItem() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>()
   const { state } = useLocation()
-  const { data } = useStoragesQuery()
+  const { data } = useStoragesQuery({ fetchPolicy: 'no-cache' })
   const [addLog] = useAddLogMutation()
   const itemOptions = useMemo(() => data?.storages.reduce((arr, storage) => {
     if (storage.items.length > 0) {

@@ -18,7 +18,7 @@ export default function Storage() {
   const { pathname } = useLocation()
   const { storageId } = useParams<{ storageId: string }>()
   const navigate = useNavigate()
-  const { data, loading } = useStoragesQuery({ variables: { storageId } })
+  const { data, loading } = useStoragesQuery({ variables: { storageId }, fetchPolicy: 'no-cache' })
   const [addLog] = useAddLogMutation()
   const storage = useMemo(() => data?.storages ? data.storages[0] : { title: null, items: [], logs: [], canEmpty: false }, [data])
   const [moveItem, setMoveItem] = useState<{ amount: number, slug: string, title: string } | null>(null)
