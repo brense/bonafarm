@@ -56,7 +56,7 @@ export default function Storage() {
         </Card>
       </Grid>)}
     </Grid>}
-    {storage.logs.length > 0 && <Divider>Laatste wijzigingen</Divider>}
+    {storage.logs.length > 0 && storage.items.length > 0 && <Divider>Laatste wijzigingen</Divider>}
     <List disablePadding dense sx={{ maxWidth: 600, mb: 7 }}>
       {storage.logs.map(item => <ListItem key={item.id}>
         <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
