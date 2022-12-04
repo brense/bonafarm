@@ -63,6 +63,7 @@ export type StockItem = {
 
 export type Storage = {
   canEmpty: Scalars['Boolean'];
+  color?: Maybe<Scalars['String']>;
   id: Scalars['String'];
   image?: Maybe<Scalars['String']>;
   items: Array<StockItem>;
@@ -83,7 +84,7 @@ export type StoragesQueryVariables = Exact<{
 }>;
 
 
-export type StoragesQuery = { storages: Array<{ id: string, title: string, order: number, canEmpty: boolean, image?: string | null, items: Array<{ slug: string, title: string, amount: number }>, logs: Array<{ id: string, type: LogType, date: string, amount?: number | null, slug?: string | null, title?: string | null }> }> };
+export type StoragesQuery = { storages: Array<{ id: string, title: string, order: number, canEmpty: boolean, image?: string | null, color?: string | null, items: Array<{ slug: string, title: string, amount: number }>, logs: Array<{ id: string, type: LogType, date: string, amount?: number | null, slug?: string | null, title?: string | null }> }> };
 
 
 export const AddLogDocument = gql`
@@ -125,6 +126,7 @@ export const StoragesDocument = gql`
     order
     canEmpty
     image
+    color
     items {
       slug
       title

@@ -14,6 +14,7 @@ const Storage = objectType({
     t.string('title')
     t.int('order')
     t.field('image', { type: nullable('String') })
+    t.field('color', { type: nullable('String') })
     t.boolean('canEmpty')
     t.list.field('items', {
       type: StockItem,
@@ -31,6 +32,7 @@ const Storage = objectType({
             }
             return arr
           }, [] as any[])
+          .filter(item => item.amount > 0)
       }
     })
     t.list.field('logs', {

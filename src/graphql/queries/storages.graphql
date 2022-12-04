@@ -5,6 +5,7 @@ query Storages($storageId: String) {
     order
     canEmpty
     image
+    color
     items {
       slug
       title

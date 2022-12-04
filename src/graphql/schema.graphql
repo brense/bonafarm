@@ -40,6 +40,7 @@ type StockItem {
 
 type Storage {
   canEmpty: Boolean!
+  color: String
   id: String!
   image: String
   items: [StockItem!]!
