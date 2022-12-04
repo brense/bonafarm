@@ -76,7 +76,7 @@ export default function Storage() {
           <List disablePadding>
             <ListItem>
               {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography>}
-              <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} />
+              <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.title} />
             </ListItem>
           </List>
         </TimelineContent>
