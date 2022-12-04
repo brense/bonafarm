@@ -134,7 +134,7 @@ export default function AddItem() {
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Annuleren</Button>
+        <Button onClick={() => handleClose()}>Annuleren</Button>
         <Button color="success" type="submit" disabled={!item || !storage}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
       </DialogActions>
     </Box>
