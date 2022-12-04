@@ -19,7 +19,7 @@ export default function Storage() {
   const { storageId } = useParams<{ storageId: string }>()
   const navigate = useNavigate()
   const { data, loading } = useStoragesQuery({ variables: { storageId }, fetchPolicy: 'no-cache' })
-  const [addLog] = useAddLogMutation()
+  const [addLog, { loading: adding }] = useAddLogMutation()
   const storage = useMemo(() => data?.storages ? data.storages[0] : { title: null, items: [], logs: [], canEmpty: false }, [data])
   const [moveItem, setMoveItem] = useState<{ amount: number, slug: string, title: string } | null>(null)
 
@@ -48,10 +48,10 @@ export default function Storage() {
           <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount} stuks</Typography></Box>} disableTypography />
           <Divider />
           <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
-            <BigButton color="error" onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
-            <BigButton size="small" color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
-            <BigButton size="small" color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
-            <BigButton color="secondary" onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
+            <BigButton color="error" disabled={adding} onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
+            <BigButton size="small" color="error" disabled={adding} onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
+            <BigButton size="small" color="secondary" disabled={adding} onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
+            <BigButton color="secondary" disabled={adding} onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
           </Stack>
         </Card>
       </Grid>)}
