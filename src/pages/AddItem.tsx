@@ -20,9 +20,9 @@ export default function AddItem() {
   const { data } = useStoragesQuery({ fetchPolicy: 'no-cache' })
   const [addLog] = useAddLogMutation()
   const itemOptions = useMemo(() => data?.storages.reduce((arr, storage) => {
-    storage.logs.filter(l => l.slug && l.title).forEach(({ slug, title }: { slug: string, title: string }) => {
+    storage.logs.filter(l => l.slug && l.title).forEach(({ slug, title }) => {
       if (arr.find(a => a.slug === slug)) return
-      arr.push({ slug, title })
+      arr.push({ slug, title } as any)
     })
     return arr
   }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
