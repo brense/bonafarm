@@ -22,7 +22,7 @@ export default function Home() {
       <Stack direction="column" gap={2}>
         <QrReaderDialog open={showScanner} onClose={handleScannerClose} />
         <CardButtonWithIcon onClick={() => setShowScanner(true)} color="primary">
-          <Icon fontSize="large">qr_code</Icon>
+          <Icon fontSize="large">qr_code_scanner</Icon>
           <Typography variant="h6">Scan QR Code</Typography>
         </CardButtonWithIcon>
         <CardButtonWithIcon onClick={() => navigate('/stock')}>
