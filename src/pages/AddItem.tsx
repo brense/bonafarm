@@ -26,14 +26,14 @@ export default function AddItem() {
     })
     return arr
   }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
-  const storageOptions = useMemo<Array<{ id: string, title: string, inputValue?: string }>>(() => data?.storages.map(({ title, id }) => ({ title, id })) || [], [data])
+  const storageOptions = useMemo<Array<{ id: string, title: string, inputValue?: string }>>(() => data?.storages.map(({ title, id, canEmpty }) => ({ title: canEmpty ? `${title} koker` : title, id })) || [], [data])
   const [item, setItem] = useState<{ title: string, slug: string, inputValue?: string } | null>()
   const [storage, setStorage] = useState<{ title: string, id: string, inputValue?: string } | null>()
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback((goBack = true) => {
     setItem(null)
     setStorage(null)
-    navigate(-1)
+    goBack && navigate(-1)
   }, [navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -42,8 +42,9 @@ export default function AddItem() {
     const slug = item?.slug !== '' ? item?.slug : title?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
     const amount = Math.abs(state?.item?.amount) || 1
     storage?.id && await addLog({ variables: { item: { storageId: storage?.id, slug, title, amount } }, refetchQueries: ['Storages'] })
-    handleClose()
-  }, [handleClose, item, storage, state?.item, addLog])
+    handleClose(false)
+    navigate(`/stock/${storage?.id}`, { state: { goBack: '/stock' } })
+  }, [handleClose, item, storage, state?.item, addLog, navigate])
 
   useEffect(() => {
     if (state?.item) {
