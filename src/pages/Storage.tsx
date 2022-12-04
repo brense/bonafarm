@@ -1,4 +1,5 @@
 import { IconButton, Box, Alert, Button, ButtonBaseProps, Card, Stack, CardHeader, Divider, Grid, ButtonBase, Typography, List, BottomNavigation, ListItem, ListItemText, ListItemSecondaryAction, BottomNavigationAction, Icon, Paper, Snackbar, CircularProgress } from '@mui/material'
+import { Timeline, TimelineItem, TimelineOppositeContent, TimelineContent, TimelineSeparator, TimelineDot, TimelineConnector } from '@mui/lab'
 import { useState, useMemo, useCallback } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useStoragesQuery, useAddLogMutation, LogType } from '../graphql'
@@ -57,12 +58,31 @@ export default function Storage() {
       </Grid>)}
     </Grid>}
     {storage.logs.length > 0 && storage.items.length > 0 && <Divider>Laatste wijzigingen</Divider>}
-    <List disablePadding dense sx={{ maxWidth: 600, mb: 7 }}>
-      {storage.logs.map(item => <ListItem key={item.id}>
-        <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-        {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
-      </ListItem>)}
-    </List>
+    <Timeline>
+      {storage.logs.map(item => <TimelineItem key={item.id}>
+        <TimelineOppositeContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
+          <List disablePadding>
+            <ListItem sx={{ textAlign: 'inherit' }}>
+              <ListItemText primary={moment(Number(item.date)).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(Number(item.date)).fromNow()} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
+            </ListItem>
+          </List>
+        </TimelineOppositeContent>
+        <TimelineSeparator>
+          <TimelineConnector />
+          <TimelineDot variant={item.type === 'emptied' ? 'outlined' : 'filled'}>{item.type === 'emptied' && <Icon color="error">cancel</Icon>}</TimelineDot>
+          <TimelineConnector />
+        </TimelineSeparator>
+        <TimelineContent sx={{ display: 'flex', alignItems: 'center' }}>
+          <List disablePadding>
+            <ListItem>
+              {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography>}
+              <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} />
+            </ListItem>
+          </List>
+        </TimelineContent>
+      </TimelineItem>
+      )}
+    </Timeline>
     <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
       <BottomNavigation showLabels={true}>
         <BottomNavigationAction onClick={() => navigate(`/stock/${storageId}/add`, { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
