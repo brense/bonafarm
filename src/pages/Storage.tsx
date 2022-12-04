@@ -60,10 +60,10 @@ export default function Storage() {
     {storage.logs.length > 0 && storage.items.length > 0 && <Divider>Laatste wijzigingen</Divider>}
     <Timeline>
       {storage.logs.map(item => <TimelineItem key={item.id}>
-        <TimelineOppositeContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
+        <TimelineOppositeContent sx={{ width: 50, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
           <List disablePadding>
             <ListItem sx={{ textAlign: 'inherit' }}>
-              <ListItemText primary={moment(Number(item.date)).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(Number(item.date)).fromNow()} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
+              <ListItemText primary={moment(Number(item.date)).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(Number(item.date)).fromNow()} secondaryTypographyProps={{ noWrap: true }} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
             </ListItem>
           </List>
         </TimelineOppositeContent>
