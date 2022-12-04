@@ -72,7 +72,7 @@ export default function Storage() {
           <TimelineDot variant={item.type === 'emptied' ? 'outlined' : 'filled'}>{item.type === 'emptied' && <Icon color="error">cancel</Icon>}</TimelineDot>
           <TimelineConnector />
         </TimelineSeparator>
-        <TimelineContent sx={{ display: 'flex', alignItems: 'center' }}>
+        <TimelineContent sx={{ width: 50, display: 'flex', alignItems: 'center' }}>
           <List disablePadding>
             <ListItem>
               {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography>}
