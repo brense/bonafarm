@@ -62,7 +62,7 @@ export default function AddItem() {
   }, [match])
 
   return <CustomDialog title="Zak toevoegen" open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
-    <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }} onSubmit={handleSubmit}>
+    <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
         <Autocomplete
           value={item || { title: '', slug: '' }}
