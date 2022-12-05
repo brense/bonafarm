@@ -42,13 +42,13 @@ export default function Stock() {
             {storage.items.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Inhoud</ListSubheader>} disablePadding>
               {storage.items.map(item => <ListItem key={item.slug}>
                 <ListItemText primary={item.title} />
-                <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount} stuks</Typography></ListItemSecondaryAction>
+                <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
               </ListItem>)}
             </List>}
             {storage.logs.length > 0 && storage.canEmpty && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijzigingen</ListSubheader>} disablePadding dense>
               {storage.logs.map(item => <ListItem key={item.id}>
                 <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-                {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount}</Typography></ListItemSecondaryAction>}
+                {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography></ListItemSecondaryAction>}
               </ListItem>)}
             </List>}
             <Box sx={{ height: '100%', visibility: 'hidden' }} />
@@ -60,7 +60,7 @@ export default function Stock() {
       {perItem.map(item => <React.Fragment key={item.slug}>
         <ListItem>
           <ListItemText primary={<Typography>{item.title}</Typography>} secondary={<Stack direction="row" spacing={1}>{item.storages.map(storage => <Chip onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} size="small" label={storage.title} key={storage.id} sx={{ bgcolor: storage.color }} />)}</Stack>} disableTypography />
-          <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount} stuks</Typography></ListItemSecondaryAction>
+          <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
         </ListItem>
         <Divider component="li" />
       </React.Fragment>)}

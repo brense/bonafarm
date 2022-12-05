@@ -21,7 +21,7 @@ export default function StorageItem({ onMoveItem, item, storageId }: { storageId
   }, [addLog, storageId, onMoveItem])
 
   return <Card>
-    <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount} stuks</Typography></Box>} disableTypography />
+    <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount.toLocaleString()} stuks</Typography></Box>} disableTypography />
     <Divider />
     <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
       <BigButton color="error" disabled={adding} onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
