@@ -1,12 +1,10 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Autocomplete, Box, Button, createFilterOptions, DialogActions, DialogContent, Icon, Slide, TextField } from '@mui/material'
+import { Box, Button, DialogActions, DialogContent, Icon, Slide } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate, useLocation } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
 import { useAddLogMutation, useStoragesQuery } from '../graphql'
-
-const itemFilter = createFilterOptions<{ title: string, slug: string, inputValue?: string }>()
-const storageFilter = createFilterOptions<{ title: string, id: string, inputValue?: string }>()
+import CustomAutocomplete from '../components/CustomAutocomplete'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -64,73 +62,31 @@ export default function AddItem() {
   return <CustomDialog title="Zak toevoegen" open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
     <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
-        <Autocomplete
+        <CustomAutocomplete
+          label="Naam"
           value={item || { title: '', slug: '' }}
-          onChange={(event, newValue) => {
-            setItem(newValue)
-          }}
-          isOptionEqualToValue={(opt, val) => opt.slug === val.slug}
-          filterOptions={(options, params) => {
-            const filtered = itemFilter(options, params)
-            if (params.inputValue.length >= 3) {
-              filtered.push({
-                inputValue: params.inputValue,
-                title: `"${params.inputValue}" toevoegen`,
-                slug: ''
-              })
-            }
-            return filtered
-          }}
+          onChange={setItem}
           options={itemOptions}
-          getOptionLabel={(option) => {
-            if (typeof option === 'string') {
-              return option;
-            }
-            if (option.inputValue) {
-              return option.inputValue
-            }
-            return option.title
-          }}
-          selectOnFocus
-          clearOnBlur
-          handleHomeEndKeys
-          renderOption={(props, option) => <li {...props}>{option.title}</li>}
-          renderInput={(params) => <TextField {...params} variant="filled" margin="normal" label="Naam" inputRef={inputRef} />}
-          fullWidth
+          idKey="slug"
+          labelKey="title"
+          newOption={params => ({
+            title: `"${params.inputValue}" toevoegen`,
+            slug: ''
+          })}
+          margin="normal"
         />
-        <Autocomplete
+        <CustomAutocomplete
+          label="Opslag"
           value={storage || { title: '', id: '' }}
-          onChange={(event, newValue) => {
-            setStorage(newValue)
-          }}
-          isOptionEqualToValue={(opt, val) => opt.id === val.id}
-          filterOptions={(options, params) => {
-            const filtered = storageFilter(options, params)
-            if (params.inputValue.length >= 3) {
-              filtered.push({
-                inputValue: params.inputValue,
-                title: `"${params.inputValue}" toevoegen`,
-                id: ''
-              })
-            }
-            return filtered
-          }}
+          onChange={setStorage}
           options={storageOptions}
-          getOptionLabel={(option) => {
-            if (typeof option === 'string') {
-              return option;
-            }
-            if (option.inputValue) {
-              return option.inputValue
-            }
-            return option.title
-          }}
-          selectOnFocus
-          clearOnBlur
-          handleHomeEndKeys
-          renderOption={(props, option) => <li {...props}>{option.title}</li>}
-          renderInput={(params) => <TextField {...params} variant="filled" margin="normal" label="Opslag" />}
-          fullWidth
+          idKey="id"
+          labelKey="title"
+          newOption={params => ({
+            title: `"${params.inputValue}" toevoegen`,
+            id: ''
+          })}
+          margin="normal"
         />
       </DialogContent>
       <DialogActions>
