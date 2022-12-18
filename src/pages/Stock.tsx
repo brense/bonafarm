@@ -58,7 +58,7 @@ export default function Stock() {
     </Grid> :
     <List>
       {perItem.map(item => <React.Fragment key={item.slug}>
-        <ListItem>
+        <ListItem button onClick={() => navigate(`/feed/${item.slug}`, { state: { goBack: location.pathname } })}>
           <ListItemText primary={<Typography>{item.title}</Typography>} secondary={<Stack direction="row" spacing={1}>{item.storages.map(storage => <Chip onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} size="small" label={storage.title} key={storage.id} sx={{ bgcolor: storage.color }} />)}</Stack>} disableTypography />
           <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
         </ListItem>

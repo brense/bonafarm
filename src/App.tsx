@@ -3,6 +3,7 @@ import { Box, CircularProgress, styled } from '@mui/material'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import CenteredContent from './components/CenteredContent'
 import AppBar from './components/AppBar'
+import Feed from './pages/Feed'
 
 const Home = React.lazy(() => import('./pages/Home'))
 const Stock = React.lazy(() => import('./pages/Stock'))
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/stock" element={<Stock />} />
             <Route path="/stock/:storageId" element={<Storage />} />
+            <Route path="/feed/:feedSlug" element={<Feed />} />
           </Routes>
           <AddItem />
         </React.Suspense>
