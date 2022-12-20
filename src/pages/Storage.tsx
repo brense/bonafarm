@@ -20,7 +20,7 @@ export default function Storage() {
   useAppBarContext(() => ({ showLogo: false, children: storage?.title }), [storage])
 
   const handleMoveItem = useCallback((item: any) => {
-    navigate(`/stock/${storageId}/add`, { state: { item, wasMoved: true, referer: `/stock/${storageId}` } })
+    navigate(`/stock/${storageId}/add`, { state: { item, wasMoved: true, referrer: `/stock/${storageId}` } })
   }, [storageId, navigate])
 
   const handleMutation = useCallback(async (item: any) => {
