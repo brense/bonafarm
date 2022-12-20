@@ -1,6 +1,6 @@
-import { IconButton, Box, Alert, Button, Divider, Grid, BottomNavigation, BottomNavigationAction, Icon, Paper, Snackbar, CircularProgress } from '@mui/material'
+import { Divider, Grid, BottomNavigation, BottomNavigationAction, Icon, Paper, CircularProgress } from '@mui/material'
 import { Timeline } from '@mui/lab'
-import { useState, useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useStoragesQuery, useAddLogMutation, LogType } from '../graphql'
 import CenteredContent from '../components/CenteredContent'
@@ -15,23 +15,31 @@ export default function Storage() {
   const { data, loading } = useStoragesQuery({ variables: { storageId }, fetchPolicy: 'no-cache' })
   const [addLog] = useAddLogMutation()
   const storage = useMemo(() => data?.storages ? data.storages[0] : { title: null, items: [], logs: [], canEmpty: false }, [data])
-  const [moveItem, setMoveItem] = useState<{ amount: number, slug: string, title: string } | null>(null)
+  const [mutating, setMutating] = useState(false)
 
   useAppBarContext(() => ({ showLogo: false, children: storage?.title }), [storage])
 
-  const handleMoveItem = useCallback(() => {
-    navigate(`/stock/${storageId}/add`, { state: { item: { ...moveItem }, referer: `/stock/${storageId}` } })
-    setMoveItem(null)
-  }, [moveItem, storageId, navigate])
+  const handleMoveItem = useCallback((item: any) => {
+    navigate(`/stock/${storageId}/add`, { state: { item, wasMoved: true, referer: `/stock/${storageId}` } })
+  }, [storageId, navigate])
+
+  const handleMutation = useCallback(async (item: any) => {
+    storageId && await addLog({ variables: { item: { storageId, ...item } }, refetchQueries: ['Storages'] })
+    if (item.amount < 0) {
+      handleMoveItem(item)
+    }
+  }, [addLog, storageId, handleMoveItem])
 
   const handleEmpty = useCallback(async () => {
+    setMutating(true)
     storageId && await addLog({ variables: { item: { storageId, type: LogType.Emptied } }, refetchQueries: ['Storages'] })
+    setMutating(false)
   }, [addLog, storageId])
 
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <>
     {storage.items.length > 0 && <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>
       {storage.items.map(item => <Grid key={item.slug} item xs={12} sm={6} md={4} lg={3} xl={2}>
-        <StorageItem storageId={storageId} item={item} onMoveItem={setMoveItem} />
+        <StorageItem item={item} onMutateItem={handleMutation} />
       </Grid>)}
     </Grid>}
     {storage.logs.length > 0 && storage.items.length > 0 && <Divider>Laatste wijzigingen</Divider>}
@@ -42,13 +50,8 @@ export default function Storage() {
     <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
       <BottomNavigation showLabels={true}>
         <BottomNavigationAction onClick={() => navigate(`/stock/${storageId}/add`, { state: { referrer: pathname } })} label="Zak toevoegen" icon={<Icon>add_circle</Icon>} />
-        {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} />}
+        {storage.canEmpty && <BottomNavigationAction onClick={() => handleEmpty()} label="Koker leegmaken" icon={<Icon>cancel</Icon>} disabled={mutating} />}
       </BottomNavigation>
     </Paper>
-    <Snackbar open={Boolean(moveItem)} autoHideDuration={15000} sx={{ bottom: { xs: 56, sm: 16 } }} onClose={() => setMoveItem(null)}>
-      <Alert severity="info" sx={{ width: '100%' }} action={<Box display="flex" alignItems="center"><Button color="inherit" size="small" onClick={handleMoveItem}>Ja</Button><IconButton color="inherit" onClick={() => setMoveItem(null)}><Icon fontSize="small">close</Icon></IconButton></Box>}>
-        Wil je deze voorraad verplaatsen?
-      </Alert>
-    </Snackbar>
   </>
 }

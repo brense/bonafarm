@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, DialogActions, DialogContent, Icon, Slide } from '@mui/material'
+import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide, Typography } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate, useLocation } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
@@ -11,6 +11,7 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
 })
 
 export default function AddItem() {
+  const [adding, setAdding] = useState(false)
   const match = useMatch('/stock/:storageId/add')
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>()
@@ -29,12 +30,14 @@ export default function AddItem() {
   const [storage, setStorage] = useState<{ title: string, id: string, inputValue?: string } | null>()
 
   const handleClose = useCallback((goBack = true) => {
+    setAdding(false)
     setItem(null)
     setStorage(null)
     goBack && navigate(-1)
   }, [navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    setAdding(true)
     e.preventDefault()
     const title = item?.inputValue || item?.title
     const slug = item?.slug !== '' ? item?.slug : title?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
@@ -59,9 +62,10 @@ export default function AddItem() {
     }
   }, [match])
 
-  return <CustomDialog title="Zak toevoegen" open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
+  return <CustomDialog title={state?.wasMoved ? 'Zak verplaatsen' : 'Zak toevoegen'} open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
     <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
+        {state?.wasMoved && <Typography gutterBottom>Waar wil je de zak naartoe verplaatsen?</Typography>}
         <CustomAutocomplete
           label="Naam"
           value={item || { title: '', slug: '' }}
@@ -93,6 +97,7 @@ export default function AddItem() {
         <Button onClick={() => handleClose()}>Annuleren</Button>
         <Button color="success" type="submit" disabled={!item || !storage}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
       </DialogActions>
+      {adding && <LinearProgress variant="indeterminate" />}
     </Box>
   </CustomDialog>
 }

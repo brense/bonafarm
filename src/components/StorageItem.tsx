@@ -1,6 +1,5 @@
-import { Box, ButtonBase, ButtonBaseProps, Card, CardHeader, Divider, Stack, Typography } from '@mui/material'
-import { useCallback } from 'react'
-import { useAddLogMutation } from '../graphql'
+import { Box, ButtonBase, ButtonBaseProps, Card, CardHeader, Divider, LinearProgress, Stack, Typography } from '@mui/material'
+import { useCallback, useState } from 'react'
 
 type Item = { amount: number, slug: string, title: string }
 
@@ -10,24 +9,24 @@ function BigButton({ children, color, size = 'large', ...rest }: ButtonBaseProps
   </ButtonBase>
 }
 
-export default function StorageItem({ onMoveItem, item, storageId }: { storageId?: string, item: Item, onMoveItem: (item: Item) => void }) {
-  const [addLog, { loading: adding }] = useAddLogMutation()
+export default function StorageItem({ onMutateItem, item }: { item: Item, onMutateItem: (item: Item) => Promise<void> }) {
+  const [mutating, setMutating] = useState(false)
 
-  const handleMutation = useCallback(async (item: { amount: number, title: string, slug: string }) => {
-    storageId && await addLog({ variables: { item: { storageId, ...item } }, refetchQueries: ['Storages'] })
-    if (item.amount < 0) {
-      onMoveItem(item)
-    }
-  }, [addLog, storageId, onMoveItem])
+  const handleMutation = useCallback(async (item: Item) => {
+    setMutating(true)
+    await onMutateItem(item)
+    setMutating(false)
+  }, [onMutateItem])
 
   return <Card>
     <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.title}</Typography><Typography variant="subtitle2" noWrap>{item.amount.toLocaleString()} stuks</Typography></Box>} disableTypography />
     <Divider />
     <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
-      <BigButton color="error" disabled={adding} onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
-      <BigButton size="small" color="error" disabled={adding} onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
-      <BigButton size="small" color="secondary" disabled={adding} onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
-      <BigButton color="secondary" disabled={adding} onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
+      <BigButton color="error" disabled={mutating} onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
+      <BigButton size="small" disabled={mutating} color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
+      <BigButton size="small" disabled={mutating} color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
+      <BigButton color="secondary" disabled={mutating} onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
     </Stack>
+    {mutating && <LinearProgress variant="indeterminate" sx={{ mt: -0.5 }} />}
   </Card>
 }
