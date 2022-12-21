@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Autocomplete, AutocompleteProps, createFilterOptions, TextField, TextFieldProps } from '@mui/material'
 
-export default function CustomAutocomplete<T extends { [key: string]: any, inputValue?: string }>({ label, margin, inputRef, newOption, ...autocompleteProps }: Omit<AutocompleteProps<T, false, false, false>, 'onChange' | 'options' | 'renderInput'> & Pick<TextFieldProps, 'margin' | 'inputRef' | 'label'> & { newOption?: (params: { inputValue: string }) => Omit<T, 'inputValue'>, options: T[], idKey: keyof T, labelKey: keyof T, onChange?: (value: T | null) => void }) {
+export default function CustomAutocomplete<T extends { [key: string]: any, inputValue?: string }>({ label, margin, inputRef, helperText, newOption, ...autocompleteProps }: Omit<AutocompleteProps<T, false, false, false>, 'onChange' | 'options' | 'renderInput'> & Pick<TextFieldProps, 'margin' | 'inputRef' | 'label' | 'helperText'> & { newOption?: (params: { inputValue: string }) => Omit<T, 'inputValue'>, options: T[], idKey: keyof T, labelKey: keyof T, onChange?: (value: T | null) => void }) {
   const { onChange, labelKey, idKey, ...rest } = autocompleteProps
   const filter = useMemo(() => createFilterOptions<T>(), [])
 
@@ -25,13 +25,13 @@ export default function CustomAutocomplete<T extends { [key: string]: any, input
       if (option.inputValue) {
         return option.inputValue
       }
-      return option[labelKey] as string
+      return (rest.options.find(o => o[idKey] === option[idKey]) as any)[labelKey] as string
     }}
     selectOnFocus
     clearOnBlur
     handleHomeEndKeys
     renderOption={(props, option) => <li {...props}>{option[labelKey] as string}</li>}
-    renderInput={(params) => <TextField {...params} variant="filled" margin={margin} label={label} inputRef={inputRef} />}
+    renderInput={(params) => <TextField {...params} variant="filled" margin={margin} label={label} inputRef={inputRef} helperText={helperText} />}
     fullWidth
     {...rest}
   />

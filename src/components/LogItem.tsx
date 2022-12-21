@@ -21,7 +21,7 @@ export default function LogItem({ item }: { item: { type: 'emptied' | 'mutation'
     <TimelineContent sx={{ width: 50, display: 'flex', alignItems: 'center' }}>
       <List disablePadding>
         <ListItem>
-          {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'secondary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography>}
+          {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography>}
           <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.title} primaryTypographyProps={{ textAlign: 'left' }} />
         </ListItem>
       </List>

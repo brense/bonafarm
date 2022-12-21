@@ -5,8 +5,8 @@ import React from 'react'
 const theme = createTheme({
   palette: {
     mode: 'dark',
-    primary: pink,
-    secondary: lightBlue
+    primary: lightBlue,
+    secondary: pink
   }
 })
 

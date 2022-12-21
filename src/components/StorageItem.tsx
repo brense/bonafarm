@@ -24,8 +24,8 @@ export default function StorageItem({ onMutateItem, item }: { item: Item, onMuta
     <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
       <BigButton color="error" disabled={mutating} onClick={() => handleMutation({ ...item, amount: -1 })}>-1</BigButton>
       <BigButton size="small" disabled={mutating} color="error" onClick={() => handleMutation({ ...item, amount: -0.5 })}>-0,5</BigButton>
-      <BigButton size="small" disabled={mutating} color="secondary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
-      <BigButton color="secondary" disabled={mutating} onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
+      <BigButton size="small" disabled={mutating} color="primary" onClick={() => handleMutation({ ...item, amount: +0.5 })}>+0,5</BigButton>
+      <BigButton color="primary" disabled={mutating} onClick={() => handleMutation({ ...item, amount: +1 })}>+1</BigButton>
     </Stack>
     {mutating && <LinearProgress variant="indeterminate" sx={{ mt: -0.5 }} />}
   </Card>

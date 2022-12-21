@@ -4,9 +4,17 @@ import CardButtonWithIcon from '../components/CardButtonWithIcon'
 import QrReaderDialog from '../components/QrReaderDialog'
 import { useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
-import { useAppBarContext } from '../App'
 import CustomAutocomplete from '../components/CustomAutocomplete'
 import { useStoragesQuery } from '../graphql'
+
+import { getDatabase, ref, onValue } from 'firebase/database'
+
+const db = getDatabase()
+const starCountRef = ref(db, 'feed/')
+onValue(starCountRef, (snapshot) => {
+  const data = snapshot.val()
+  console.log(data)
+})
 
 export default function Home() {
   const [showScanner, setShowScanner] = useState(false)
@@ -19,8 +27,6 @@ export default function Home() {
     })
     return arr
   }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
-
-  useAppBarContext(() => ({ showLogo: true }))
 
   const handleScannerClose = useCallback(() => {
     setShowScanner(false)
@@ -35,7 +41,7 @@ export default function Home() {
     <CenteredContent>
       <Stack direction="column" gap={2}>
         <QrReaderDialog open={showScanner} onClose={handleScannerClose} />
-        <CardButtonWithIcon onClick={() => setShowScanner(true)} color="primary">
+        <CardButtonWithIcon onClick={() => setShowScanner(true)} color="secondary">
           <Icon fontSize="large">qr_code_scanner</Icon>
           <Typography variant="h6">Scan QR Code</Typography>
         </CardButtonWithIcon>
@@ -50,6 +56,8 @@ export default function Home() {
           options={itemOptions}
           idKey="slug"
           labelKey="title"
+          noOptionsText="Niets gevonden..."
+          open
         />
       </Stack>
     </CenteredContent>

@@ -4,7 +4,6 @@ import { useMemo, useCallback, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useStoragesQuery, useAddLogMutation, LogType } from '../graphql'
 import CenteredContent from '../components/CenteredContent'
-import { useAppBarContext } from '../App'
 import StorageItem from '../components/StorageItem'
 import LogItem from '../components/LogItem'
 
@@ -16,8 +15,6 @@ export default function Storage() {
   const [addLog] = useAddLogMutation()
   const storage = useMemo(() => data?.storages ? data.storages[0] : { title: null, items: [], logs: [], canEmpty: false }, [data])
   const [mutating, setMutating] = useState(false)
-
-  useAppBarContext(() => ({ showLogo: false, children: storage?.title }), [storage])
 
   const handleMoveItem = useCallback((item: any) => {
     navigate(`/stock/${storageId}/add`, { state: { item, wasMoved: true, referrer: `/stock/${storageId}` } })
