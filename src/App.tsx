@@ -5,6 +5,7 @@ import CenteredContent from './components/CenteredContent'
 import AddStorage from './pages/AddStorage'
 import AddFeed from './pages/AddFeed'
 import EditStorage from './pages/EditStorage'
+import AddItem from './pages/AddItem'
 
 const Stock = React.lazy(() => import('./pages/Stock'))
 
@@ -89,7 +90,7 @@ export default function App() {
           </Route>
         </Route> : <Route path="*" element={<Navigate to="/login" state={{ referrer: location.pathname }} replace />} />}
       </Routes>
-      {/** log item... [add/edit] */}
+      <AddItem />
       <AddStorage />
       <EditStorage />
       <AddFeed />

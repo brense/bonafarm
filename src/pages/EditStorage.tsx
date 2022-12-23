@@ -59,7 +59,7 @@ export default function EditStorage() {
     }
   }, [match])
 
-  return !storage ? null : <CustomDialog title={isEditing ? `${storage.name} bewerken` : `${storage.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)}>
+  return !storage ? null : <CustomDialog title={isEditing ? `${storage.name} bewerken` : `${storage.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton>
     <Collapse in={!isEditing}>
       <DialogContent>
         <Button onClick={() => navigate(`/stock/${storage.id}/add`, { state: { referrer: match?.pathname } })}>Zak toevoegen</Button>
