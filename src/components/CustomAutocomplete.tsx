@@ -25,7 +25,8 @@ export default function CustomAutocomplete<T extends { [key: string]: any, input
       if (option.inputValue) {
         return option.inputValue
       }
-      return (rest.options.find(o => o[idKey] === option[idKey]) as any)[labelKey] as string
+      const match = rest.options.find(o => o[idKey] === option[idKey])
+      return match ? (match[labelKey] as string) : option[labelKey]
     }}
     selectOnFocus
     clearOnBlur
