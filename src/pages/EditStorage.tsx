@@ -53,6 +53,10 @@ export default function EditStorage() {
     handleClose()
   }, [handleClose, changes])
 
+  const handleDelete = useCallback(() => {
+    // TODO: trigger confirm delete dialog
+  }, [])
+
   useEffect(() => {
     if (Boolean(match)) {
       inputRef.current?.focus()
@@ -67,7 +71,7 @@ export default function EditStorage() {
       <Typography>stuff...</Typography>
       <DialogActions>
         <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Bewerken</Button>
-        <Button color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
+        <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
       </DialogActions>
     </Collapse>
     <Collapse in={isEditing}>
