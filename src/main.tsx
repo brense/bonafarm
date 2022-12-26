@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase/app'
 import { ThemeProvider, ApolloClientProvider } from './config'
 import App from './App'
 import './index.css'
+import ConfirmDialogProvider from './components/ConfirmDialog'
 
 const rootContainer = document.getElementById('root')
 
@@ -17,7 +18,9 @@ root.render(<React.StrictMode>
   <ThemeProvider>
     <ApolloClientProvider>
       <BrowserRouter>
-        <App />
+        <ConfirmDialogProvider>
+          <App />
+        </ConfirmDialogProvider>
       </BrowserRouter>
     </ApolloClientProvider>
   </ThemeProvider>

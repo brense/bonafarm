@@ -7,6 +7,7 @@ import CustomDialog from '../components/CustomDialog'
 import { getDatabase, ref, update } from 'firebase/database'
 import StorageForm from '../components/forms/StorageForm'
 import { Storage, useStorages } from '../hooks/firebase'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -29,6 +30,7 @@ export default function EditStorage() {
   const { data: storages } = useStorages()
   const storage = useMemo(() => storages.find(s => s.id === match?.params.storageId), [match, storages])
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
+  const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
 
   useEffect(() => {
     storage && setChanges(storage)
@@ -54,8 +56,14 @@ export default function EditStorage() {
   }, [handleClose, changes])
 
   const handleDelete = useCallback(() => {
-    // TODO: trigger confirm delete dialog
-  }, [])
+    confirmDeleteDialog.open({
+      confirmMessage: 'Weet je zeker dat je deze opslag wilt verwijderen?',
+      onConfirm: () => {
+        // TODO: delete stuff
+        navigate('/stock')
+      }
+    })
+  }, [confirmDeleteDialog, navigate])
 
   useEffect(() => {
     if (Boolean(match)) {
