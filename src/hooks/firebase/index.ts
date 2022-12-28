@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app'
-import { getDatabase, onValue, ref } from 'firebase/database'
+import { getDatabase, onValue, ref, remove, set, update } from 'firebase/database'
 import { useEffect, useState } from 'react'
 
 const { VITE_FIREBASE_CONFIG = '{}' } = import.meta.env
@@ -18,6 +18,19 @@ export type Storage = {
   name: string
   color?: string
   canEmpty: boolean
+  items?: Record<string, { feedId: string, amount: number }>
+}
+
+export function setStorage(storageId: string, storage: Omit<Storage, 'id'>) {
+  return set(ref(db, 'storage/' + storageId), storage)
+}
+
+export function updateStorage(storageId: string, changes: Partial<Storage>) {
+  return update(ref(db, 'storage/' + storageId), changes)
+}
+
+export function removeStorage(storageId: string) {
+  return remove(ref(db, 'storage/' + storageId))
 }
 
 export function useStorages() {
@@ -43,6 +56,18 @@ export type Feed = {
   id: string
   name: string
   linkedStorageId?: string
+}
+
+export function setFeed(feedId: string, feed: Omit<Feed, 'id'>) {
+  return set(ref(db, 'feed/' + feedId), feed)
+}
+
+export function updateFeed(feedId: string, changes: Partial<Feed>) {
+  return update(ref(db, 'feed/' + feedId), changes)
+}
+
+export function removeFeed(feedId: string) {
+  return remove(ref(db, 'feed/' + feedId))
 }
 
 export function useFeed() {

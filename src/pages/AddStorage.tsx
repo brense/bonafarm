@@ -3,16 +3,14 @@ import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide 
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-
-import { getDatabase, ref, set } from 'firebase/database'
 import StorageForm from '../components/forms/StorageForm'
-import { Storage } from '../hooks/firebase'
+import { setStorage, Storage } from '../hooks/firebase'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
 
-const initialState:Storage = {
+const initialState: Storage = {
   name: '',
   id: '',
   color: '#fff000',
@@ -30,15 +28,14 @@ export default function AddStorage() {
   const handleClose = useCallback(() => {
     setAdding(false)
     setChanges(initialState)
-    navigate('/stock') // or stock/:storageId when editing
+    navigate('/stock')
   }, [navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     setAdding(true)
     e.preventDefault()
     const { id, color, canEmpty, ...data } = changes
-    const db = getDatabase()
-    set(ref(db, 'storage/' + changes.id), {
+    setStorage(changes.id, {
       ...data,
       canEmpty,
       ...canEmpty ? {} : { color }
