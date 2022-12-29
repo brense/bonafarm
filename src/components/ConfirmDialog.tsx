@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useContext } from 'react'
-import { Button, Dialog, DialogActions, DialogContent, useMediaQuery, useTheme } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent } from '@mui/material'
 
 type ContextState = {
   open: boolean
@@ -25,8 +25,6 @@ export function useConfirmDialog(state: Omit<ContextState, 'open' | 'onCancel' |
 }
 
 export default function ConfirmDialogProvider({ children }: React.PropsWithChildren<unknown>) {
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [context, setContext] = useState<ContextState>({ open: false, confirmMessage: '' })
   const handleCancel = useCallback(async () => {
     await (context.onCancel && context.onCancel())
@@ -38,7 +36,7 @@ export default function ConfirmDialogProvider({ children }: React.PropsWithChild
   }, [context, setContext])
   return <ConfirmDialogContext.Provider value={{ setContext }}>
     {children}
-    <Dialog open={context.open} fullScreen={isMobile}>
+    <Dialog open={context.open}>
       <DialogContent>{context.confirmMessage}</DialogContent>
       <DialogActions>
         <Button onClick={handleCancel} color="error">{context.cancelText || 'Annuleren'}</Button>

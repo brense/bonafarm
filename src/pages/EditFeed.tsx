@@ -54,7 +54,7 @@ export default function EditFeed() {
     }
   }, [match])
 
-  return !feed ? null : <CustomDialog title={isEditing ? `${feed.name} bewerken` : `${feed.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton>
+  return !feed ? null : <CustomDialog title={isEditing ? `${feed.name} bewerken` : `${feed.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton={!isMobile}>
     <Collapse in={!isEditing}>
       <Typography>Voer...</Typography>
       <DialogActions>
