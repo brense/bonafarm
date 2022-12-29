@@ -87,7 +87,8 @@ export default function App() {
           <Route path="feed" element={<OutletWithContext />}>
             <Route index element={<Stock />} />
             <Route path="add" element={<Stock />} />
-            <Route path=":feedId" element={<Stock />} />{/** move to dialog */}
+            <Route path=":feedId" element={<Stock />} />
+            <Route path=":feedId/edit" element={<Stock />} />
           </Route>
         </Route> : <Route path="*" element={<Navigate to="/login" state={{ referrer: location.pathname }} replace />} />}
       </Routes>
