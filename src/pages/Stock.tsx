@@ -17,11 +17,14 @@ function StorageItem({ storage }: { storage: Storage }) {
       amount: storage?.items ? storage?.items[feedId].amount : 0
     }
   }, []), [storage, feed])
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
   return <Card>
-    <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: 240, overflow: 'hidden' }}>
+    <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden' }}>
       <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{/*storage.image ? <img src={storage.image || ''} height={96} alt={storage.title} /> : */''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
       <Divider />
-      {!storage.canEmpty && items.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Inhoud</ListSubheader>} disablePadding dense>
+      {!storage.canEmpty && items.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Inhoud</ListSubheader>} dense>
         {items.map((item, k) => <ListItem key={item.feed?.id || k}>
           <ListItemText primary={item.feed?.name} />
           <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>

@@ -121,7 +121,7 @@ export default function EditStorage() {
       </Grid>
       <DialogActions>
         {storage.canEmpty && <Button onClick={handleEmpty} color="inherit"><Icon>cancel</Icon>&nbsp;&nbsp;Opslag leegmaken</Button>}
-        <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Ton bewerken</Button>
+        <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Bewerken</Button>
         <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
       </DialogActions>
     </Collapse>
