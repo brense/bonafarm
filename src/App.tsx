@@ -6,6 +6,7 @@ import AddStorage from './pages/AddStorage'
 import AddFeed from './pages/AddFeed'
 import EditStorage from './pages/EditStorage'
 import AddItem from './pages/AddItem'
+import EditFeed from './pages/EditFeed'
 
 const Stock = React.lazy(() => import('./pages/Stock'))
 
@@ -94,6 +95,7 @@ export default function App() {
       <AddStorage />
       <EditStorage />
       <AddFeed />
+      <EditFeed />
     </React.Suspense>
   </Box>
 }

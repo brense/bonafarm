@@ -1,12 +1,9 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide, TextField } from '@mui/material'
+import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-
-import { getDatabase, ref, set } from 'firebase/database'
-import CustomAutocomplete from '../components/CustomAutocomplete'
-import { Feed, useStorages } from '../hooks/firebase'
+import { Feed, setFeed } from '../hooks/firebase'
 import FeedForm from '../components/forms/FeedForm'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
@@ -37,10 +34,7 @@ export default function AddFeed() {
     setAdding(true)
     e.preventDefault()
     const { id, ...data } = changes
-    const db = getDatabase()
-    set(ref(db, 'feed/' + changes.id), {
-      ...data
-    })
+    await setFeed(id, data)
     handleClose()
   }, [handleClose, changes])
 

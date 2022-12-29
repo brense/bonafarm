@@ -5,7 +5,7 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
 import { useFeed, useStorages } from '../hooks/firebase'
 import CustomAutocomplete from '../components/CustomAutocomplete'
-import { child, getDatabase, push, ref, set, update } from 'firebase/database'
+import { getDatabase, ref, runTransaction, set } from 'firebase/database'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -40,10 +40,15 @@ export default function AddItem() {
     if (feed?.inputValue) {
       await set(ref(db, `/feed/${feedId}`), { name: feed.inputValue })
     }
-    const newKey = push(child(ref(db), `/storage/${match?.params.storageId}/items`)).key
-    await update(ref(db, `/storage/${match?.params.storageId}/items/${newKey}`), {
-      feedId,
-      amount
+    await runTransaction(ref(db, `/storage/${match?.params.storageId}/items/${feedId}`), (item) => {
+      if (item) {
+        item.amount += amount
+        return item
+      } else {
+        return {
+          amount
+        }
+      }
     })
     // TODO: create log item in firestore
     handleClose()

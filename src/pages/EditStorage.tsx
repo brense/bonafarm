@@ -7,17 +7,11 @@ import StorageForm from '../components/forms/StorageForm'
 import { Feed, removeStorage, Storage, updateStorage, useFeed, useStorages } from '../hooks/firebase'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import StorageItem from '../components/StorageItem'
-import { getDatabase, ref, remove, update } from 'firebase/database'
+import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
-
-type Item = {
-  itemId: string
-  feed?: Feed
-  amount: number
-}
 
 const initialState: Storage = {
   name: '',
@@ -36,12 +30,11 @@ export default function EditStorage() {
   const { data: storages } = useStorages()
   const { data: feed } = useFeed()
   const storage = useMemo(() => storages.find(s => s.id === match?.params.storageId), [match, storages])
-  const items = useMemo(() => Object.keys(storage?.items || {}).reduce((arr: Item[], key) => {
-    if (storage?.items && storage.items[key]) {
-      const index = arr.findIndex(item => storage?.items && item.feed?.id === storage?.items[key].feedId)
-      index >= 0 ? arr[index].amount += storage.items[key].amount : arr.push({ itemId: key, feed: feed.find(f => storage?.items && f.id === storage.items[key].feedId) as Feed, amount: storage.items[key].amount })
+  const items = useMemo(() => Object.keys(storage?.items || {}).map(feedId => {
+    return {
+      feed: feed.find(f => f.id === feedId),
+      amount: storage?.items ? storage?.items[feedId].amount : 0
     }
-    return arr
   }, []), [storage, feed])
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
@@ -52,18 +45,22 @@ export default function EditStorage() {
     storage && setChanges(storage)
   }, [storage])
 
-  const handleMutateItem = useCallback(async (item: Item, movedAmount: number) => {
+  const handleMutateItem = useCallback(async (item: { feed?: Feed, amount: number }, movedAmount: number) => {
     const db = getDatabase()
     if (item.amount === 0) {
-      await remove(ref(db, `storage/${storage?.id}/items/${item.itemId}`))
+      await remove(ref(db, `storage/${storage?.id}/items/${item.feed?.id}`))
     } else {
-      await update(ref(db, `storage/${storage?.id}/items/${item.itemId}`), { amount: item.amount })
+      await runTransaction(ref(db, `/storage/${match?.params.storageId}/items/${item.feed?.id}`), () => {
+        return {
+          amount: item.amount
+        }
+      })
     }
     // TODO: create log item in firestore...
     if (movedAmount < 0) {
       navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { feedId: item.feed?.id, amount: Math.abs(movedAmount) } } })
     }
-  }, [storage, navigate])
+  }, [storage?.id, match?.params.storageId, navigate])
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setSaving(false)
@@ -108,7 +105,7 @@ export default function EditStorage() {
   return !storage ? null : <CustomDialog title={isEditing ? `${storage.name} bewerken` : `${storage.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton>
     <Collapse in={!isEditing}>
       <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
-        {items.map((item) => <Grid key={item.itemId} item xs={12} sm={6}>
+        {items.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
           <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
         </Grid>)}
         <Grid item xs={12} sm={6}>

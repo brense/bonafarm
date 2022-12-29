@@ -18,7 +18,7 @@ export type Storage = {
   name: string
   color?: string
   canEmpty: boolean
-  items?: Record<string, { feedId: string, amount: number }>
+  items?: Record<string, { amount: number }>
 }
 
 export function setStorage(storageId: string, storage: Omit<Storage, 'id'>) {

@@ -7,29 +7,22 @@ import 'moment/dist/locale/nl'
 import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
 moment.locale('nl')
 
-type Item = {
-  itemId: string
-  feed?: Feed
-  amount: number
-}
-
 function StorageItem({ storage }: { storage: Storage }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { data: feed } = useFeed()
-  const items = useMemo(() => Object.keys(storage?.items || {}).reduce((arr: Item[], key) => {
-    if (storage?.items && storage.items[key]) {
-      const index = arr.findIndex(item => storage?.items && item.feed?.id === storage?.items[key].feedId)
-      index >= 0 ? arr[index].amount += storage.items[key].amount : arr.push({ itemId: key, feed: feed.find(f => storage?.items && f.id === storage.items[key].feedId) as Feed, amount: storage.items[key].amount })
+  const items = useMemo(() => Object.keys(storage?.items || {}).map(feedId => {
+    return {
+      feed: feed.find(f => f.id === feedId),
+      amount: storage?.items ? storage?.items[feedId].amount : 0
     }
-    return arr
   }, []), [storage, feed])
   return <Card>
     <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: 240, overflow: 'hidden' }}>
       <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{/*storage.image ? <img src={storage.image || ''} height={96} alt={storage.title} /> : */''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
       <Divider />
       {!storage.canEmpty && items.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Inhoud</ListSubheader>} disablePadding dense>
-        {items.map(item => <ListItem key={item.itemId}>
+        {items.map((item, k) => <ListItem key={item.feed?.id || k}>
           <ListItemText primary={item.feed?.name} />
           <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
         </ListItem>)}
@@ -60,7 +53,7 @@ function StockPerStorage() {
       <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
         <Card>
           <CardActionArea onClick={() => navigate('/stock/add', { state: { referrer: location.pathname } })}>
-            <CardContent sx={{ height: !isMobile ? 240: undefined, overflow: 'hidden', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: 'text.secondary' }}>
+            <CardContent sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: 'text.secondary' }}>
               <Icon fontSize="large" color="inherit">add_circle</Icon>
               <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Opslag toevoegen</Typography>
             </CardContent>
@@ -72,7 +65,12 @@ function StockPerStorage() {
 
 function StockPerFeed() {
   const { data: storages, loading: sLoading } = useStorages()
-  const { data: feeds, loading: fLoading } = useFeed()
+  const { data, loading: fLoading } = useFeed()
+  const feeds = useMemo(() => {
+    return data.map(f => ({ ...f, storages: storages.filter(s => s.items && s.items[f.id]) }))
+      .reduce((arr, f) => [...arr, { ...f, total: f.storages.reduce((total, s) => total += s.items ? s.items[f.id].amount : 0, 0) }], [] as Array<Feed & { storages: Storage[], total: number }>)
+      .sort((a, b) => a.name > b.name ? 1 : b.name > a.name ? -1 : 0)
+  }, [data, storages])
   const loading = useMemo(() => sLoading && fLoading, [sLoading, fLoading])
   const location = useLocation()
   const navigate = useNavigate()
@@ -82,10 +80,12 @@ function StockPerFeed() {
       {feeds.map(feed => <Grid key={feed.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
         <Card>
           <CardActionArea onClick={() => navigate(`/feed/${feed.id}`, { state: { referrer: location.pathname } })}>
-            <List disablePadding>
+            <List disablePadding sx={{ height: 76 }}>
               <ListItem>
-                <ListItemText primary={<Typography>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}><Chip onClick={(e) => { e.stopPropagation(); navigate(`/stock`) }} size="small" label="Ton Geel (2)" sx={{ bgcolor: '#999000' }} /></Stack>} disableTypography />
-                <ListItemSecondaryAction><Typography variant="subtitle2">2 stuks</Typography></ListItemSecondaryAction>
+                <ListItemText primary={<Typography>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}>
+                  {feed.storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name} (${storage.items && storage.items[feed.id].amount.toLocaleString()})`} sx={{ bgcolor: storage.color }} />)}
+                </Stack>} disableTypography />
+                <ListItemSecondaryAction><Typography variant="subtitle2">{feed.total} stuks</Typography></ListItemSecondaryAction>
               </ListItem>
             </List>
           </CardActionArea>
@@ -112,8 +112,8 @@ export default function Stock() {
   return <>{value === 'storage' ? <StockPerStorage /> : <StockPerFeed />}
     <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
       <BottomNavigation value={value} onChange={(e, v) => setValue(v)} showLabels={true} sx={{ bgcolor: 'rgba(0,0,0,0.6)' }}>
-        <BottomNavigationAction value="storage" label="Per opslag" icon={<Icon>grid_view</Icon>} />
-        <BottomNavigationAction value="item" label="Per voer type" icon={<Icon>view_list</Icon>} />
+        <BottomNavigationAction value="storage" label="Per opslag" icon={<Icon>inventory_2</Icon>} />
+        <BottomNavigationAction value="item" label="Per voer type" icon={<Icon>pets</Icon>} />
       </BottomNavigation>
     </Paper>
   </>
