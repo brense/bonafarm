@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
-import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide, Typography } from '@mui/material'
+import { Box, Button, DialogActions, DialogContent, FormControl, FormLabel, Icon, LinearProgress, Slide, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
@@ -23,41 +23,42 @@ export default function AddItem() {
   const storageInputRef = useRef<HTMLInputElement>()
   const [feed, setFeed] = useState<{ name: string, id: string, inputValue?: string } | null>()
   const [storage, setStorage] = useState<{ name: string, id: string, inputValue?: string } | null>()
-  const [amount, setAmount] = useState(1) // TODO: create input field for amount...
+  const [preSelectedAmount, setPreSelectedAmount] = useState(null)
   const [saving, setSaving] = useState(false)
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setStorage(null)
     setFeed(null)
+    setPreSelectedAmount(null)
     setSaving(false)
     navigate(!reason ? `/stock/${match?.params.storageId}` : '/stock')
   }, [navigate, match])
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = useCallback(async (evt: React.FormEvent, amount?: number) => {
+    evt.preventDefault()
     setSaving(true)
     const feedId = feed?.id || feed?.inputValue?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
     if (feed?.inputValue) {
       await set(ref(db, `/feed/${feedId}`), { name: feed.inputValue })
     }
-    await runTransaction(ref(db, `/storage/${match?.params.storageId}/items/${feedId}`), (item) => {
+    await runTransaction(ref(db, `/storage/${storage?.id}/items/${feedId}`), (item) => {
       if (item) {
-        item.amount += amount
+        item.amount += amount ?? preSelectedAmount
         return item
       } else {
         return {
-          amount
+          amount: amount ?? preSelectedAmount
         }
       }
     })
     // TODO: create log item in firestore
     handleClose()
-  }, [handleClose, match, feed, amount])
+  }, [handleClose, feed, storage, preSelectedAmount])
 
   useEffect(() => {
     if (location.state?.movedItem) {
       setFeed(feeds.find(f => f.id === location.state.movedItem.feedId))
-      setAmount(location.state.movedItem.amount)
+      setPreSelectedAmount(location.state.movedItem.amount)
       if (location.state.movedItem.linkedStorageId) {
         setStorage(storages.find(s => s.id === location.state.movedItem.linkedStorageId) || null)
       }
@@ -100,6 +101,23 @@ export default function AddItem() {
           margin="normal"
           inputRef={storageInputRef}
         />
+        {!preSelectedAmount && <FormControl fullWidth margin="normal">
+          <FormLabel filled>Aantal</FormLabel>
+          <ToggleButtonGroup
+            exclusive
+            onChange={(e, v) => handleSubmit(e, v)}
+            fullWidth
+            disabled={!storage || !feed}
+            color="primary"
+            size="large"
+          >
+            <ToggleButton value={0.5} size="small">+0,5</ToggleButton>
+            <ToggleButton value={1}>+1</ToggleButton>
+            <ToggleButton value={2}>+2</ToggleButton>
+            <ToggleButton value={3}>+3</ToggleButton>
+            <ToggleButton value={4}>+4</ToggleButton>
+          </ToggleButtonGroup>
+        </FormControl>}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => handleClose()}>Annuleren</Button>

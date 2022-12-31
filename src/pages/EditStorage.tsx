@@ -16,6 +16,7 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
 const initialState: Storage = {
   name: '',
   id: '',
+  order: 0,
   color: '#fff000',
   canEmpty: false
 }

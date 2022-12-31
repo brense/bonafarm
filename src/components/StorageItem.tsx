@@ -1,12 +1,7 @@
-import { Box, ButtonBase, ButtonBaseProps, Card, CardHeader, Divider, LinearProgress, Stack, Typography } from '@mui/material'
+import { Box, Card, CardHeader, Divider, LinearProgress, Stack, Typography } from '@mui/material'
 import { useCallback, useState } from 'react'
 import { Feed } from '../hooks/firebase'
-
-function BigButton({ children, color, size = 'large', ...rest }: ButtonBaseProps & { size?: 'large' | 'small' }) {
-  return <ButtonBase {...rest} sx={{ flex: 1, py: size === 'large' ? 2 : 2.6, px: size === 'large' ? 1 : 0 }}>
-    <Typography variant={size === 'large' ? 'h6' : 'subtitle2'} color={color}>{children}</Typography>
-  </ButtonBase>
-}
+import BigButton from './BigButton'
 
 export default function StorageItem({ onMutate, item }: { item: { feed?: Feed, amount: number }, onMutate: (amount: number, movedAmount: number) => Promise<void> }) {
   const [mutating, setMutating] = useState(false)

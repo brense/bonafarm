@@ -18,6 +18,7 @@ export type Storage = {
   name: string
   color?: string
   canEmpty: boolean
+  order: number
   items?: Record<string, { amount: number }>
 }
 
@@ -39,7 +40,9 @@ export function useStorages() {
   useEffect(() => {
     const unsubscribe = onValue(storageRef, (snapshot) => {
       const data = snapshot.val()
-      setStorages(Object.keys(data).map((id) => ({ ...data[id], id })))
+      setStorages(Object.keys(data)
+        .map((id) => ({ ...data[id], id }))
+        .sort((a: { order: number }, b: { order: number }) => a.order > b.order ? 1 : b.order > a.order ? -1 : 0))
       setLoading(false)
     })
     return () => unsubscribe()
