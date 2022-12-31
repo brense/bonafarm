@@ -115,7 +115,6 @@ export default function AddItem() {
             <ToggleButton value={1}>+1</ToggleButton>
             <ToggleButton value={2}>+2</ToggleButton>
             <ToggleButton value={3}>+3</ToggleButton>
-            <ToggleButton value={4}>+4</ToggleButton>
           </ToggleButtonGroup>
         </FormControl>}
       </DialogContent>
