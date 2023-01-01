@@ -5,7 +5,35 @@ import CenteredContent from '../components/CenteredContent'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
+import { Log, MutationLog, useLogs } from '../hooks/firestore'
 moment.locale('nl')
+
+function isMutationLog(logItem: Log | MutationLog): logItem is MutationLog {
+  return logItem.type === 'mutation'
+}
+
+function StorageItemWithLogs({ storage }: { storage: Storage }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { data: feed } = useFeed()
+  const logs = useLogs({ key: 'storageId', value: storage.id })
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+  return <Card>
+    <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden' }}>
+      <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{/*storage.image ? <img src={storage.image || ''} height={96} alt={storage.title} /> : */''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
+      <Divider />
+      {logs.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijzigingen</ListSubheader>} disablePadding dense>
+        {logs.map(item => <ListItem key={item.id}>
+          <ListItemText primary={!isMutationLog(item) ? 'Leeg gemaakt' : feed.find(f => f.id === item.feedId)?.name} secondary={moment(Number(item.date)).fromNow()} />
+          {isMutationLog(item) && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography></ListItemSecondaryAction>}
+        </ListItem>)}
+      </List>}
+      <Box sx={{ height: '100%', visibility: 'hidden' }} />
+    </CardActionArea>
+  </Card>
+}
 
 function StorageItem({ storage }: { storage: Storage }) {
   const location = useLocation()
@@ -30,12 +58,6 @@ function StorageItem({ storage }: { storage: Storage }) {
           <ListItemSecondaryAction><Typography variant="subtitle2">{item.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
         </ListItem>)}
       </List>}
-      {/*storage.logs.length > 0 && storage.canEmpty && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijzigingen</ListSubheader>} disablePadding dense>
-    {storage.logs.map(item => <ListItem key={item.id}>
-      <ListItemText primary={item.type === 'emptied' ? 'Leeg gemaakt' : item.title} secondary={moment(Number(item.date)).fromNow()} />
-      {item.type === 'mutation' && item.amount && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography></ListItemSecondaryAction>}
-    </ListItem>)}
-    </List>*/}
       <Box sx={{ height: '100%', visibility: 'hidden' }} />
     </CardActionArea>
   </Card>
@@ -51,7 +73,7 @@ function StockPerStorage() {
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> :
     <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
       {storages.map(storage => <Grid key={storage.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
-        <StorageItem storage={storage} />
+        {storage.canEmpty ? <StorageItemWithLogs storage={storage} /> : <StorageItem storage={storage} />}
       </Grid>)}
       <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
         <Card>
