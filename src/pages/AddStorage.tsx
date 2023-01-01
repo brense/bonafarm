@@ -14,7 +14,8 @@ const initialState: Storage = {
   name: '',
   id: '',
   color: '#fff000',
-  canEmpty: false
+  canEmpty: false,
+  order: 0
 }
 
 export default function AddStorage() {

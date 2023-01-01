@@ -8,6 +8,7 @@ import { Feed, removeStorage, Storage, updateStorage, useFeed, useStorages } fro
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import StorageItem from '../components/StorageItem'
 import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
+import { addLog } from '../hooks/firestore'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -48,20 +49,27 @@ export default function EditStorage() {
 
   const handleMutateItem = useCallback(async (item: { feed?: Feed, amount: number }, movedAmount: number) => {
     const db = getDatabase()
-    if (item.amount === 0) {
-      await remove(ref(db, `storage/${storage?.id}/items/${item.feed?.id}`))
-    } else {
-      await runTransaction(ref(db, `/storage/${match?.params.storageId}/items/${item.feed?.id}`), () => {
-        return {
-          amount: item.amount
-        }
+    if (storage?.id && item.feed) {
+      if (item.amount === 0) {
+        await remove(ref(db, `storage/${storage?.id}/items/${item.feed?.id}`))
+      } else {
+        await runTransaction(ref(db, `/storage/${storage?.id}/items/${item.feed?.id}`), () => {
+          return {
+            amount: item.amount
+          }
+        })
+      }
+      await addLog({
+        type: 'mutation',
+        storageId: storage?.id,
+        feedId: item.feed?.id,
+        amount: movedAmount
       })
     }
-    // TODO: create log item in firestore...
     if (movedAmount < 0) {
       navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { feedId: item.feed?.id, amount: Math.abs(movedAmount) } } })
     }
-  }, [storage?.id, match?.params.storageId, navigate])
+  }, [storage?.id, navigate])
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setSaving(false)
@@ -93,8 +101,13 @@ export default function EditStorage() {
 
   const handleEmpty = useCallback(() => {
     const db = getDatabase()
-    remove(ref(db, `storage/${storage?.id}/items`))
-    // TODO: add log item to firestore
+    if (storage?.id) {
+      remove(ref(db, `storage/${storage?.id}/items`))
+      addLog({
+        type: 'emptied',
+        storageId: storage.id
+      })
+    }
   }, [storage])
 
   useEffect(() => {

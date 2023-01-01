@@ -6,6 +6,7 @@ import CustomDialog from '../components/CustomDialog'
 import { useFeed, useStorages } from '../hooks/firebase'
 import CustomAutocomplete from '../components/CustomAutocomplete'
 import { getDatabase, ref, runTransaction, set } from 'firebase/database'
+import { addLog } from '../hooks/firestore'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -41,17 +42,24 @@ export default function AddItem() {
     if (feed?.inputValue) {
       await set(ref(db, `/feed/${feedId}`), { name: feed.inputValue })
     }
-    await runTransaction(ref(db, `/storage/${storage?.id}/items/${feedId}`), (item) => {
-      if (item) {
-        item.amount += amount ?? preSelectedAmount
-        return item
-      } else {
-        return {
-          amount: amount ?? preSelectedAmount
+    if (feedId && storage?.id) {
+      await runTransaction(ref(db, `/storage/${storage?.id}/items/${feedId}`), (item) => {
+        if (item) {
+          item.amount += amount ?? preSelectedAmount ?? 0
+          return item
+        } else {
+          return {
+            amount: amount ?? preSelectedAmount ?? 0
+          }
         }
-      }
-    })
-    // TODO: create log item in firestore
+      })
+      await addLog({
+        type: 'mutation',
+        storageId: storage?.id,
+        feedId,
+        amount: amount ?? preSelectedAmount ?? 0
+      })
+    }
     handleClose()
   }, [handleClose, feed, storage, preSelectedAmount])
 
