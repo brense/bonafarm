@@ -40,6 +40,7 @@ export default function EditStorage() {
   }, []), [storage, feed])
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
+  const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -100,15 +101,18 @@ export default function EditStorage() {
   }, [confirmDeleteDialog, navigate, storage])
 
   const handleEmpty = useCallback(() => {
-    const db = getDatabase()
-    if (storage?.id) {
-      remove(ref(db, `storage/${storage?.id}/items`))
-      addLog({
-        type: 'emptied',
-        storageId: storage.id
-      })
-    }
-  }, [storage])
+    confirmEmptyDialog.open({
+      confirmMessage: 'Weet je zeker dat je deze opslag wilt leegmaken?',
+      onConfirm: async () => {
+        const db = getDatabase()
+        remove(ref(db, `storage/${storage?.id}/items`))
+        addLog({
+          type: 'emptied',
+          storageId: storage?.id || ''
+        })
+      }
+    })
+  }, [storage, confirmEmptyDialog])
 
   useEffect(() => {
     if (Boolean(match)) {
