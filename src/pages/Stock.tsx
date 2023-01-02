@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Stack, Chip, Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, Avatar, Box, BottomNavigation, Paper, BottomNavigationAction, Icon, ButtonBase, CardContent, useTheme, useMediaQuery, ListItemIcon } from '@mui/material'
+import { Stack, Chip, Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, Avatar, Box, BottomNavigation, Paper, BottomNavigationAction, Icon, ButtonBase, CardContent, useTheme, useMediaQuery, ListItemIcon, IconButton } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
 import moment from 'moment'
@@ -104,20 +104,20 @@ function StockPerFeed() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // TODO: show search field on mobile?
+
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> :
     <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
       {feeds.map(feed => <Grid key={feed.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
         <Card>
-          <CardActionArea onClick={() => navigate(`/feed/${feed.id}/edit`, { state: { referrer: location.pathname } })}>
-            <List disablePadding sx={{ height: 76 }}>
-              <ListItem>
-                <ListItemText primary={<Typography>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}>
-                  {feed.storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name} (${storage.items && storage.items[feed.id].amount.toLocaleString()})`} sx={{ bgcolor: storage.color }} />)}
-                </Stack>} disableTypography />
-                <ListItemSecondaryAction><Typography variant="subtitle2">{feed.total} stuks</Typography></ListItemSecondaryAction>
-              </ListItem>
-            </List>
-          </CardActionArea>
+          <List disablePadding sx={{ height: 106 }}>
+            <ListItem>
+              <ListItemText primary={<Typography gutterBottom>{feed.name}&nbsp;&nbsp;<IconButton onClick={() => navigate(`/feed/${feed.id}/edit`, { state: { referrer: location.pathname } })} size="small"><Icon fontSize="small" color="primary">create</Icon></IconButton></Typography>} secondary={<Stack direction="row" spacing={1}>
+                {feed.storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name} (${storage.items && storage.items[feed.id].amount.toLocaleString()})`} sx={{ bgcolor: storage.color }} />)}
+              </Stack>} disableTypography />
+              <ListItemSecondaryAction><Typography variant="subtitle2">{feed.total.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
+            </ListItem>
+          </List>
         </Card>
       </Grid>)}
       <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
