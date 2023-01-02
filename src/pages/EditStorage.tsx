@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, Card, CardActionArea, CardContent, Collapse, DialogActions, DialogContent, Grid, Icon, LinearProgress, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
+import { Box, Button, Card, CardActionArea, CardContent, Collapse, DialogActions, DialogContent, Divider, Grid, Icon, LinearProgress, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
@@ -8,7 +8,9 @@ import { Feed, removeStorage, Storage, updateStorage, useFeed, useStorages } fro
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import StorageItem from '../components/StorageItem'
 import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
-import { addLog } from '../hooks/firestore'
+import { addLog, isMutationLog, useLogs } from '../hooks/firestore'
+import { Timeline } from '@mui/lab'
+import LogItem from '../components/LogItem'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -38,6 +40,8 @@ export default function EditStorage() {
       amount: storage?.items ? storage?.items[feedId].amount : 0
     }
   }, []), [storage, feed])
+  const logs = useLogs({ key: 'storageId', value: storage?.id || '' })
+  const logItems = useMemo(() => logs.map(l => ({ ...l, ...isMutationLog(l) && { feed: feed.find(f => f.id === l.feedId) } })), [feed, logs])
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
@@ -121,39 +125,44 @@ export default function EditStorage() {
   }, [match])
 
   return !storage ? null : <CustomDialog title={isEditing ? `${storage.name} bewerken` : `${storage.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton={!isMobile}>
-    <Collapse in={!isEditing}>
-      <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
-        {items.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
-          <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
-        </Grid>)}
-        <Grid item xs={12} sm={6}>
-          <Card>
-            <CardActionArea onClick={() => navigate(`/stock/${storage.id}/add`, { state: { referrer: match?.pathname } })}>
-              <CardContent sx={{ color: 'text.secondary', alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', height: !isMobile ? 129 : undefined }}>
-                <Icon fontSize="large" color="inherit">add_circle</Icon>
-                <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Zak toevoegen</Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
+    <DialogContent sx={{ p: 0 }}>
+      <Collapse in={!isEditing}>
+        <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 3, pl: 2, flex: 1, width: '100%' }}>
+          {items.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
+            <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
+          </Grid>)}
+          <Grid item xs={12} sm={6}>
+            <Card>
+              <CardActionArea onClick={() => navigate(`/stock/${storage.id}/add`, { state: { referrer: match?.pathname } })}>
+                <CardContent sx={{ color: 'text.secondary', alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', height: !isMobile ? 129 : undefined }}>
+                  <Icon fontSize="large" color="inherit">add_circle</Icon>
+                  <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Zak toevoegen</Typography>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
-      <DialogActions>
-        {storage.canEmpty && <Button onClick={handleEmpty} color="inherit"><Icon>cancel</Icon>&nbsp;&nbsp;Opslag leegmaken</Button>}
-        <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Bewerken</Button>
-        <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
-      </DialogActions>
-    </Collapse>
-    <Collapse in={isEditing}>
-      <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
-        <DialogContent sx={{ flex: 1 }}>
-          <StorageForm storage={changes} onChange={setChanges} isEditing />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleClose()}>Annuleren</Button>
-          <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
-        </DialogActions>
-        {saving && <LinearProgress variant="indeterminate" />}
-      </Box>
-    </Collapse>
+        <Divider>Laatste wijzigingen</Divider>
+        <Timeline>
+          {logItems.map((item, k) => <LogItem item={item} key={k} />)}
+        </Timeline>
+      </Collapse>
+      <Collapse in={isEditing}>
+        <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
+          <DialogContent sx={{ flex: 1 }}>
+            <StorageForm storage={changes} onChange={setChanges} isEditing />
+          </DialogContent>
+        </Box>
+      </Collapse>
+    </DialogContent>
+    {!isEditing ? <DialogActions>
+      {storage.canEmpty && <Button onClick={handleEmpty} color="inherit"><Icon>cancel</Icon>&nbsp;&nbsp;Leegmaken</Button>}
+      <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Bewerken</Button>
+      <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
+    </DialogActions> : <DialogActions>
+      <Button onClick={() => handleClose()}>Annuleren</Button>
+      <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
+    </DialogActions>}
+    {saving && <LinearProgress variant="indeterminate" />}
   </CustomDialog>
 }

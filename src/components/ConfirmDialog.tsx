@@ -12,15 +12,15 @@ type ContextState = {
 
 const ConfirmDialogContext = React.createContext<{ setContext: React.Dispatch<React.SetStateAction<ContextState>> }>({} as any)
 
-export function useConfirmDialog(state: Omit<ContextState, 'open' | 'onCancel' | 'onConfirm' | 'confirmMessage'>) {
+export function useConfirmDialog(buttonTexts: Pick<ContextState, 'cancelText' | 'confirmText'>) {
   const { setContext } = useContext(ConfirmDialogContext)
-  const open = useCallback((callbacks: Pick<ContextState, 'onCancel' | 'onConfirm' | 'confirmMessage'>) => {
+  const open = useCallback((context: Pick<ContextState, 'onCancel' | 'onConfirm' | 'confirmMessage'>) => {
     setContext({
       open: true,
-      ...state,
-      ...callbacks
+      ...buttonTexts,
+      ...context
     })
-  }, [setContext, state])
+  }, [setContext, buttonTexts])
   return { open }
 }
 

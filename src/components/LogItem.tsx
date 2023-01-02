@@ -2,9 +2,11 @@ import { TimelineItem, TimelineOppositeContent, TimelineContent, TimelineSeparat
 import { Icon, List, ListItem, ListItemText, Typography } from '@mui/material'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
+import { Feed } from '../hooks/firebase'
+import { isMutationLog, Log, MutationLog } from '../hooks/firestore'
 moment.locale('nl')
 
-export default function LogItem({ item }: { item: { type: 'emptied' | 'mutation', date: string, amount?: number | null, title?: string | null } }) {
+export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?: Feed } }) {
   return <TimelineItem>
     <TimelineOppositeContent sx={{ width: 50, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
       <List disablePadding>
@@ -21,8 +23,8 @@ export default function LogItem({ item }: { item: { type: 'emptied' | 'mutation'
     <TimelineContent sx={{ width: 50, display: 'flex', alignItems: 'center' }}>
       <List disablePadding>
         <ListItem>
-          {item.type === 'mutation' && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography>}
-          <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.title} primaryTypographyProps={{ textAlign: 'left' }} />
+          {isMutationLog(item) && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography>}
+          <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.feed?.name} primaryTypographyProps={{ textAlign: 'left' }} />
         </ListItem>
       </List>
     </TimelineContent>

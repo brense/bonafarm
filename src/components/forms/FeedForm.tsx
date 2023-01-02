@@ -5,7 +5,7 @@ import CustomAutocomplete from '../CustomAutocomplete'
 
 export default function FeedForm({ feed: changes, onChange: setChanges, isEditing = false }: { isEditing?: boolean, feed: Feed, onChange: (changes: Feed | ((current: Feed) => Feed)) => void }) {
   const inputRef = useRef<HTMLInputElement>()
-  const { data: storages, loading } = useStorages()
+  const { data: storages } = useStorages() // TODO: use proper loading state for the autocomplete
 
   return <>
     <TextField value={changes.name} onChange={e => setChanges(c => ({ ...c, name: e.target.value }))} label="Naam" margin="normal" variant="filled" fullWidth inputRef={inputRef} required />

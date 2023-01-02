@@ -1,22 +1,19 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Stack, Chip, Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, Avatar, Box, BottomNavigation, Paper, BottomNavigationAction, Icon, ButtonBase, CardContent, useTheme, useMediaQuery } from '@mui/material'
+import { Stack, Chip, Card, CardActionArea, CardHeader, Divider, Grid, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, Avatar, Box, BottomNavigation, Paper, BottomNavigationAction, Icon, ButtonBase, CardContent, useTheme, useMediaQuery, ListItemIcon } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
-import { Log, MutationLog, useLogs } from '../hooks/firestore'
+import { isMutationLog, useLastEmptied, useLatestMutations } from '../hooks/firestore'
 moment.locale('nl')
-
-function isMutationLog(logItem: Log | MutationLog): logItem is MutationLog {
-  return logItem.type === 'mutation'
-}
 
 function StorageItemWithLogs({ storage }: { storage: Storage }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { data: feed } = useFeed()
-  const logs = useLogs({ key: 'storageId', value: storage.id })
+  const logs = useLatestMutations(storage.id)
+  const lastEmptied = useLastEmptied(storage.id)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -24,7 +21,14 @@ function StorageItemWithLogs({ storage }: { storage: Storage }) {
     <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden' }}>
       <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{/*storage.image ? <img src={storage.image || ''} height={96} alt={storage.title} /> : */''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
       <Divider />
-      {logs.length > 0 && <List subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijzigingen</ListSubheader>} disablePadding dense>
+      <List disablePadding dense>
+        <ListItem>
+          <ListItemIcon><Icon color={lastEmptied ? 'inherit' : 'disabled'}>cancel</Icon></ListItemIcon>
+          <ListItemText primary="Laatst geleegd" primaryTypographyProps={{ variant: 'subtitle2' }} secondary={lastEmptied ? moment(lastEmptied).fromNow() : 'Nooit'} />
+        </ListItem>
+      </List>
+      <Divider />
+      {logs.length > 0 && <List sx={{ flex: 1 }} subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijziging</ListSubheader>} disablePadding dense>
         {logs.map(item => <ListItem key={item.id}>
           <ListItemText primary={!isMutationLog(item) ? 'Leeg gemaakt' : feed.find(f => f.id === item.feedId)?.name} secondary={moment(Number(item.date)).fromNow()} />
           {isMutationLog(item) && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography></ListItemSecondaryAction>}
@@ -104,7 +108,7 @@ function StockPerFeed() {
     <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
       {feeds.map(feed => <Grid key={feed.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
         <Card>
-          <CardActionArea onClick={() => navigate(`/feed/${feed.id}`, { state: { referrer: location.pathname } })}>
+          <CardActionArea onClick={() => navigate(`/feed/${feed.id}/edit`, { state: { referrer: location.pathname } })}>
             <List disablePadding sx={{ height: 76 }}>
               <ListItem>
                 <ListItemText primary={<Typography>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}>
