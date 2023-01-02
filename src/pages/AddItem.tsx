@@ -67,8 +67,9 @@ export default function AddItem() {
     if (location.state?.movedItem) {
       setFeed(feeds.find(f => f.id === location.state.movedItem.feedId))
       setPreSelectedAmount(location.state.movedItem.amount)
-      if (location.state.movedItem.linkedStorageId) {
-        setStorage(storages.find(s => s.id === location.state.movedItem.linkedStorageId) || null)
+      const feed = feeds.find(f => f.id === location.state.movedItem.feedId)
+      if (feed?.linkedStorageId) {
+        setStorage(storages.find(s => s.id === feed.linkedStorageId) || null)
       }
       storageInputRef.current?.focus()
     } else if (match?.params.storageId) {
