@@ -6,6 +6,7 @@ import moment from 'moment'
 import 'moment/dist/locale/nl'
 import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
 import { isMutationLog, useLastEmptied, useLatestMutations } from '../hooks/firestore'
+import { useIcon, useTitle } from '../App'
 moment.locale('nl')
 
 function StorageItemWithLogs({ storage }: { storage: Storage }) {
@@ -133,6 +134,10 @@ function StockPerFeed() {
 
 export default function Stock() {
   const [value, setValue] = useState<'storage' | 'item'>(localStorage.getItem('stock-type') as 'storage' || 'storage')
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  useTitle(isMobile ? 'Voorraad' : null)
+  useIcon(isMobile ? 'chevron_left' : null)
 
   useEffect(() => {
     localStorage.setItem('stock-type', value)
