@@ -1,4 +1,5 @@
 import { addDoc, collection, getFirestore, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore'
+import { getAuth} from 'firebase/auth'
 import { useEffect, useState } from 'react'
 
 export type Log = {
@@ -26,10 +27,12 @@ type FirestoreLog = {
 }
 
 const firestore = getFirestore()
+const auth = getAuth()
 
 export async function addLog(logItem: Omit<Log, 'date' | 'id'> | Omit<MutationLog, 'date' | 'id'>) {
   return await addDoc(collection(firestore, 'logs'), {
     timestamp: Timestamp.now(),
+    uid: auth.currentUser?.uid,
     ...logItem
   })
 }
