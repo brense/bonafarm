@@ -74,7 +74,7 @@ export default function AddItem() {
       storageInputRef.current?.focus()
     } else if (match?.params.storageId) {
       setStorage(storages.find(s => s.id === match?.params.storageId) || null)
-      const feedMatch = feeds.find(f => f.id === match?.params.storageId || null)
+      const feedMatch = feeds.find(f => f.id === match?.params.storageId)
       feedMatch ? setFeed(feedMatch) : feedInputRef.current?.focus()
     }
   }, [location.state, feeds, match, storages])
