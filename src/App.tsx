@@ -1,14 +1,47 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AppBar, Box, CircularProgress, Icon, IconButton, ListItemIcon, Menu, MenuItem, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material'
+import { AppBar, Avatar, Box, CircularProgress, Icon, IconButton, ListItemIcon, Menu, MenuItem, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
+import { getAuth, isSignInWithEmailLink, signInWithEmailLink, User } from 'firebase/auth'
 import CenteredContent from './components/CenteredContent'
 import AddStorage from './pages/AddStorage'
 import AddFeed from './pages/AddFeed'
 import EditStorage from './pages/EditStorage'
 import AddItem from './pages/AddItem'
 import EditFeed from './pages/EditFeed'
+import Signin from './pages/Signin'
+import { Subject } from 'rxjs'
 
 const Stock = React.lazy(() => import('./pages/Stock'))
+
+const auth = getAuth()
+const authLoaded = new Subject<void>()
+function useAuth() {
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setUser(user)
+      authLoaded.next()
+    })
+    return () => unsubscribe()
+  }, [])
+
+  if (isSignInWithEmailLink(auth, window.location.href)) {
+    let email = window.localStorage.getItem('emailForSignIn')
+    if (!email) {
+      email = window.prompt('Geef je e-mailadres op ter bevestiging')
+    }
+    signInWithEmailLink(auth, email || '', window.location.href).then(() => {
+      window.localStorage.removeItem('emailForSignIn')
+    })
+  }
+
+  return user
+}
+
+const WaitForAuth = React.lazy(() => {
+  return new Promise<{ default: React.ComponentType<any> }>(resolve => authLoaded.subscribe(() => resolve({ default: () => null })))
+})
 
 export function useTitle(title: string | null) {
   const { setTitle } = useOutletContext<{ setTitle: (title: string | null) => void }>()
@@ -41,18 +74,20 @@ export default function App() {
   const navigate = useNavigate()
   const [title, setTitle] = useState<string | null>(null)
   const [icon, setIcon] = useState<string | null>(null)
-
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-
-  const user = true
-
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const user = useAuth()
 
   const handleMenuItemClick = useCallback((path: string) => {
     path && navigate(path)
     setAnchorEl(null)
   }, [navigate])
+
+  const handleLogout = useCallback(() => {
+    setAnchorEl(null)
+    auth.signOut()
+  }, [])
 
   return <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
     <AppBar position="relative" sx={{ bgcolor: 'secondary.main' }}>
@@ -60,23 +95,25 @@ export default function App() {
         {icon ? <IconButton onClick={() => navigate('/')} sx={{ mr: 0.5 }}><Icon>{icon}</Icon></IconButton> : <Icon fontSize="large" sx={{ mr: 1 }}><img src="/favicon.svg" alt="De voer app" /></Icon>}
         <Typography variant="h5">{title || 'De voer app'}</Typography>
         <Box component="span" sx={{ flex: 1 }} />
-        {user && !isMobile && <IconButton onClick={e => setAnchorEl(e.currentTarget)}><Icon>more_vert</Icon></IconButton>}
+        {user && <Avatar><img src={user.photoURL || ''} alt={user.displayName || ''} width={40} height={40} /></Avatar>}
+        {user && <IconButton onClick={e => setAnchorEl(e.currentTarget)}><Icon>more_vert</Icon></IconButton>}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={() => setAnchorEl(null)}
         >
-          <MenuItem onClick={() => handleMenuItemClick('/stock')}><ListItemIcon><Icon fontSize="small">inventory_2</Icon></ListItemIcon> Voorraad</MenuItem>
           <MenuItem onClick={() => handleMenuItemClick('/stock')}><ListItemIcon><Icon fontSize="small">qr_code_scanner</Icon></ListItemIcon> QR code scannen</MenuItem>
+          <MenuItem onClick={handleLogout}><ListItemIcon><Icon fontSize="small">logout</Icon></ListItemIcon> Uitloggen</MenuItem>
         </Menu>
       </Toolbar>
     </AppBar>
     <React.Suspense fallback={<CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent>}>
+      <WaitForAuth />
       <Routes location={location.state?.referrer || location.pathname}>
-        {!user ? <Route path="/login" element={<>login...</>} /> : <Route path="/login" element={<Navigate to={location.state?.referrer || '/'} replace />} />}
         {user ? <Route path="/" element={<Box component="main" sx={{ flex: 1, height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <Outlet context={{ setTitle, setIcon }} />
         </Box>}>
+          <Route path="/signin/*" element={<Navigate to={location.state?.redirect || '/'} replace />} />
           <Route index element={isMobile ? <Home /> : <Navigate to="/stock" replace />} />
           <Route path="stock" element={<OutletWithContext />}>
             <Route index element={<Stock />} />
@@ -90,7 +127,10 @@ export default function App() {
             <Route path=":feedId" element={<Stock />} />
             <Route path=":feedId/edit" element={<Stock />} />
           </Route>
-        </Route> : <Route path="*" element={<Navigate to="/login" state={{ referrer: location.pathname }} replace />} />}
+        </Route> : <>
+          <Route path="/signin/*" element={<Signin />} />
+          <Route path="*" element={<Navigate to="/signin" state={{ redirect: location.state?.redirect || location.pathname }} replace />} />
+        </>}
       </Routes>
       <AddItem />
       <AddStorage />
