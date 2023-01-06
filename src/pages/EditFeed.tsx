@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Avatar, Box, Button, Collapse, DialogActions, DialogContent, Divider, Icon, LinearProgress, List, ListItem, ListItemAvatar, ListItemSecondaryAction, ListItemText, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
+import { Avatar, Box, Button, CardContent, Collapse, DialogActions, DialogContent, Divider, Icon, LinearProgress, List, ListItem, ListItemAvatar, ListItemButton, ListItemSecondaryAction, ListItemText, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
@@ -60,18 +60,21 @@ export default function EditFeed() {
   return !feed ? null : <CustomDialog title={!isEditing ? `${feed.name}` : `${feed.name} bewerken`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={handleClose} showCloseButton={!isMobile}>
     <DialogContent sx={{ p: 0 }}>
       <Collapse in={!isEditing}>
-        <List disablePadding>
-          {feedStorages.map(s => <ListItem key={s.id}>
-            <ListItemAvatar><Avatar sx={{ bgcolor: s.color }}>{''}</Avatar></ListItemAvatar>
-            <ListItemText primary={s.name} />
-            <ListItemSecondaryAction><Typography variant="subtitle2">{s.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
+        {totalAmount === 0 && <CardContent><Typography>Geen voorraad in tonnen</Typography></CardContent>}
+        {totalAmount !== 0 && <List disablePadding>
+          {feedStorages.map(s => <ListItem key={s.id} disablePadding>
+            <ListItemButton onClick={() => navigate(`/stock/${s.id}`, { state: { referrer: location.pathname } })}>
+              <ListItemAvatar><Avatar sx={{ bgcolor: s.color }}>{''}</Avatar></ListItemAvatar>
+              <ListItemText primary={s.name} />
+              <ListItemSecondaryAction><Typography variant="subtitle2">{s.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
+            </ListItemButton>
           </ListItem>)}
           <Divider />
           <ListItem>
             <ListItemText inset primary="Totaal" />
             <ListItemSecondaryAction><Typography variant="subtitle2">{totalAmount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
           </ListItem>
-        </List>
+        </List>}
       </Collapse>
       <Collapse in={isEditing}>
         <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
