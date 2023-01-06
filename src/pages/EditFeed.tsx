@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide, useMediaQuery, useTheme } from '@mui/material'
+import { Avatar, Box, Button, Collapse, DialogActions, DialogContent, Divider, Icon, LinearProgress, List, ListItem, ListItemAvatar, ListItemSecondaryAction, ListItemText, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
-import { useMatch, useNavigate } from 'react-router-dom'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-import { Feed, updateFeed, useFeed } from '../hooks/firebase'
+import { Feed, updateFeed, useFeed, useStorages } from '../hooks/firebase'
 import FeedForm from '../components/forms/FeedForm'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
@@ -24,9 +24,14 @@ export default function EditFeed() {
   const [changes, setChanges] = useState(initialState)
   const isValid = useMemo(() => !(changes.name === '' || changes.id === '' || saving), [changes, saving])
   const { data: feeds } = useFeed()
+  const { data: storages } = useStorages()
   const feed = useMemo(() => feeds.find(f => f.id === match?.params.feedId), [match, feeds])
+  const feedStorages = useMemo(() => feed ? storages.filter(s => !s.canEmpty && s.items && s.items[feed.id]).map(({ items, ...s }) => ({ ...s, amount: items ? items[feed.id].amount : 0 })) : [], [feed, storages])
+  const totalAmount = useMemo(() => feedStorages.reduce((amount, s) => amount += s.amount, 0), [feedStorages])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
+  const location = useLocation()
 
   useEffect(() => {
     feed && setChanges(feed)
@@ -35,8 +40,8 @@ export default function EditFeed() {
   const handleClose = useCallback(() => {
     setSaving(false)
     setChanges(feed ? feed : initialState)
-    navigate('/stock')
-  }, [navigate, feed])
+    navigate(isEditing && feed ? `/feed/${feed.id}` : '/stock')
+  }, [navigate, feed, isEditing])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     setSaving(true)
@@ -52,18 +57,37 @@ export default function EditFeed() {
     }
   }, [match])
 
-  return !feed ? null : <CustomDialog title={`${feed.name} bewerken`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={handleClose} showCloseButton={!isMobile}>
+  return !feed ? null : <CustomDialog title={!isEditing ? `${feed.name}` : `${feed.name} bewerken`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={handleClose} showCloseButton={!isMobile}>
     <DialogContent sx={{ p: 0 }}>
-      <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
-        <DialogContent sx={{ flex: 1 }}>
-          <FeedForm feed={changes} onChange={setChanges} isEditing />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleClose()}>Annuleren</Button>
-          <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
-        </DialogActions>
-        {saving && <LinearProgress variant="indeterminate" />}
-      </Box>
+      <Collapse in={!isEditing}>
+        <List disablePadding>
+          {feedStorages.map(s => <ListItem key={s.id}>
+            <ListItemAvatar><Avatar sx={{ bgcolor: s.color }}>{''}</Avatar></ListItemAvatar>
+            <ListItemText primary={s.name} />
+            <ListItemSecondaryAction><Typography variant="subtitle2">{s.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
+          </ListItem>)}
+          <Divider />
+          <ListItem>
+            <ListItemText inset primary="Totaal" />
+            <ListItemSecondaryAction><Typography variant="subtitle2">{totalAmount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
+          </ListItem>
+        </List>
+      </Collapse>
+      <Collapse in={isEditing}>
+        <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
+          <DialogContent sx={{ flex: 1 }}>
+            <FeedForm feed={changes} onChange={setChanges} isEditing />
+          </DialogContent>
+        </Box>
+      </Collapse>
     </DialogContent>
+    {!isEditing ? <DialogActions>
+      <Button onClick={() => navigate(`/feed/${feed.id}/edit`, { state: { referrer: location.pathname } })} size="small">Bewerken</Button>
+      {/** TODO: verbergen? */}
+    </DialogActions> : <DialogActions>
+      <Button onClick={() => handleClose()}>Annuleren</Button>
+      <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
+    </DialogActions>}
+    {saving && <LinearProgress variant="indeterminate" />}
   </CustomDialog>
 }

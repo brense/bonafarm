@@ -102,7 +102,8 @@ export default function App() {
           open={Boolean(anchorEl)}
           onClose={() => setAnchorEl(null)}
         >
-          <MenuItem onClick={() => handleMenuItemClick('/stock')}><ListItemIcon><Icon fontSize="small">qr_code_scanner</Icon></ListItemIcon> QR code scannen</MenuItem>
+          {isMobile && <MenuItem onClick={() => handleMenuItemClick('/stock')}><ListItemIcon><Icon fontSize="small">inventory_2</Icon></ListItemIcon> Voorraad</MenuItem>}
+          <MenuItem onClick={() => handleMenuItemClick('/stock') /* TODO */}><ListItemIcon><Icon fontSize="small">qr_code_scanner</Icon></ListItemIcon> QR code scannen</MenuItem>
           <MenuItem onClick={handleLogout}><ListItemIcon><Icon fontSize="small">logout</Icon></ListItemIcon> Uitloggen</MenuItem>
         </Menu>
       </Toolbar>

@@ -13,7 +13,7 @@ const actionCodeSettings = {
 }
 
 function validateEmail(email: string) {
-  return emailRegex.test(String(email).toLowerCase()) ? null : 'This is not a valid e-mailaddress'
+  return emailRegex.test(String(email).toLowerCase()) ? null : 'Dit is geen correct e-mailadres'
 }
 
 export default function Singin() {
