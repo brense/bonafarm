@@ -1,40 +1,27 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { Stack, Typography, Icon, Divider, Box } from '@mui/material'
 import CardButtonWithIcon from '../components/CardButtonWithIcon'
 import QrReaderDialog from '../components/QrReaderDialog'
 import { useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
 import CustomAutocomplete from '../components/CustomAutocomplete'
-import { useStoragesQuery } from '../graphql'
-
-import { getDatabase, ref, onValue } from 'firebase/database'
-
-const db = getDatabase()
-const starCountRef = ref(db, 'feed/')
-onValue(starCountRef, (snapshot) => {
-  const data = snapshot.val()
-  console.log(data)
-})
+import { Feed, useFeed } from '../hooks/firebase'
+import { useIcon, useTitle } from '../App'
 
 export default function Home() {
+  useTitle(null)
+  useIcon(null)
   const [showScanner, setShowScanner] = useState(false)
   const navigate = useNavigate()
-  const { data } = useStoragesQuery({ fetchPolicy: 'no-cache' })
-  const itemOptions = useMemo(() => data?.storages.reduce((arr, storage) => {
-    storage.logs.filter(l => l.slug && l.title).forEach(({ slug, title }) => {
-      if (arr.find(a => a.slug === slug)) return
-      arr.push({ slug, title } as any)
-    })
-    return arr
-  }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
+  const { data: itemOptions } = useFeed()
 
   const handleScannerClose = useCallback(() => {
     setShowScanner(false)
     window.location.href = `${window.location.protocol}//${window.location.host}/`
   }, [])
 
-  const handleSelectFeed = useCallback((feed: { slug: string } | null) => {
-    feed?.slug && navigate(`/feed/${feed?.slug}`)
+  const handleSelectFeed = useCallback((feed: Feed | null) => {
+    feed?.id && navigate(`/feed/${feed?.id}`)
   }, [navigate])
 
   return <>
@@ -54,10 +41,9 @@ export default function Home() {
           label="Zoek op voertype"
           onChange={handleSelectFeed}
           options={itemOptions}
-          idKey="slug"
-          labelKey="title"
+          idKey="id"
+          labelKey="name"
           noOptionsText="Niets gevonden..."
-          open
         />
       </Stack>
     </CenteredContent>

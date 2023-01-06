@@ -10,6 +10,7 @@ import AddItem from './pages/AddItem'
 import EditFeed from './pages/EditFeed'
 import Signin from './pages/Signin'
 import { Subject } from 'rxjs'
+import Home from './pages/Home'
 
 const Stock = React.lazy(() => import('./pages/Stock'))
 
@@ -55,13 +56,6 @@ export function useIcon(icon: string | null) {
   useEffect(() => {
     setIcon(icon)
   }, [setIcon, icon])
-}
-
-// TODO: ...
-function Home() {
-  useTitle(null)
-  useIcon(null)
-  return <Typography>Home...</Typography>
 }
 
 function OutletWithContext() {
