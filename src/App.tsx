@@ -11,6 +11,7 @@ import EditFeed from './pages/EditFeed'
 import Signin from './pages/Signin'
 import { Subject } from 'rxjs'
 import Home from './pages/Home'
+import QrReaderDialog from './components/QrReaderDialog'
 
 const Stock = React.lazy(() => import('./pages/Stock'))
 
@@ -58,6 +59,11 @@ export function useIcon(icon: string | null) {
   }, [setIcon, icon])
 }
 
+export function useQRScanner() {
+  const { qrScanner } = useOutletContext<{ qrScanner: { show: () => void } }>()
+  return qrScanner
+}
+
 function OutletWithContext() {
   const context = useOutletContext()
   return <Outlet context={context} />
@@ -72,11 +78,22 @@ export default function App() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const user = useAuth()
+  const [showScanner, setShowScanner] = useState(false)
+
+  const handleScannerClose = useCallback(() => {
+    setShowScanner(false)
+    window.location.href = `${window.location.protocol}//${window.location.host}${location.pathname}`
+  }, [location])
 
   const handleMenuItemClick = useCallback((path: string) => {
     path && navigate(path)
     setAnchorEl(null)
   }, [navigate])
+
+  const handleShowScanner = useCallback(() => {
+    setAnchorEl(null)
+    setShowScanner(true)
+  }, [])
 
   const handleLogout = useCallback(() => {
     setAnchorEl(null)
@@ -97,7 +114,7 @@ export default function App() {
           onClose={() => setAnchorEl(null)}
         >
           {isMobile && <MenuItem onClick={() => handleMenuItemClick('/stock')}><ListItemIcon><Icon fontSize="small">inventory_2</Icon></ListItemIcon> Voorraad</MenuItem>}
-          <MenuItem onClick={() => handleMenuItemClick('/stock') /* TODO */}><ListItemIcon><Icon fontSize="small">qr_code_scanner</Icon></ListItemIcon> QR code scannen</MenuItem>
+          <MenuItem onClick={handleShowScanner}><ListItemIcon><Icon fontSize="small">qr_code_scanner</Icon></ListItemIcon> QR code scannen</MenuItem>
           <MenuItem onClick={handleLogout}><ListItemIcon><Icon fontSize="small">logout</Icon></ListItemIcon> Uitloggen</MenuItem>
         </Menu>
       </Toolbar>
@@ -106,7 +123,7 @@ export default function App() {
       <WaitForAuth />
       <Routes location={location.state?.referrer || location.pathname}>
         {user ? <Route path="/" element={<Box component="main" sx={{ flex: 1, height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-          <Outlet context={{ setTitle, setIcon }} />
+          <Outlet context={{ setTitle, setIcon, qrScanner: { show: () => setShowScanner(true) } }} />
         </Box>}>
           <Route path="/signin/*" element={<Navigate to={location.state?.redirect || '/'} replace />} />
           <Route index element={isMobile ? <Home /> : <Navigate to="/stock" replace />} />
@@ -132,6 +149,7 @@ export default function App() {
       <EditStorage />
       <AddFeed />
       <EditFeed />
+      <QrReaderDialog open={showScanner} onClose={handleScannerClose} />
     </React.Suspense>
   </Box>
 }
