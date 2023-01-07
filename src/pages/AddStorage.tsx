@@ -54,7 +54,7 @@ export default function AddStorage() {
   return <CustomDialog title={'Opslag toevoegen'} open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
     <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
       <DialogContent sx={{ flex: 1 }}>
-        <StorageForm storage={changes} onChange={setChanges} />
+        {Boolean(match) && <StorageForm storage={changes} onChange={setChanges} />}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => handleClose()}>Annuleren</Button>

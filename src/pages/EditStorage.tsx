@@ -150,7 +150,7 @@ export default function EditStorage() {
       <Collapse in={isEditing}>
         <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
           <DialogContent sx={{ flex: 1 }}>
-            <StorageForm storage={changes} onChange={setChanges} isEditing />
+            {Boolean(match) && <StorageForm storage={changes} onChange={setChanges} isEditing />}
           </DialogContent>
         </Box>
       </Collapse>
