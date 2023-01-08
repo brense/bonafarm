@@ -12,7 +12,6 @@ moment.locale('nl')
 function StorageItemWithLogs({ storage }: { storage: Storage }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { data: feed } = useFeed()
   const logs = useLatestMutations(storage.id)
   const lastEmptied = useLastEmptied(storage.id)
   const theme = useTheme()
@@ -29,11 +28,11 @@ function StorageItemWithLogs({ storage }: { storage: Storage }) {
         </ListItem>
       </List>
       <Divider />
-      {logs.length > 0 && <List sx={{ flex: 1 }} subheader={<ListSubheader sx={{ lineHeight: 3, bgcolor: 'transparent', zIndex: 0 }}>Laatste wijziging</ListSubheader>} disablePadding dense>
-        {logs.map(item => <ListItem key={item.id}>
-          <ListItemText primary={!isMutationLog(item) ? 'Leeg gemaakt' : feed.find(f => f.id === item.feedId)?.name} secondary={moment(Number(item.date)).fromNow()} />
-          {isMutationLog(item) && <ListItemSecondaryAction><Typography variant="subtitle2" color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography></ListItemSecondaryAction>}
-        </ListItem>)}
+      {logs.length > 0 && <List disablePadding dense>
+        <ListItem>
+          <ListItemText inset primary="Laatste wijziging" primaryTypographyProps={{ variant: 'subtitle2' }} secondary={moment(Number(logs[0].date)).fromNow()} />
+          <ListItemSecondaryAction><Typography variant="subtitle2" color={isMutationLog(logs[0]) && logs[0].amount > 0 ? 'primary' : 'error'}>{isMutationLog(logs[0]) && logs[0].amount > 0 && '+'}{isMutationLog(logs[0]) && logs[0].amount.toLocaleString()}</Typography></ListItemSecondaryAction>
+        </ListItem>
       </List>}
       <Box sx={{ height: '100%', visibility: 'hidden' }} />
     </CardActionArea>
