@@ -20,7 +20,7 @@ function StorageItemWithLogs({ storage }: { storage: Storage }) {
 
   return <Card>
     <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden' }}>
-      <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{/*storage.image ? <img src={storage.image || ''} height={96} alt={storage.title} /> : */''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
+      <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{storage.image ? <img src={storage.image || ''} height={40} alt={storage.name} /> : ''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
       <Divider />
       <List disablePadding dense>
         <ListItem>

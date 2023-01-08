@@ -19,6 +19,7 @@ export type Storage = {
   color?: string
   canEmpty: boolean
   order: number
+  image?:string
   items?: Record<string, { amount: number }>
 }
 

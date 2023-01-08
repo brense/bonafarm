@@ -3,14 +3,17 @@ import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide 
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-import StorageForm from '../components/forms/StorageForm'
-import { setStorage, Storage } from '../hooks/firebase'
+import StorageForm, { StorageChanges } from '../components/forms/StorageForm'
+import { setStorage } from '../hooks/firebase'
+import { getDownloadURL, getStorage, ref as storageRef, uploadString } from 'firebase/storage'
+
+const firebaseStorage = getStorage()
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
 
-const initialState: Storage = {
+const initialState: StorageChanges = {
   name: '',
   id: '',
   color: '#fff000',
@@ -33,11 +36,19 @@ export default function AddStorage() {
   }, [navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    console.log('submit')
     setAdding(true)
     e.preventDefault()
-    const { id, color, canEmpty, ...data } = changes
+    const { id, color, canEmpty, newImage, ...data } = changes
+    let image = changes.image
+    if (newImage) {
+      const newImageRef = storageRef(firebaseStorage, id)
+      const result = await uploadString(newImageRef, newImage, 'data_url')
+      image = await getDownloadURL(result.ref)
+    }
     setStorage(changes.id, {
       ...data,
+      image,
       canEmpty,
       ...canEmpty ? {} : { color }
     })

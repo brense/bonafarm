@@ -3,20 +3,23 @@ import { Box, Button, Card, CardActionArea, CardContent, Collapse, DialogActions
 import { TransitionProps } from '@mui/material/transitions'
 import { useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-import StorageForm from '../components/forms/StorageForm'
-import { Feed, removeStorage, Storage, updateStorage, useFeed, useStorages } from '../hooks/firebase'
+import StorageForm, { StorageChanges } from '../components/forms/StorageForm'
+import { Feed, removeStorage, updateStorage, useFeed, useStorages } from '../hooks/firebase'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import StorageItem from '../components/StorageItem'
 import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
 import { addLog, isMutationLog, useLogs } from '../hooks/firestore'
 import { Timeline } from '@mui/lab'
+import { getDownloadURL, getStorage, ref as storageRef, uploadString } from 'firebase/storage'
 import LogItem from '../components/LogItem'
+
+const firebaseStorage = getStorage()
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
 
-const initialState: Storage = {
+const initialState: StorageChanges = {
   name: '',
   id: '',
   order: 0,
@@ -82,12 +85,18 @@ export default function EditStorage() {
     navigate(isEditing && storage && !reason ? `/stock/${storage.id}` : '/stock')
   }, [navigate, isEditing, storage])
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async () => {
     setSaving(true)
-    e.preventDefault()
-    const { id, color, canEmpty, ...data } = changes
+    const { id, color, canEmpty, newImage, ...data } = changes
+    let image = changes.image
+    if (newImage) {
+      const newImageRef = storageRef(firebaseStorage, id)
+      const result = await uploadString(newImageRef, newImage, 'data_url')
+      image = await getDownloadURL(result.ref)
+    }
     await updateStorage(changes.id, {
       ...data,
+      image,
       canEmpty,
       ...canEmpty ? {} : { color }
     })
@@ -148,7 +157,7 @@ export default function EditStorage() {
         </Timeline>
       </Collapse>
       <Collapse in={isEditing}>
-        <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }}>
           <DialogContent sx={{ flex: 1 }}>
             {Boolean(match) && <StorageForm storage={changes} onChange={setChanges} isEditing />}
           </DialogContent>
@@ -161,7 +170,7 @@ export default function EditStorage() {
       <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
     </DialogActions> : <DialogActions>
       <Button onClick={() => handleClose()}>Annuleren</Button>
-      <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
+      <Button color="success" onClick={handleSubmit} disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
     </DialogActions>}
     {saving && <LinearProgress variant="indeterminate" />}
   </CustomDialog>

@@ -8,16 +8,18 @@ import 'react-advanced-cropper/dist/style.css'
 
 let timeout: NodeJS.Timeout
 
-export default function StorageForm({ storage: changes, onChange: setChanges, isEditing = false }: { isEditing?: boolean, storage: Storage, onChange: (changes: Storage | ((current: Storage) => Storage)) => void }) {
+export type StorageChanges = Storage & { newImage?: string | null }
+
+export default function StorageForm({ storage: changes, onChange: setChanges, isEditing = false }: { isEditing?: boolean, storage: Storage, onChange: (changes: StorageChanges | ((current: StorageChanges) => Storage)) => void }) {
   const inputRef = useRef<HTMLInputElement>()
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null)
-  const [previewImg, setPreviewImg] = useState<string | null>(null)
+  const [previewImg, setPreviewImg] = useState<{ name: string, image: string | null } | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setLoadingPreview(true)
     const fileReader = new FileReader()
     fileReader.onload = () => {
-      setPreviewImg(fileReader.result as string | null)
+      setPreviewImg({ name: acceptedFiles[0].name, image: fileReader.result as string | null })
       setLoadingPreview(false)
     }
     fileReader.readAsDataURL(acceptedFiles[0])
@@ -29,11 +31,18 @@ export default function StorageForm({ storage: changes, onChange: setChanges, is
     setLoadingPreview(false)
   }, [])
 
+  const defaultSize = useCallback(({ imageSize, visibleArea }: { visibleArea?: { width: number, height: number } | null, imageSize: { width: number, height: number } }) => {
+    return {
+      width: (visibleArea || imageSize).width,
+      height: (visibleArea || imageSize).height,
+    }
+  }, [])
+
   const onChange = useCallback((cropper: CropperRef) => {
     clearTimeout(timeout)
     timeout = setTimeout(() => {
-      const image = cropper.getCanvas({ height: 192, width: 192 })?.toDataURL()
-      setChanges(c => ({ ...c, image }))
+      const newImage = cropper.getCanvas({ height: 192, width: 192 })?.toDataURL()
+      setChanges(c => ({ ...c, newImage }))
     }, 300)
   }, [setChanges])
 
@@ -55,17 +64,18 @@ export default function StorageForm({ storage: changes, onChange: setChanges, is
     <Popover open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} sx={{ '& .MuiPopover-paper': { overflow: 'hidden', backgroundColor: 'none' } }}><HexColorPicker color={changes.color} onChange={color => setChanges(c => ({ ...c, color }))} /></Popover>
     {changes.canEmpty && <FormControl margin="normal" fullWidth>
       <FormLabel>Icoontje</FormLabel>
-      {/**TODO: handle already existing image when editting */}
-      {!previewImg ? <Box sx={{ height: 200, width: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center' }} {...getRootProps()}>
+      {!previewImg ? <Box sx={{ height: 200, width: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} {...getRootProps()}>
         <input {...getInputProps()} />
-        {!previewImg && !loadingPreview && <Typography align="center">Sleep een afbeelding naar dit kader,<br />of klik hier</Typography>}
-        {loadingPreview && <CircularProgress />}
+        {changes.image && <img src={changes.image} alt="" width={96} height={96} style={{ borderRadius: 48 }} />}
+        <Typography align="center">Sleep een afbeelding naar dit kader,<br />of klik hier</Typography>
       </Box> : <Cropper
-        src={previewImg}
+        src={previewImg.image}
         onChange={onChange}
         className={'cropper'}
         stencilComponent={CircleStencil}
+        defaultSize={defaultSize}
       />}
+      {loadingPreview && <CircularProgress />}
     </FormControl>}
   </>
 }
