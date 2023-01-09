@@ -28,7 +28,7 @@ function getSubject(name: string, q: Query<DocumentData>) {
   return subjects[name]
 }
 
-function useCollection(params: UseCollectionParams) {
+export function useCollection(params: UseCollectionParams) {
   const { query: q, name } = isQueryParams(params) ? { name: params.name, query: params.getQuery() } : { name: params.getCollection().path, query: query(params.getCollection()) }
   const [docs, setDocs] = useState<QueryDocumentSnapshot<DocumentData>[]>([])
   useEffect(() => {
