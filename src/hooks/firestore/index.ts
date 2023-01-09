@@ -1,6 +1,42 @@
-import { addDoc, collection, getFirestore, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore'
-import { getAuth} from 'firebase/auth'
+import { addDoc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, QueryDocumentSnapshot, Timestamp, where } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 import { useEffect, useState } from 'react'
+import { Subject } from 'rxjs'
+
+type CollectionParams = { getCollection: () => CollectionReference<DocumentData> }
+type CollectionQueryParams = { name: string, getQuery: () => Query<DocumentData> }
+type UseCollectionParams = CollectionParams | CollectionQueryParams
+
+function isQueryParams(params: UseCollectionParams): params is CollectionQueryParams {
+  return Object.hasOwn(params, 'name')
+}
+
+const subjects: Record<string, Subject<QueryDocumentSnapshot<DocumentData>[]>> = {}
+
+function getSubject(name: string, q: Query<DocumentData>) {
+  if (!subjects[name]) {
+    const subject = new Subject<QueryDocumentSnapshot<DocumentData>[]>()
+    onSnapshot(q, (querySnapshot) => {
+      const docs: QueryDocumentSnapshot<DocumentData>[] = []
+      querySnapshot.forEach((doc) => {
+        docs.push(doc)
+      })
+      subject.next(docs)
+    })
+    subjects[name] = subject
+  }
+  return subjects[name]
+}
+
+function useCollection(params: UseCollectionParams) {
+  const { query: q, name } = isQueryParams(params) ? { name: params.name, query: params.getQuery() } : { name: params.getCollection().path, query: query(params.getCollection()) }
+  const [docs, setDocs] = useState<QueryDocumentSnapshot<DocumentData>[]>([])
+  useEffect(() => {
+    const subscriber = getSubject(name, q).subscribe(docs => setDocs(docs))
+    return () => subscriber.unsubscribe()
+  }, [name, q])
+  return docs
+}
 
 export type Log = {
   id: string
