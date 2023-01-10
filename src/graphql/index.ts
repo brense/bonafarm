@@ -47,6 +47,7 @@ export type MutationAddLogArgs = {
 };
 
 export type Query = {
+  export?: Maybe<Array<Storage>>;
   storages: Array<Storage>;
 };
 

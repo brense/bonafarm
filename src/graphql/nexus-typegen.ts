@@ -84,6 +84,7 @@ export interface NexusGenFieldTypes {
     addLog: string | null; // String
   }
   Query: { // field return type
+    export: NexusGenRootTypes['Storage'][] | null; // [Storage!]
     storages: NexusGenRootTypes['Storage'][]; // [Storage!]!
   }
   StockItem: { // field return type
@@ -116,6 +117,7 @@ export interface NexusGenFieldTypeNames {
     addLog: 'String'
   }
   Query: { // field return type name
+    export: 'Storage'
     storages: 'Storage'
   }
   StockItem: { // field return type name

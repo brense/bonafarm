@@ -1,7 +1,6 @@
 import { Avatar, Box, Card, CardActionArea, CardHeader, CircularProgress, Grid, Typography } from '@mui/material'
 import { useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useAppBarContext } from '../App'
 import CenteredContent from '../components/CenteredContent'
 import { Storage, useStoragesQuery } from '../graphql'
 
@@ -22,8 +21,6 @@ export default function Feed() {
     const { slug, title } = storages[0]?.items[0] ? storages[0].items[0] : {} as { slug: string, title: string }
     return { slug, title }
   }, [storages])
-
-  useAppBarContext(() => ({ showLogo: false, children: feed?.title }), [feed])
 
   return loading ? <CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent> : <>
     <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 2, pl: 2, flex: 1, width: '100%' }}>

@@ -1,103 +1,138 @@
-import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, DialogActions, DialogContent, Icon, LinearProgress, Slide, Typography } from '@mui/material'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
+import { Box, Button, DialogActions, DialogContent, FormControl, FormLabel, Icon, LinearProgress, Slide, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
-import { useMatch, useNavigate, useLocation } from 'react-router-dom'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../components/CustomDialog'
-import { useAddLogMutation, useStoragesQuery } from '../graphql'
+import { useFeed, useStorages } from '../hooks/firebase'
 import CustomAutocomplete from '../components/CustomAutocomplete'
+import { getDatabase, ref, runTransaction, set } from 'firebase/database'
+import { addLog } from '../hooks/firestore'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
 
+const db = getDatabase()
+
 export default function AddItem() {
-  const [adding, setAdding] = useState(false)
   const match = useMatch('/stock/:storageId/add')
+  const location = useLocation()
   const navigate = useNavigate()
-  const inputRef = useRef<HTMLInputElement>()
-  const { state } = useLocation()
-  const { data } = useStoragesQuery({ fetchPolicy: 'no-cache' })
-  const [addLog] = useAddLogMutation()
-  const itemOptions = useMemo(() => data?.storages.reduce((arr, storage) => {
-    storage.logs.filter(l => l.slug && l.title).forEach(({ slug, title }) => {
-      if (arr.find(a => a.slug === slug)) return
-      arr.push({ slug, title } as any)
-    })
-    return arr
-  }, [] as Array<{ slug: string, title: string, inputValue?: string }>) || [], [data?.storages])
-  const storageOptions = useMemo<Array<{ id: string, title: string, inputValue?: string }>>(() => data?.storages.map(({ title, id, canEmpty }) => ({ title: canEmpty ? `${title} koker` : title, id })) || [], [data])
-  const [item, setItem] = useState<{ title: string, slug: string, inputValue?: string } | null>()
-  const [storage, setStorage] = useState<{ title: string, id: string, inputValue?: string } | null>()
+  const { data: storages } = useStorages() // TODO: make proper loading states in the autocomplete
+  const { data: feeds } = useFeed() // TODO: make proper loading states in the autocomplete
+  const feedInputRef = useRef<HTMLInputElement>()
+  const storageInputRef = useRef<HTMLInputElement>()
+  const [feed, setFeed] = useState<{ name: string, id: string, inputValue?: string } | null>()
+  const [storage, setStorage] = useState<{ name: string, id: string, inputValue?: string } | null>()
+  const [preSelectedAmount, setPreSelectedAmount] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-  const handleClose = useCallback((goBack = true) => {
-    setAdding(false)
-    setItem(null)
+  const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setStorage(null)
-    goBack && navigate(-1)
-  }, [navigate])
+    setFeed(null)
+    setPreSelectedAmount(null)
+    setSaving(false)
+    navigate(!reason ? `/stock/${match?.params.storageId}` : '/stock')
+  }, [navigate, match])
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    setAdding(true)
-    e.preventDefault()
-    const title = item?.inputValue || item?.title
-    const slug = item?.slug !== '' ? item?.slug : title?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
-    const amount = Math.abs(state?.item?.amount) || 1
-    storage?.id && await addLog({ variables: { item: { storageId: storage?.id, slug, title, amount } }, refetchQueries: ['Storages'] })
-    handleClose(false)
-    navigate(`/stock/${storage?.id}`, { state: { goBack: '/stock' } })
-  }, [handleClose, item, storage, state?.item, addLog, navigate])
+  const handleSubmit = useCallback(async (evt: React.FormEvent, amount?: number) => {
+    evt.preventDefault()
+    setSaving(true)
+    const feedId = feed?.id || feed?.inputValue?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
+    if (feed?.inputValue) {
+      await set(ref(db, `/feed/${feedId}`), { name: feed.inputValue })
+    }
+    if (feedId && storage?.id) {
+      await runTransaction(ref(db, `/storage/${storage?.id}/items/${feedId}`), (item) => {
+        if (item) {
+          item.amount += amount ?? preSelectedAmount ?? 0
+          return item
+        } else {
+          return {
+            amount: amount ?? preSelectedAmount ?? 0
+          }
+        }
+      })
+      await addLog({
+        type: 'mutation',
+        storageId: storage?.id,
+        feedId,
+        amount: amount ?? preSelectedAmount ?? 0
+      })
+    }
+    handleClose()
+  }, [handleClose, feed, storage, preSelectedAmount])
 
   useEffect(() => {
-    if (state?.item) {
-      setItem(state.item)
-      setStorage(storageOptions.find(s => s.id === state.item.slug))
-    } else {
-      setStorage(storageOptions.find(s => s.id === match?.params.storageId))
+    if (location.state?.movedItem) {
+      setFeed(feeds.find(f => f.id === location.state.movedItem.feedId))
+      setPreSelectedAmount(location.state.movedItem.amount)
+      const feed = feeds.find(f => f.id === location.state.movedItem.feedId)
+      if (feed?.linkedStorageId) {
+        setStorage(storages.find(s => s.id === feed.linkedStorageId) || null)
+      }
+      storageInputRef.current?.focus()
+    } else if (match?.params.storageId) {
+      setStorage(storages.find(s => s.id === match?.params.storageId) || null)
+      const feedMatch = feeds.find(f => f.id === match?.params.storageId)
+      feedMatch ? setFeed(feedMatch) : feedInputRef.current?.focus()
     }
-  }, [state, match, storageOptions])
+  }, [location.state, feeds, match, storages])
 
-  useEffect(() => {
-    if (Boolean(match)) {
-      inputRef.current?.focus()
-    }
-  }, [match])
-
-  return <CustomDialog title={state?.wasMoved ? 'Zak verplaatsen' : 'Zak toevoegen'} open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={() => handleClose()}>
-    <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
+  return <CustomDialog title={location.state?.movedItem ? 'Zak verplaatsen' : 'Zak toevoegen'} open={Boolean(match)} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }}>
       <DialogContent sx={{ flex: 1 }}>
-        {state?.wasMoved && <Typography gutterBottom>Waar wil je de zak naartoe verplaatsen?</Typography>}
+        {location.state?.movedItem && <Typography gutterBottom>Waar wil je de zak naartoe verplaatsen?</Typography>}
         <CustomAutocomplete
           label="Naam"
-          value={item || { title: '', slug: '' }}
-          onChange={setItem}
-          options={itemOptions}
-          idKey="slug"
-          labelKey="title"
-          newOption={params => ({
-            title: `"${params.inputValue}" toevoegen`,
-            slug: ''
-          })}
-          margin="normal"
-        />
-        <CustomAutocomplete
-          label="Opslag"
-          value={storage || { title: '', id: '' }}
-          onChange={setStorage}
-          options={storageOptions}
+          value={feed || { name: '', id: '' }}
+          onChange={setFeed}
+          options={feeds}
           idKey="id"
-          labelKey="title"
+          labelKey="name"
           newOption={params => ({
-            title: `"${params.inputValue}" toevoegen`,
+            name: `"${params.inputValue}" toevoegen`,
             id: ''
           })}
           margin="normal"
+          inputRef={feedInputRef}
         />
+        <CustomAutocomplete
+          label="Opslag"
+          value={storage || { name: '', id: '' }}
+          onChange={setStorage}
+          options={storages}
+          idKey="id"
+          labelKey="name"
+          newOption={params => ({
+            name: `"${params.inputValue}" toevoegen`,
+            id: ''
+          })}
+          margin="normal"
+          inputRef={storageInputRef}
+        />
+        {!preSelectedAmount && <FormControl fullWidth margin="normal">
+          <FormLabel filled>Aantal</FormLabel>
+          <ToggleButtonGroup
+            exclusive
+            onChange={(e, v) => handleSubmit(e, v)}
+            fullWidth
+            disabled={!storage || !feed}
+            color="primary"
+            size="large"
+          >
+            <ToggleButton value={0.5} size="small">+0,5</ToggleButton>
+            <ToggleButton value={1}>+1</ToggleButton>
+            <ToggleButton value={2}>+2</ToggleButton>
+            <ToggleButton value={3}>+3</ToggleButton>
+          </ToggleButtonGroup>
+        </FormControl>}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => handleClose()}>Annuleren</Button>
-        <Button color="success" type="submit" disabled={!item || !storage}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
+        <Button color="success" type="submit" disabled={!storage || !feed}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
       </DialogActions>
-      {adding && <LinearProgress variant="indeterminate" />}
+      {saving && <LinearProgress variant="indeterminate" />}
     </Box>
   </CustomDialog>
 }
