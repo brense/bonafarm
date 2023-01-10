@@ -22,7 +22,7 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
 const initialState: StorageChanges = {
   name: '',
   id: '',
-  order: 0,
+  order: 9999,
   color: '#fff000',
   canEmpty: false
 }
@@ -87,8 +87,8 @@ export default function EditStorage() {
 
   const handleSubmit = useCallback(async () => {
     setSaving(true)
-    const { id, color, canEmpty, newImage, ...data } = changes
-    let image = changes.image
+    const { id, color, canEmpty, newImage, image: currentImg, ...data } = changes
+    let image = currentImg
     if (newImage) {
       const newImageRef = storageRef(firebaseStorage, id)
       const result = await uploadString(newImageRef, newImage, 'data_url')
@@ -96,9 +96,8 @@ export default function EditStorage() {
     }
     await updateStorage(changes.id, {
       ...data,
-      image,
       canEmpty,
-      ...canEmpty ? {} : { color }
+      ...canEmpty ? { image } : { color }
     })
     handleClose()
   }, [handleClose, changes])

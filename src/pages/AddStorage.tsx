@@ -18,7 +18,7 @@ const initialState: StorageChanges = {
   id: '',
   color: '#fff000',
   canEmpty: false,
-  order: 0
+  order: 9999
 }
 
 export default function AddStorage() {
@@ -36,11 +36,10 @@ export default function AddStorage() {
   }, [navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    console.log('submit')
     setAdding(true)
     e.preventDefault()
-    const { id, color, canEmpty, newImage, ...data } = changes
-    let image = changes.image
+    const { id, color, canEmpty, newImage, image: currentImg, ...data } = changes
+    let image = currentImg
     if (newImage) {
       const newImageRef = storageRef(firebaseStorage, id)
       const result = await uploadString(newImageRef, newImage, 'data_url')
@@ -48,9 +47,8 @@ export default function AddStorage() {
     }
     setStorage(changes.id, {
       ...data,
-      image,
       canEmpty,
-      ...canEmpty ? {} : { color }
+      ...canEmpty ? { image } : { color }
     })
     handleClose()
   }, [handleClose, changes])
