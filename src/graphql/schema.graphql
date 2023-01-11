@@ -29,7 +29,6 @@ type Mutation {
 }
 
 type Query {
-  export: [Storage!]
   storages(id: String): [Storage!]!
 }
 
