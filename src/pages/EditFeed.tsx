@@ -46,8 +46,8 @@ export default function EditFeed() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     setSaving(true)
     e.preventDefault()
-    const { id, ...data } = changes
-    await updateFeed(id, data)
+    const { id, linkedStorageId, ...data } = changes
+    await updateFeed(id, linkedStorageId ? { ...data, linkedStorageId } : data)
     handleClose()
   }, [handleClose, changes])
 
