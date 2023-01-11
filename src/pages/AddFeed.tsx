@@ -10,7 +10,7 @@ const Transition = React.forwardRef(function Transition(props: TransitionProps &
   return <Slide direction="up" ref={ref} {...props} />
 })
 
-const initialState:Feed = {
+const initialState: Feed = {
   name: '',
   id: '',
   linkedStorageId: undefined as string | undefined
@@ -33,8 +33,8 @@ export default function AddFeed() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     setAdding(true)
     e.preventDefault()
-    const { id, ...data } = changes
-    await setFeed(id, data)
+    const { id, linkedStorageId, ...data } = changes
+    await setFeed(id, linkedStorageId ? { ...data, linkedStorageId } : data)
     handleClose()
   }, [handleClose, changes])
 
