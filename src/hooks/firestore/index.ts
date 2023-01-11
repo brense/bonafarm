@@ -1,42 +1,144 @@
-import { addDoc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, QueryDocumentSnapshot, Timestamp, where } from 'firebase/firestore'
+import { addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, Timestamp, where, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { useEffect, useState } from 'react'
-import { Subject } from 'rxjs'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { BehaviorSubject } from 'rxjs'
 
-type CollectionParams = { getCollection: () => CollectionReference<DocumentData> }
-type CollectionQueryParams = { name: string, getQuery: () => Query<DocumentData> }
-type UseCollectionParams = CollectionParams | CollectionQueryParams
+type DocumentDataWithID<T = DocumentData> = T & { id: string }
 
-function isQueryParams(params: UseCollectionParams): params is CollectionQueryParams {
-  return Object.hasOwn(params, 'name')
-}
+const firestore = getFirestore()
+const subjects: Record<string, BehaviorSubject<DocumentDataWithID[]> | BehaviorSubject<DocumentDataWithID | null>> = {}
+const refs: Record<string, DocumentReference<DocumentData> | CollectionReference<DocumentData>> = {}
 
-const subjects: Record<string, Subject<QueryDocumentSnapshot<DocumentData>[]>> = {}
+export function useDoc<T = DocumentData>(path: string) {
+  const docRef = useMemo(() => {
+    if (!refs[path]) {
+      refs[path] = doc(firestore, path)
+    }
+    return refs[path] as DocumentReference<T>
+  }, [path])
 
-function getSubject(name: string, q: Query<DocumentData>) {
-  if (!subjects[name]) {
-    const subject = new Subject<QueryDocumentSnapshot<DocumentData>[]>()
-    onSnapshot(q, (querySnapshot) => {
-      const docs: QueryDocumentSnapshot<DocumentData>[] = []
-      querySnapshot.forEach((doc) => {
-        docs.push(doc)
-      })
-      subject.next(docs)
-    })
-    subjects[name] = subject
+  const get = useCallback(async () => {
+    const document = await getDoc(docRef)
+    return { ...document.data(), id: document.id } as DocumentDataWithID<T>
+  }, [docRef])
+
+  const subscribe = useCallback((next: (doc: DocumentDataWithID<T> | null) => void) => {
+    return (getSubject<T>(path, docRef)).subscribe(next)
+  }, [docRef, path])
+
+  const set = useCallback(async (data: T, options?: SetOptions) => {
+    return options ? await setDoc<T>(docRef, data, options) : await setDoc<T>(docRef, data)
+  }, [docRef])
+
+  const deleteFunc = useCallback(async () => {
+    return await deleteDoc(docRef)
+  }, [docRef])
+
+  return {
+    get,
+    set,
+    delete: deleteFunc,
+    subscribe
   }
-  return subjects[name]
 }
 
-export function useCollection(params: UseCollectionParams) {
-  const { query: q, name } = isQueryParams(params) ? { name: params.name, query: params.getQuery() } : { name: params.getCollection().path, query: query(params.getCollection()) }
-  const [docs, setDocs] = useState<QueryDocumentSnapshot<DocumentData>[]>([])
-  useEffect(() => {
-    const subscriber = getSubject(name, q).subscribe(docs => setDocs(docs))
-    return () => subscriber.unsubscribe()
-  }, [name, q])
-  return docs
+export function useCollection<T = DocumentData>(path: string) {
+  const collectionRef = useMemo(() => {
+    if (!refs[path]) {
+      refs[path] = collection(firestore, path)
+    }
+    return refs[path] as CollectionReference<T>
+  }, [path])
+
+  const get = useCallback(async () => {
+    const snapshot = await getDocs(collectionRef)
+    const docs: Array<DocumentDataWithID<T>> = []
+    snapshot.forEach(doc => docs.push({ ...doc.data(), id: doc.id }))
+    return docs
+  }, [collectionRef])
+
+  const count = useCallback(async () => {
+    const snapshot = await getCountFromServer(collectionRef)
+    return snapshot.data().count
+  }, [collectionRef])
+
+  const subscribe = useCallback((next: (docs: Array<DocumentDataWithID<T>>) => void) => {
+    return getSubject<T>(path, collectionRef).subscribe(next)
+  }, [collectionRef, path])
+
+  const add = useCallback(async (data: T) => {
+    return await addDoc(collectionRef, data)
+  }, [collectionRef])
+
+  return {
+    get,
+    count,
+    add,
+    subscribe
+  }
 }
+
+export function useQuery<T = DocumentData>(name: string, q: Query<T>) {
+  const get = useCallback(async () => {
+    return await getDocs(q)
+  }, [q])
+
+  const count = useCallback(async () => {
+    const snapshot = await getCountFromServer(q)
+    return snapshot.data().count
+  }, [q])
+
+  const subscribe = useCallback((next: (docs: Array<DocumentDataWithID<T>>) => void) => {
+    return (getSubject<T>(name, q)).subscribe(next)
+  }, [q, name])
+
+  return {
+    get,
+    count,
+    subscribe
+  }
+}
+
+function getSubject<T = DocumentData>(key: string, q: Query<T> | DocumentReference<T> | CollectionReference<T>) {
+  if (!subjects[key]) {
+    const subject = isNotDocumentRef(q) ? createQuerySnapshot(q as Query<DocumentData>) : createDocumentSnapshot(q as DocumentReference<DocumentData>)
+    subjects[key] = subject
+  }
+  return subjects[key] as BehaviorSubject<any> // TODO: problem matching type from union
+}
+
+function isNotDocumentRef(q: Query<unknown> | DocumentReference<unknown>): q is Query<unknown> {
+  return !Object.hasOwn(q, 'id')
+}
+
+function createQuerySnapshot(q: Query<DocumentData>) {
+  const subject = new BehaviorSubject<Array<DocumentData & { id: string }>>([])
+  onSnapshot(q, (querySnapshot) => {
+    const docs: Array<DocumentData & { id: string }> = []
+    querySnapshot.forEach((doc) => {
+      docs.push({ ...doc.data(), id: doc.id })
+    })
+    subject.next(docs)
+  })
+  return subject
+}
+
+function createDocumentSnapshot(docRef: DocumentReference<DocumentData>) {
+  const subject = new BehaviorSubject<DocumentDataWithID | null>(null)
+  onSnapshot(docRef, (documentSnapshot) => {
+    subject.next({ ...documentSnapshot.data(), id: documentSnapshot.id })
+  })
+  return subject
+}
+
+
+
+
+
+
+
+
+
 
 export type Log = {
   id: string
@@ -62,7 +164,6 @@ type FirestoreLog = {
   amount?: number
 }
 
-const firestore = getFirestore()
 const auth = getAuth()
 
 export async function addLog(logItem: Omit<Log, 'date' | 'id'> | Omit<MutationLog, 'date' | 'id'>) {
