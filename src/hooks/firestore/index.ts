@@ -7,16 +7,6 @@ type DocumentDataWithID<T = DocumentData> = T & { id: string }
 const firestore = getFirestore()
 const refs: Record<string, DocumentReference<DocumentData> | CollectionReference<DocumentData>> = {}
 
-function timestampValuesToDate<T = DocumentData>(obj?: T) {
-  Object.keys(obj || {}).forEach(k => {
-    if (obj && obj[k as keyof typeof obj] instanceof Timestamp) {
-      const timestamp = obj[k as keyof typeof obj] as Timestamp
-      (obj as any)[k as keyof typeof obj] = timestamp.toDate()
-    }
-  })
-  return obj as T
-}
-
 export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
   const { parseTimestamp = false } = options || {}
   const docRef = useMemo(() => {
@@ -41,11 +31,11 @@ export function useDoc<T = DocumentData>(path: string, options?: { parseTimestam
   }, [docRef])
 
   const subscribe = useCallback((next: (doc: DocumentDataWithID<T> | null) => void) => {
-    return onSnapshot(docRef, (snapshot => {
+    return subscribeSnapshot(snapshot => {
       const values = !parseTimestamp ? snapshot.data() : timestampValuesToDate<T>(snapshot.data())
       next({ ...values, id: snapshot.id } as DocumentDataWithID<T>)
-    }))
-  }, [docRef, parseTimestamp])
+    })
+  }, [subscribeSnapshot, parseTimestamp])
 
   const set = useCallback(async (data: T, options?: SetOptions) => {
     return options ? await setDoc<T>(docRef, data, options) : await setDoc<T>(docRef, data)
@@ -102,15 +92,15 @@ export function useCollection<T = DocumentData>(path: string, options?: { parseT
   }, [collectionRef])
 
   const subscribe = useCallback((next: (docs: DocumentDataWithID<T>[]) => void) => {
-    return onSnapshot(collectionRef, (snapshot => {
+    return subscribeSnapshot(snapshot => {
       const docs: DocumentDataWithID<T>[] = []
       snapshot.forEach((doc) => {
         const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
         docs.push({ ...values, id: doc.id })
       })
       next(docs)
-    }))
-  }, [collectionRef, parseTimestamp])
+    })
+  }, [subscribeSnapshot, parseTimestamp])
 
   const add = useCallback(async (data: T) => {
     return await addDoc<T>(collectionRef, data)
@@ -157,15 +147,15 @@ export function useQuery<T = DocumentData>(name: string, q: Query<T>, options?: 
   }, [q])
 
   const subscribe = useCallback((next: (docs: DocumentDataWithID<T>[]) => void) => {
-    return onSnapshot(q, (snapshot => {
+    return subscribeSnapshot(snapshot => {
       const docs: DocumentDataWithID<T>[] = []
       snapshot.forEach((doc) => {
         const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
         docs.push({ ...values, id: doc.id })
       })
       next(docs)
-    }))
-  }, [q, parseTimestamp])
+    })
+  }, [subscribeSnapshot, parseTimestamp])
 
   return {
     get,
@@ -175,6 +165,16 @@ export function useQuery<T = DocumentData>(name: string, q: Query<T>, options?: 
     subscribe,
     subscribeSnapshot
   }
+}
+
+function timestampValuesToDate<T = DocumentData>(obj?: T) {
+  Object.keys(obj || {}).forEach(k => {
+    if (obj && obj[k as keyof typeof obj] instanceof Timestamp) {
+      const timestamp = obj[k as keyof typeof obj] as Timestamp
+      (obj as any)[k as keyof typeof obj] = timestamp.toDate()
+    }
+  })
+  return obj as T
 }
 
 
