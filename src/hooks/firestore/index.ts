@@ -1,4 +1,4 @@
-import { addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, Timestamp, where, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot } from 'firebase/firestore'
+import { addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, Timestamp, where, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, Unsubscribe } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 
@@ -165,6 +165,24 @@ export function useQuery<T = DocumentData>(name: string, q: Query<T>, options?: 
     subscribe,
     subscribeSnapshot
   }
+}
+
+export function useSubscribeDoc<T = DocumentData>(subscribe: (next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe) {
+  const [result, setResult] = useState<DocumentDataWithID<T> | null>(null)
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
+}
+
+export function useSubscribeDocs<T = DocumentData>(subscribe: (next: (docs: DocumentDataWithID<T>[]) => void) => Unsubscribe) {
+  const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
 }
 
 function timestampValuesToDate<T = DocumentData>(obj?: T) {
