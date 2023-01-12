@@ -197,6 +197,10 @@ export function useSubscribeQuery<T = DocumentData>(name: string, q: Query<T>, o
   return result
 }
 
+export function dateToTimestamp(date:Date){
+  return Timestamp.fromDate(date)
+}
+
 function timestampValuesToDate<T = DocumentData>(obj?: T) {
   Object.keys(obj || {}).forEach(k => {
     if (obj && obj[k as keyof typeof obj] instanceof Timestamp) {
