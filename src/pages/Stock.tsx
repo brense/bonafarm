@@ -5,7 +5,7 @@ import CenteredContent from '../components/CenteredContent'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
-import { isMutationLog, useLastEmptied, useLatestMutations } from '../hooks/firestore'
+import { isMutationLog, useCollection, useDoc, useLastEmptied, useLatestMutations } from '../hooks/firestore'
 import { useIcon, useTitle } from '../App'
 moment.locale('nl')
 
@@ -134,6 +134,14 @@ function StockPerFeed() {
 }
 
 export default function Stock() {
+  const { subscribe } = useCollection('logs', { parseTimestamp: true })
+  useEffect(() => {
+    const unsubscribe = subscribe(snapshot => {
+      console.log(snapshot)
+    })
+    return () => unsubscribe()
+  }, [subscribe])
+
   const [value, setValue] = useState<'storage' | 'item'>(localStorage.getItem('stock-type') as 'storage' || 'storage')
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
