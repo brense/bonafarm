@@ -2,11 +2,11 @@ import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { Box, Button, DialogActions, DialogContent, FormControl, FormLabel, Icon, LinearProgress, Slide, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import CustomDialog from '../components/CustomDialog'
-import { useFeed, useStorages } from '../hooks/firebase'
-import CustomAutocomplete from '../components/CustomAutocomplete'
+import CustomDialog from '../../components/CustomDialog'
+import { useFeed, useStorages } from '../../hooks/firebase'
+import CustomAutocomplete from '../../components/CustomAutocomplete'
 import { getDatabase, ref, runTransaction, set } from 'firebase/database'
-import { addLog } from '../hooks/firestore'
+import { addLog } from '../../hooks/firestore'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />

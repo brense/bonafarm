@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Card, CardActionArea, CardHeader, Divider, List, ListItem, ListSubheader, ListItemSecondaryAction, ListItemText, Typography, Avatar, Box, useTheme, useMediaQuery } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Storage, useFeed } from '../hooks/firebase'
+import { Storage, useFeed } from '../../hooks/firebase'
 
 export default function StorageCard({ storage }: { storage: Storage }) {
   const location = useLocation()

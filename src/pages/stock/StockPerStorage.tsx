@@ -1,9 +1,9 @@
 import { Card, CardActionArea, Typography, CircularProgress, Icon, CardContent, useTheme, useMediaQuery, Grid } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
-import CenteredContent from '../components/CenteredContent'
-import { useStorages } from '../hooks/firebase'
-import StorageCardWithLogs from '../components/StorageCardWithLogs'
-import StorageCard from '../components/StorageCard'
+import CenteredContent from '../../components/CenteredContent'
+import { useStorages } from '../../hooks/firebase'
+import StorageCardWithLogs from '../../components/storage/StorageCardWithLogs'
+import StorageCard from '../../components/storage/StorageCard'
 
 export default function StockPerStorage() {
   const location = useLocation()

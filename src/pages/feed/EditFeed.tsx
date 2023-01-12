@@ -2,9 +2,9 @@ import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
 import { Avatar, Box, Button, CardContent, Collapse, DialogActions, DialogContent, Divider, Icon, LinearProgress, List, ListItem, ListItemAvatar, ListItemButton, ListItemSecondaryAction, ListItemText, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import CustomDialog from '../components/CustomDialog'
-import { Feed, updateFeed, useFeed, useStorages } from '../hooks/firebase'
-import FeedForm from '../components/forms/FeedForm'
+import CustomDialog from '../../components/CustomDialog'
+import { Feed, updateFeed, useFeed, useStorages } from '../../hooks/firebase'
+import FeedForm from '../../components/forms/FeedForm'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />

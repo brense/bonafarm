@@ -3,17 +3,17 @@ import { AppBar, Avatar, Box, CircularProgress, Icon, IconButton, ListItemIcon, 
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink, User } from 'firebase/auth'
 import CenteredContent from './components/CenteredContent'
-import AddStorage from './pages/AddStorage'
-import AddFeed from './pages/AddFeed'
-import EditStorage from './pages/EditStorage'
-import AddItem from './pages/AddItem'
-import EditFeed from './pages/EditFeed'
+import AddStorage from './pages/storage/AddStorage'
+import AddFeed from './pages/feed/AddFeed'
+import EditStorage from './pages/storage/EditStorage'
+import AddItem from './pages/storage/AddItem'
+import EditFeed from './pages/feed/EditFeed'
 import Signin from './pages/Signin'
 import { Subject } from 'rxjs'
 import Home from './pages/Home'
 import QrReaderDialog from './components/QrReaderDialog'
 
-const Stock = React.lazy(() => import('./pages/Stock'))
+const Stock = React.lazy(() => import('./pages/stock/Stock'))
 
 const auth = getAuth()
 const authLoaded = new Subject<void>()

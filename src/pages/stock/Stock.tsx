@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BottomNavigation, Paper, BottomNavigationAction, Icon, useTheme, useMediaQuery } from '@mui/material'
-import { useIcon, useTitle } from '../App'
+import { useIcon, useTitle } from '../../App'
 import StockPerFeed from './StockPerFeed'
 import StockPerStorage from './StockPerStorage'
 import moment from 'moment'

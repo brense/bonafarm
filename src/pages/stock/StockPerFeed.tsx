@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { Stack, Chip, Card, CardActionArea, Grid, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, CircularProgress, Icon, ButtonBase } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
-import CenteredContent from '../components/CenteredContent'
-import { Feed, Storage, useFeed, useStorages } from '../hooks/firebase'
+import CenteredContent from '../../components/CenteredContent'
+import { Feed, Storage, useFeed, useStorages } from '../../hooks/firebase'
 
 export default function StockPerFeed() {
   const { data: storages, loading: sLoading } = useStorages()
