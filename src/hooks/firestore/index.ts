@@ -167,8 +167,9 @@ export function useQuery<T = DocumentData>(name: string, q: Query<T>, options?: 
   }
 }
 
-export function useSubscribeDoc<T = DocumentData>(subscribe: (next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe) {
+export function useSubscribeDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
   const [result, setResult] = useState<DocumentDataWithID<T> | null>(null)
+  const { subscribe } = useDoc<T>(path, options)
   useEffect(() => {
     const unsubscribe = subscribe(setResult)
     return () => unsubscribe()
@@ -176,8 +177,19 @@ export function useSubscribeDoc<T = DocumentData>(subscribe: (next: (doc: Docume
   return result
 }
 
-export function useSubscribeDocs<T = DocumentData>(subscribe: (next: (docs: DocumentDataWithID<T>[]) => void) => Unsubscribe) {
+export function useSubscribeCollection<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
   const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
+  const { subscribe } = useCollection<T>(path, options)
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
+}
+
+export function useSubscribeQuery<T = DocumentData>(name: string, q: Query<T>, options?: { parseTimestamp?: boolean }) {
+  const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
+  const { subscribe } = useQuery<T>(name, q, options)
   useEffect(() => {
     const unsubscribe = subscribe(setResult)
     return () => unsubscribe()
