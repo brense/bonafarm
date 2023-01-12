@@ -136,7 +136,7 @@ export default function EditStorage() {
     <DialogContent sx={{ p: 0 }}>
       <Collapse in={!isEditing}>
         <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 3, pl: 2, flex: 1, width: '100%' }}>
-          {!storage.canEmpty && items.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
+          {!storage.canEmpty && items.map((item, k) => <Grid key={k} item xs={12} sm={6}>
             <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
           </Grid>)}
           <Grid item xs={12} sm={6}>
