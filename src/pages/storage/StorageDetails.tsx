@@ -6,7 +6,7 @@ import { Feed, removeStorage } from '../../hooks/firebase'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import StorageItem from '../../components/storage/StorageItem'
 import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
-import { addLog, useSubscribeDoc } from '../../hooks/firestore'
+import { addLog, makeQuery, useSubscribeCollection, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit } from '../../hooks/firestore'
 import { Timeline } from '@mui/lab'
 import LogItem from '../../components/LogItem'
 
@@ -51,9 +51,12 @@ export default function StorageDetails({ storage }: { storage: { id: string, nam
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-
-  const items = [] as any[] // TODO: useCollection(`storage/${storage.id}/items`)
-  const logItems = [] as any[] // TODO useQuery(collection('logs'), where('storageId', '==', storage.id))
+  const items = useSubscribeCollection<{ amount: number, feedId: string }>(`storage/${storage.id}/items`)
+  const logs = useSubscribeQuery<{ timestamp: Date }>(`logs/${storage.id}`, makeQuery<{ timestamp: Date }>('logs',
+    where('storageId', '==', storage.id),
+    orderBy('timestamp', 'asc'),
+    limit(100)
+  ), { parseTimestamp: true })
 
   const handleMutateItem = useCallback(async (item: { feed?: Feed, amount: number }, movedAmount: number) => {
     const db = getDatabase()
@@ -123,7 +126,7 @@ export default function StorageDetails({ storage }: { storage: { id: string, nam
       </Grid>
       <Divider>Laatste wijzigingen</Divider>
       <Timeline>
-        {logItems.map((item, k) => <LogItem item={item} key={k} />)}
+        {logs.map((item, k) => <LogItem item={item} key={k} />)}
       </Timeline>
     </DialogContent>
     <DialogActions>

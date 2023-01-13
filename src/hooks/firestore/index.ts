@@ -1,6 +1,8 @@
-import { addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, Timestamp, where, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot } from 'firebase/firestore'
+import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { useEffect, useState, useMemo, useCallback } from 'react'
+
+export { query, where, orderBy, limit } from 'firebase/firestore'
 
 type DocumentDataWithID<T = DocumentData> = T & { id: string }
 
@@ -197,8 +199,12 @@ export function useSubscribeQuery<T = DocumentData>(name: string, q: Query<T>, o
   return result
 }
 
-export function dateToTimestamp(date:Date){
+export function dateToTimestamp(date: Date) {
   return Timestamp.fromDate(date)
+}
+
+export function makeQuery<T = DocumentData>(path: string, ...constraints: QueryConstraint[]): Query<T> {
+  return query(collection(firestore, path) as CollectionReference<T>, ...constraints)
 }
 
 function timestampValuesToDate<T = DocumentData>(obj?: T) {
