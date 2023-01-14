@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { AppBar, Avatar, Box, CircularProgress, Icon, IconButton, ListItemIcon, Menu, MenuItem, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material'
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink, User } from 'firebase/auth'
 import CenteredContent from './components/CenteredContent'
-import AddStorage from './pages/storage/AddStorage'
 import AddFeed from './pages/feed/AddFeed'
 import EditStorage from './pages/storage/EditStorage'
 import AddItem from './pages/storage/AddItem'
@@ -12,6 +11,8 @@ import Signin from './pages/Signin'
 import { Subject } from 'rxjs'
 import Home from './pages/Home'
 import QrReaderDialog from './components/QrReaderDialog'
+import DetailDialog from './components/DetailDialog'
+import StorageDetails from './pages/storage/StorageDetails'
 
 const Stock = React.lazy(() => import('./pages/stock/Stock'))
 
@@ -145,11 +146,19 @@ export default function App() {
         </>}
       </Routes>
       <AddItem />
-      <AddStorage />
-      <EditStorage />
+      <StorageDialogs />
       <AddFeed />
       <EditFeed />
       <QrReaderDialog open={showScanner} onClose={handleScannerClose} />
     </React.Suspense>
   </Box>
+}
+
+function StorageDialogs() {
+  const match = useMatch('/stock/:storageId/*')
+  return <DetailDialog open={Boolean(match)} >
+    <Route path="/stock/add" element={<EditStorage />} />
+    <Route path="/stock/:storageId" element={<StorageDetails />} />
+    <Route path="/stock/:storageId/edit" element={<EditStorage />} />
+  </DetailDialog>
 }

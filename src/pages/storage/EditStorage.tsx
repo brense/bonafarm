@@ -1,176 +1,122 @@
-import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Box, Button, Card, CardActionArea, CardContent, Collapse, DialogActions, DialogContent, Divider, Grid, Icon, LinearProgress, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
-import { TransitionProps } from '@mui/material/transitions'
-import { useMatch, useNavigate } from 'react-router-dom'
-import CustomDialog from '../../components/CustomDialog'
-import StorageForm, { StorageChanges } from '../../components/forms/StorageForm'
-import { Feed, removeStorage, updateStorage, useFeed, useStorages } from '../../hooks/firebase'
-import { useConfirmDialog } from '../../components/ConfirmDialog'
-import StorageItem from '../../components/storage/StorageItem'
-import { getDatabase, ref, remove, runTransaction } from 'firebase/database'
-import { addLog, isMutationLog, useLogs } from '../../hooks/firestore'
-import { Timeline } from '@mui/lab'
-import { getDownloadURL, getStorage, ref as storageRef, uploadString } from 'firebase/storage'
-import LogItem from '../../components/LogItem'
+import { useCallback, useMemo, useRef, useState, useEffect, useReducer } from 'react'
+import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, Popover, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
+import DialogAppbar from '../../components/DialogAppbar'
+import { useSubscribeDoc } from '../../hooks/firestore'
+import { CircleStencil, Cropper, CropperRef } from 'react-advanced-cropper'
+import { useDropzone } from 'react-dropzone'
+import { HexColorPicker } from 'react-colorful'
+import 'react-advanced-cropper/dist/style.css'
 
-const firebaseStorage = getStorage()
-
-const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
-  return <Slide direction="up" ref={ref} {...props} />
-})
-
-const initialState: StorageChanges = {
-  name: '',
+const initialState = {
   id: '',
-  order: 9999,
-  color: '#fff000',
-  canEmpty: false
+  name: '',
+  type: 'storage' as 'storage' | 'shute' | 'stable',
+  color: undefined as undefined | string,
+  image: undefined as undefined | string,
+  newImage: undefined as undefined | string
 }
 
+function reducerFunc(prev: typeof initialState, next: Partial<typeof initialState>) {
+  return { ...prev, ...next }
+}
+
+let timeout: NodeJS.Timeout
+
 export default function EditStorage() {
-  const [saving, setSaving] = useState(false)
   const match = useMatch('/stock/:storageId/*')
+  const storage = useSubscribeDoc<typeof initialState>(`storages/${match?.params.storageId}`)
   const navigate = useNavigate()
-  const inputRef = useRef<HTMLInputElement>()
-  const [changes, setChanges] = useState(initialState)
-  const isValid = useMemo(() => !(changes.name === '' || changes.color === '' || changes.id === '' || saving), [changes, saving])
-  const { data: storages } = useStorages()
-  const { data: feed } = useFeed()
-  const storage = useMemo(() => storages.find(s => s.id === match?.params.storageId), [match, storages])
-  const items = useMemo(() => Object.keys(storage?.items || {}).map(feedId => {
-    return {
-      feed: feed.find(f => f.id === feedId),
-      amount: storage?.items ? storage?.items[feedId].amount : 0
-    }
-  }, []), [storage, feed])
-  const logs = useLogs({ key: 'storageId', value: storage?.id || '' })
-  const logItems = useMemo(() => logs.map(l => ({ ...l, ...isMutationLog(l) && { feed: feed.find(f => f.id === l.feedId) } })), [feed, logs])
+  const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
-  const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
-  const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const inputRef = useRef<HTMLInputElement>()
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null)
+  const [previewImg, setPreviewImg] = useState<{ name: string, image: string | null } | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setLoadingPreview(true)
+    const fileReader = new FileReader()
+    fileReader.onload = () => {
+      setPreviewImg({ name: acceptedFiles[0].name, image: fileReader.result as string | null })
+      setLoadingPreview(false)
+    }
+    fileReader.readAsDataURL(acceptedFiles[0])
+  }, [])
+  const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1, multiple: false })
+  const [changes, setChanges] = useReducer(reducerFunc, initialState)
 
   useEffect(() => {
     storage && setChanges(storage)
   }, [storage])
 
-  const handleMutateItem = useCallback(async (item: { feed?: Feed, amount: number }, movedAmount: number) => {
-    const db = getDatabase()
-    if (storage?.id && item.feed) {
-      if (item.amount === 0) {
-        await remove(ref(db, `storage/${storage?.id}/items/${item.feed?.id}`))
-      } else {
-        await runTransaction(ref(db, `/storage/${storage?.id}/items/${item.feed?.id}`), () => {
-          return {
-            amount: item.amount
-          }
-        })
-      }
-      await addLog({
-        type: 'mutation',
-        storageId: storage?.id,
-        feedId: item.feed?.id,
-        amount: movedAmount
-      })
-    }
-    if (movedAmount < 0) {
-      navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { feedId: item.feed?.id, amount: Math.abs(movedAmount) } } })
-    }
-  }, [storage?.id, navigate])
-
-  const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
-    setSaving(false)
-    setChanges(storage ? storage : initialState)
-    navigate(isEditing && storage && !reason ? `/stock/${storage.id}` : '/stock')
-  }, [navigate, isEditing, storage])
-
-  const handleSubmit = useCallback(async () => {
-    setSaving(true)
-    const { id, color, canEmpty, newImage, image: currentImg, ...data } = changes
-    let image = currentImg
-    if (newImage) {
-      const newImageRef = storageRef(firebaseStorage, id)
-      const result = await uploadString(newImageRef, newImage, 'data_url')
-      image = await getDownloadURL(result.ref)
-    }
-    await updateStorage(changes.id, {
-      ...data,
-      canEmpty,
-      ...canEmpty ? { image } : { color }
-    })
-    handleClose()
-  }, [handleClose, changes])
-
-  const handleDelete = useCallback(() => {
-    confirmDeleteDialog.open({
-      confirmMessage: 'Weet je zeker dat je deze opslag wilt verwijderen?',
-      onConfirm: async () => {
-        storage && await removeStorage(storage?.id)
-        navigate('/stock')
-      }
-    })
-  }, [confirmDeleteDialog, navigate, storage])
-
-  const handleEmpty = useCallback(() => {
-    confirmEmptyDialog.open({
-      confirmMessage: 'Weet je zeker dat je deze opslag wilt leegmaken?',
-      onConfirm: async () => {
-        const db = getDatabase()
-        remove(ref(db, `storage/${storage?.id}/items`))
-        addLog({
-          type: 'emptied',
-          storageId: storage?.id || ''
-        })
-      }
-    })
-  }, [storage, confirmEmptyDialog])
-
   useEffect(() => {
-    if (Boolean(match)) {
-      inputRef.current?.focus()
-    }
-  }, [match])
+    setPreviewImg(null)
+    setLoadingPreview(false)
+  }, [])
 
-  return !storage ? null : <CustomDialog title={isEditing ? `${storage.name} bewerken` : `${storage.name}`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={(e, reason) => handleClose(reason)} showCloseButton={!isMobile}>
-    <DialogContent sx={{ p: 0 }}>
-      <Collapse in={!isEditing}>
-        <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 3, pl: 2, flex: 1, width: '100%' }}>
-          {!storage.canEmpty && items.map((item, k) => <Grid key={k} item xs={12} sm={6}>
-            <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
-          </Grid>)}
-          <Grid item xs={12} sm={6}>
-            <Card>
-              <CardActionArea onClick={() => navigate(`/stock/${storage.id}/add`, { state: { referrer: match?.pathname } })}>
-                <CardContent sx={{ color: 'text.secondary', alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', height: !isMobile ? 129 : undefined }}>
-                  <Icon fontSize="large" color="inherit">add_circle</Icon>
-                  <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Zak toevoegen</Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        </Grid>
-        <Divider>Laatste wijzigingen</Divider>
-        <Timeline>
-          {logItems.map((item, k) => <LogItem item={item} key={k} />)}
-        </Timeline>
-      </Collapse>
-      <Collapse in={isEditing}>
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }}>
-          <DialogContent sx={{ flex: 1 }}>
-            {Boolean(match) && <StorageForm storage={changes} onChange={setChanges} isEditing />}
-          </DialogContent>
-        </Box>
-      </Collapse>
+  const defaultSize = useCallback(({ imageSize, visibleArea }: { visibleArea?: { width: number, height: number } | null, imageSize: { width: number, height: number } }) => {
+    return {
+      width: (visibleArea || imageSize).width,
+      height: (visibleArea || imageSize).height,
+    }
+  }, [])
+
+  const onChange = useCallback((cropper: CropperRef) => {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      const newImage = cropper.getCanvas({ height: 192, width: 192 })?.toDataURL()
+      setChanges({ newImage })
+    }, 300)
+  }, [setChanges])
+
+  const handleSave = useCallback(() => {
+    // TODO: save...
+  }, [])
+
+  return <>
+    <DialogAppbar onClose={onClose}>{isEditing ? `${storage?.name} Bewerken` : 'Opslag toevoegen'}</DialogAppbar>
+    <DialogContent>
+      <TextField value={changes.name} onChange={e => setChanges({ name: e.target.value })} label="Naam" margin="normal" variant="filled" fullWidth inputRef={inputRef} required />
+      <TextField value={changes.id} helperText={!isEditing && 'Let op, dit kan later niet meer worden aangepast!'} disabled={isEditing} onChange={e => /^$|^[a-z]+$/.test(e.target.value) && setChanges({ id: e.target.value })} required label="Pad" margin="normal" variant="filled" fullWidth inputProps={{ pattern: '^[a-z]+$' }} />
+      <FormControl margin="normal">
+        <FormLabel>Type opslag</FormLabel>
+        <RadioGroup row value={changes.type} onChange={(e, v) => setChanges({ type: v as 'storage' })}>
+          <FormControlLabel value="storage" control={<Radio />} label="Ton" />
+          <FormControlLabel value="shute" control={<Radio />} label="Koker" />
+          <FormControlLabel value="stable" control={<Radio />} label="Stal" />
+        </RadioGroup>
+      </FormControl>
+      <FormControl margin="normal" fullWidth>
+        <FormLabel>Kies een icoontje of kleur voor de opslag</FormLabel>
+        <Stack direction="row" gap={1} sx={{ my: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <Box sx={{ height: 192, width: 192, p: !previewImg ? 1 : 0, borderRadius: 3, cursor: 'pointer', border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} {...getRootProps()}>
+              {!previewImg && <input {...getInputProps()} />}
+              {!previewImg && changes.image && <Avatar><img src={changes.image} alt="" width={40} height={40} style={{ borderRadius: 96 }} /></Avatar>}
+              {!previewImg && !changes.image && <Typography align="center" variant="body2">Klik om een afbeelding te kiezen, of sleep de afbeelding naar dit kader.</Typography>}
+              {previewImg && !loadingPreview && <Cropper
+                src={previewImg?.image}
+                onChange={onChange}
+                className={'cropper'}
+                stencilComponent={CircleStencil}
+                defaultSize={defaultSize}
+              />}
+              {loadingPreview && <CircularProgress />}
+            </Box>
+          </Box>
+          <Divider orientation="vertical" flexItem><Typography variant="button" color="textSecondary">Of</Typography></Divider>
+          <TextField inputRef={inputRef} onClick={e => setAnchorEl(e.currentTarget)} label="Kleur" required value={changes.color || ''} onChange={e => setChanges({ color: e.target.value })} variant="filled" fullWidth InputLabelProps={{ shrink: true }} InputProps={{
+            startAdornment: <InputAdornment position="start">
+              <Avatar sx={{ bgcolor: changes.color, height: 24, width: 24 }}>{''}</Avatar>
+            </InputAdornment>
+          }} />
+          <Popover open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} sx={{ '& .MuiPopover-paper': { overflow: 'hidden', backgroundColor: 'none' } }}><HexColorPicker color={changes.color} onChange={color => setChanges({ color })} /></Popover>
+        </Stack>
+      </FormControl>
     </DialogContent>
-    {!isEditing ? <DialogActions>
-      {storage.canEmpty && <Button onClick={handleEmpty} color="inherit"><Icon>cancel</Icon>&nbsp;&nbsp;Leegmaken</Button>}
-      <Button onClick={() => navigate(`/stock/${storage.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Bewerken</Button>
-      <Button onClick={handleDelete} color="error"><Icon>delete</Icon>&nbsp;&nbsp;Verwijderen</Button>
-    </DialogActions> : <DialogActions>
-      <Button onClick={() => handleClose()}>Annuleren</Button>
-      <Button color="success" onClick={handleSubmit} disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
-    </DialogActions>}
-    {saving && <LinearProgress variant="indeterminate" />}
-  </CustomDialog>
+    <DialogActions>
+      <Button onClick={() => navigate(isEditing ? `/stock/${storage?.id}` : '/stock')}>Annuleren</Button>
+      <Button onClick={handleSave} color="success">Opslaan</Button>
+    </DialogActions>
+  </>
 }
