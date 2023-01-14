@@ -119,7 +119,7 @@ export function useCollection<T = DocumentData>(path: string, options?: { parseT
   }
 }
 
-export function useQuery<T = DocumentData>(name: string, q: Query<T>, options?: { parseTimestamp?: boolean }) {
+export function useQuery<T = DocumentData>(q: Query<T>, options?: { parseTimestamp?: boolean }) {
   const { parseTimestamp = false } = options || {}
   const getSnapshot = useCallback(async () => {
     return await getDocs(q)
@@ -189,9 +189,9 @@ export function useSubscribeCollection<T = DocumentData>(path: string, options?:
   return result
 }
 
-export function useSubscribeQuery<T = DocumentData>(name: string, q: Query<T>, options?: { parseTimestamp?: boolean }) {
+export function useSubscribeQuery<T = DocumentData>(q: Query<T>, options?: { parseTimestamp?: boolean }) {
   const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
-  const { subscribe } = useQuery<T>(name, q, options)
+  const { subscribe } = useQuery<T>(q, options)
   useEffect(() => {
     const unsubscribe = subscribe(setResult)
     return () => unsubscribe()

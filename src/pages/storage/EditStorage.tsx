@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useRef, useState, useEffect, useReducer } from 'react'
-import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, Popover, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, LinearProgress, Popover, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import DialogAppbar from '../../components/DialogAppbar'
-import { useSubscribeDoc } from '../../hooks/firestore'
+import { useDoc, useSubscribeDoc } from '../../hooks/firestore'
 import { CircleStencil, Cropper, CropperRef } from 'react-advanced-cropper'
 import { useDropzone } from 'react-dropzone'
 import { HexColorPicker } from 'react-colorful'
+import { getDownloadURL, getStorage, ref as storageRef, uploadString } from 'firebase/storage'
 import 'react-advanced-cropper/dist/style.css'
+
+const firebaseStorage = getStorage()
 
 const initialState = {
   id: '',
@@ -14,7 +17,8 @@ const initialState = {
   type: 'storage' as 'storage' | 'shute' | 'stable',
   color: undefined as undefined | string,
   image: undefined as undefined | string,
-  newImage: undefined as undefined | string
+  newImage: undefined as undefined | string,
+  order: 999
 }
 
 function reducerFunc(prev: typeof initialState, next: Partial<typeof initialState>) {
@@ -24,6 +28,7 @@ function reducerFunc(prev: typeof initialState, next: Partial<typeof initialStat
 let timeout: NodeJS.Timeout
 
 export default function EditStorage() {
+  const [saving, setSaving] = useState(false)
   const match = useMatch('/stock/:storageId/*')
   const storage = useSubscribeDoc<typeof initialState>(`storages/${match?.params.storageId}`)
   const navigate = useNavigate()
@@ -44,15 +49,17 @@ export default function EditStorage() {
   }, [])
   const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1, multiple: false })
   const [changes, setChanges] = useReducer(reducerFunc, initialState)
+  const { set } = useDoc(`storages/${changes.id || 'add'}`)
 
   useEffect(() => {
-    storage && setChanges(storage)
-  }, [storage])
-
-  useEffect(() => {
+    setChanges(initialState)
     setPreviewImg(null)
     setLoadingPreview(false)
   }, [])
+
+  useEffect(() => {
+    storage && match?.pathname !== '/stock/add' && setChanges(storage)
+  }, [storage, match])
 
   const defaultSize = useCallback(({ imageSize, visibleArea }: { visibleArea?: { width: number, height: number } | null, imageSize: { width: number, height: number } }) => {
     return {
@@ -69,9 +76,18 @@ export default function EditStorage() {
     }, 300)
   }, [setChanges])
 
-  const handleSave = useCallback(() => {
-    // TODO: save...
-  }, [])
+  const handleSave = useCallback(async (e: {}) => {
+    setSaving(true)
+    const { id, color, newImage, image: currentImg, ...data } = changes
+    let image = currentImg
+    if (newImage) {
+      const newImageRef = storageRef(firebaseStorage, id)
+      const result = await uploadString(newImageRef, newImage, 'data_url')
+      image = await getDownloadURL(result.ref)
+    }
+    await set({ ...data, ...image && { image }, ...color && { color } })
+    onClose && onClose(e)
+  }, [onClose, changes, set])
 
   return <>
     <DialogAppbar onClose={onClose}>{isEditing ? `${storage?.name} Bewerken` : 'Opslag toevoegen'}</DialogAppbar>
@@ -118,5 +134,6 @@ export default function EditStorage() {
       <Button onClick={() => navigate(isEditing ? `/stock/${storage?.id}` : '/stock')}>Annuleren</Button>
       <Button onClick={handleSave} color="success">Opslaan</Button>
     </DialogActions>
+    {saving && <LinearProgress variant="indeterminate" />}
   </>
 }
