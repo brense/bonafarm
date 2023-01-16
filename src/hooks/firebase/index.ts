@@ -3,10 +3,10 @@ import { initializeApp } from 'firebase/app'
 import { getDatabase, onValue, ref, remove, set, update } from 'firebase/database'
 import { useEffect, useState } from 'react'
 
+// TODO: refactor this...
 const { VITE_FIREBASE_CONFIG = '{}' } = import.meta.env
-initializeApp(JSON.parse(VITE_FIREBASE_CONFIG))
-
-const db = getDatabase()
+const app = initializeApp(JSON.parse(VITE_FIREBASE_CONFIG))
+const db = getDatabase(app)
 
 /**
  * Storage

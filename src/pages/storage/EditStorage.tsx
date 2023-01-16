@@ -49,6 +49,7 @@ export default function EditStorage() {
   }, [])
   const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1, multiple: false })
   const [changes, setChanges] = useReducer(reducerFunc, initialState)
+  const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
   const { set } = useDoc(`storages/${changes.id || 'add'}`)
 
   useEffect(() => {
@@ -56,6 +57,12 @@ export default function EditStorage() {
     setPreviewImg(null)
     setLoadingPreview(false)
   }, [])
+
+  useEffect(() => {
+    if (Boolean(match)) {
+      inputRef.current?.focus()
+    }
+  }, [match])
 
   useEffect(() => {
     storage && match?.pathname !== '/stock/add' && setChanges(storage)
@@ -132,7 +139,7 @@ export default function EditStorage() {
     </DialogContent>
     <DialogActions>
       <Button onClick={() => navigate(isEditing ? `/stock/${storage?.id}` : '/stock')}>Annuleren</Button>
-      <Button onClick={handleSave} color="success">Opslaan</Button>
+      <Button onClick={handleSave} disabled={!isValid} color="success">Opslaan</Button>
     </DialogActions>
     {saving && <LinearProgress variant="indeterminate" />}
   </>

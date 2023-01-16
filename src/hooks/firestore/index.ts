@@ -1,12 +1,17 @@
 import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { initializeApp } from 'firebase/app'
 
 export { query, where, orderBy, limit } from 'firebase/firestore'
 
 type DocumentDataWithID<T = DocumentData> = T & { id: string }
 
-const firestore = getFirestore()
+// TODO: refactor this...
+const { VITE_FIREBASE_CONFIG = '{}' } = import.meta.env
+const app = initializeApp(JSON.parse(VITE_FIREBASE_CONFIG))
+const firestore = getFirestore(app)
+
 const refs: Record<string, DocumentReference<DocumentData> | CollectionReference<DocumentData>> = {}
 
 export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {

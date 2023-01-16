@@ -31,7 +31,7 @@ export default function CustomAutocomplete<T extends { [key: string]: any, input
     selectOnFocus
     clearOnBlur
     handleHomeEndKeys
-    renderOption={(props, option) => <li {...props}>{option[labelKey] as string}</li>}
+    renderOption={(props, option) => <li {...props} key={option[idKey]}>{option[labelKey] as string}</li>}
     renderInput={(params) => <TextField {...params} variant="filled" margin={margin} label={label} inputRef={inputRef} helperText={helperText} />}
     fullWidth
     {...rest}

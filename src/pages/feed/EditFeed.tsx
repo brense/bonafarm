@@ -1,55 +1,47 @@
-import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react'
-import { Avatar, Box, Button, CardContent, Collapse, DialogActions, DialogContent, Divider, Icon, LinearProgress, List, ListItem, ListItemAvatar, ListItemButton, ListItemSecondaryAction, ListItemText, Slide, Typography, useMediaQuery, useTheme } from '@mui/material'
-import { TransitionProps } from '@mui/material/transitions'
-import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import CustomDialog from '../../components/CustomDialog'
-import { Feed, updateFeed, useFeed, useStorages } from '../../hooks/firebase'
-import FeedForm from '../../components/forms/FeedForm'
+import { useCallback, useRef, useEffect, useState, useMemo, useReducer } from 'react'
+import { Button, DialogActions, DialogContent, LinearProgress, TextField } from '@mui/material'
+import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
+import { useDoc, useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
+import DialogAppbar from '../../components/DialogAppbar'
+import CustomAutocomplete from '../../components/CustomAutocomplete'
 
-const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
-  return <Slide direction="up" ref={ref} {...props} />
-})
-
-const initialState: Feed = {
-  name: '',
+const initialState = {
   id: '',
+  name: '',
   linkedStorageId: undefined as string | undefined
+}
+
+function reducerFunc(prev: typeof initialState, next: Partial<typeof initialState>) {
+  return { ...prev, ...next }
 }
 
 export default function EditFeed() {
   const [saving, setSaving] = useState(false)
   const match = useMatch('/feed/:feedId/*')
+  const feed = useSubscribeDoc<typeof initialState>(`feeds/${match?.params.feedId}`)
+  const storages = useSubscribeCollection<{ id: string, name: string }>('storages')
   const navigate = useNavigate()
-  const inputRef = useRef<HTMLInputElement>()
-  const [changes, setChanges] = useState(initialState)
-  const isValid = useMemo(() => !(changes.name === '' || changes.id === '' || saving), [changes, saving])
-  const { data: feeds } = useFeed()
-  const { data: storages } = useStorages()
-  const feed = useMemo(() => feeds.find(f => f.id === match?.params.feedId), [match, feeds])
-  const feedStorages = useMemo(() => feed ? storages.filter(s => !s.canEmpty && s.items && s.items[feed.id]).map(({ items, ...s }) => ({ ...s, amount: items ? items[feed.id].amount : 0 })) : [], [feed, storages])
-  const totalAmount = useMemo(() => feedStorages.reduce((amount, s) => amount += s.amount, 0), [feedStorages])
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const isEditing = useMemo(() => match?.params['*'] === 'edit', [match])
-  const location = useLocation()
+  const inputRef = useRef<HTMLInputElement>()
+  const [changes, setChanges] = useReducer(reducerFunc, initialState)
+  const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
+  const { set } = useDoc(`feeds/${changes.id || 'add'}`)
 
   useEffect(() => {
-    feed && setChanges(feed)
-  }, [feed])
+    setChanges(initialState)
+  }, [])
 
-  const handleClose = useCallback(() => {
-    setSaving(false)
-    setChanges(feed ? feed : initialState)
-    navigate(isEditing && feed ? `/feed/${feed.id}` : '/stock')
-  }, [navigate, feed, isEditing])
+  useEffect(() => {
+    feed && match?.pathname !== '/feed/add' && setChanges(feed)
+  }, [feed, match])
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSave = useCallback(async (e: {}) => {
     setSaving(true)
-    e.preventDefault()
     const { id, linkedStorageId, ...data } = changes
-    await updateFeed(id, linkedStorageId ? { ...data, linkedStorageId } : data)
-    handleClose()
-  }, [handleClose, changes])
+    await set({ ...data, ...linkedStorageId && { linkedStorageId } })
+    onClose && onClose(e)
+  }, [onClose, changes, set])
 
   useEffect(() => {
     if (Boolean(match)) {
@@ -57,40 +49,26 @@ export default function EditFeed() {
     }
   }, [match])
 
-  return !feed ? null : <CustomDialog title={!isEditing ? `${feed.name}` : `${feed.name} bewerken`} open={Boolean(match) && match?.params['*'] !== 'add'} TransitionComponent={Transition} keepMounted onClose={handleClose} showCloseButton={!isMobile}>
-    <DialogContent sx={{ p: 0 }}>
-      <Collapse in={!isEditing}>
-        {totalAmount === 0 && <CardContent><Typography>Geen voorraad in tonnen</Typography></CardContent>}
-        {totalAmount !== 0 && <List disablePadding>
-          {feedStorages.map(s => <ListItem key={s.id} disablePadding>
-            <ListItemButton onClick={() => navigate(`/stock/${s.id}`, { state: { referrer: location.pathname } })}>
-              <ListItemAvatar><Avatar sx={{ bgcolor: s.color }}>{''}</Avatar></ListItemAvatar>
-              <ListItemText primary={s.name} />
-              <ListItemSecondaryAction><Typography variant="subtitle2">{s.amount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
-            </ListItemButton>
-          </ListItem>)}
-          <Divider />
-          <ListItem>
-            <ListItemText inset primary="Totaal" />
-            <ListItemSecondaryAction><Typography variant="subtitle2">{totalAmount.toLocaleString()} stuks</Typography></ListItemSecondaryAction>
-          </ListItem>
-        </List>}
-      </Collapse>
-      <Collapse in={isEditing}>
-        <Box component="form" sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 320 }} onSubmit={handleSubmit}>
-          <DialogContent sx={{ flex: 1 }}>
-            <FeedForm feed={changes} onChange={setChanges} isEditing />
-          </DialogContent>
-        </Box>
-      </Collapse>
+  return <>
+    <DialogAppbar onClose={onClose}>{isEditing ? `${feed?.name} Bewerken` : 'Voertype toevoegen'}</DialogAppbar>
+    <DialogContent>
+      <TextField value={changes.name} onChange={e => setChanges({ name: e.target.value })} label="Naam" margin="normal" variant="filled" fullWidth inputRef={inputRef} required />
+      {!isEditing && <TextField value={changes.id} helperText="Let op, dit kan later niet meer worden aangepast!" onChange={e => /^$|^[a-z]+$/.test(e.target.value) && setChanges({ id: e.target.value })} required label="Pad" margin="normal" variant="filled" fullWidth inputProps={{ pattern: '^[a-z]+$' }} />}
+      <CustomAutocomplete
+        label="Koppelen aan opslag (optioneel)"
+        value={changes.linkedStorageId ? ({ id: changes.linkedStorageId, name: 'test' } as any) : null}
+        onChange={s => setChanges({ linkedStorageId: s?.id })}
+        options={storages}
+        idKey="id"
+        labelKey="name"
+        noOptionsText="Niets gevonden..."
+        helperText="Koppel dit voertype aan een opslag"
+      />
     </DialogContent>
-    {!isEditing ? <DialogActions>
-      <Button onClick={() => navigate(`/feed/${feed.id}/edit`, { state: { referrer: location.pathname } })} size="small">Bewerken</Button>
-      {/** TODO: verbergen? */}
-    </DialogActions> : <DialogActions>
-      <Button onClick={() => handleClose()}>Annuleren</Button>
-      <Button color="success" type="submit" disabled={!isValid}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
-    </DialogActions>}
+    <DialogActions>
+      <Button onClick={() => navigate(isEditing ? `/feed/${feed?.id}` : '/stock')}>Annuleren</Button>
+      <Button onClick={handleSave} disabled={!isValid} color="success">Opslaan</Button>
+    </DialogActions>
     {saving && <LinearProgress variant="indeterminate" />}
-  </CustomDialog>
+  </>
 }
