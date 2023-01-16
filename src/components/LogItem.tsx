@@ -11,7 +11,7 @@ export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?:
     <TimelineOppositeContent sx={{ width: 50, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
       <List disablePadding>
         <ListItem sx={{ textAlign: 'inherit' }}>
-          <ListItemText primary={moment(Number(item.date)).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(Number(item.date)).fromNow()} secondaryTypographyProps={{ noWrap: true }} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
+          <ListItemText primary={moment(item.timestamp).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(item.timestamp).fromNow()} secondaryTypographyProps={{ noWrap: true }} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
         </ListItem>
       </List>
     </TimelineOppositeContent>

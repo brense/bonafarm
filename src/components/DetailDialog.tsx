@@ -19,7 +19,7 @@ export default function DetailDialog({ children, ...dialogProps }: React.PropsWi
     navigate(isEditing && !reason ? `/stock/${match?.params.storageId}` : '/stock')
   }, [navigate, isEditing, match])
 
-  return <Dialog fullScreen={isMobile} TransitionComponent={Transition} keepMounted onClose={handleClose} {...dialogProps}>
+  return <Dialog fullScreen={isMobile} TransitionComponent={Transition} sx={{ '& .MuiDialog-container > .MuiPaper-root': { width: theme.breakpoints.values.sm } }} keepMounted onClose={handleClose} {...dialogProps}>
     <React.Suspense fallback={<CenteredContent><CircularProgress variant="indeterminate" size={120} /></CenteredContent>}>
       <Routes>
         <Route element={<Outlet context={{ onClose: handleClose }} />}>

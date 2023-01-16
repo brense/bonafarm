@@ -1,46 +1,91 @@
-import { useCallback } from 'react'
-import { Button, DialogActions, DialogContent, Divider, Icon } from '@mui/material'
+import { useCallback, useMemo } from 'react'
+import { Button, Card, CardActionArea, CardContent, DialogActions, DialogContent, Divider, Grid, Icon, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { useSubscribeDoc } from '../../hooks/firestore'
+import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, useSubscribeCollection, makeQuery, useDoc, emptyCollection, useCollection } from '../../hooks/firestore'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import DialogAppbar from '../../components/DialogAppbar'
+import { Timeline } from '@mui/lab'
+import LogItem from '../../components/LogItem'
+import StorageItem from '../../components/storage/StorageItem'
+import { Timestamp } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 
 type Storage = {
   name: string
   type: 'storage' | 'shute' | 'stable'
 }
 
+const auth = getAuth()
+
 export default function StorageDetails() {
   const match = useMatch('/stock/:storageId/*')
   const storage = useSubscribeDoc<Storage>(`storages/${match?.params.storageId}`)
+  const doc = useDoc(`storages/${match?.params.storageId}`)
   const navigate = useNavigate()
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
+  const feed = useSubscribeCollection<{ name: string }>('feeds')
+  const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>('logs', where('storageId', '==', storage?.id || '')), [storage?.id])
+  const logs = useSubscribeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(q, { parseTimestamp: true })
+  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', timestamp: Timestamp, storageId: string, uid: string }>('logs')
+  const logItems = useMemo(() => logs.map(l => ({ ...l, ...isMutationLog(l) && { feed: feed.find(f => f.id === l.feedId) } })), [feed, logs])
+  const items = useSubscribeCollection<{ amount: number }>(`storages/${match?.params.storageId}/items`)
+  const storageItems = useMemo(() => items.map(item => {
+    return {
+      feed: feed.find(f => f.id === item.id),
+      amount: item.amount || 0
+    }
+  }, []), [items, feed])
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const handleDelete = useCallback(() => {
     confirmDeleteDialog.open({
       confirmMessage: 'Weet je zeker dat je deze opslag wilt verwijderen?',
       onConfirm: async () => {
-        // TODO: remove storage
+        await doc.delete()
         navigate('/stock')
       }
     })
-  }, [confirmDeleteDialog, navigate])
+  }, [confirmDeleteDialog, navigate, doc])
 
   const handleEmpty = useCallback(() => {
     confirmEmptyDialog.open({
       confirmMessage: 'Weet je zeker dat je deze opslag wilt leegmaken?',
       onConfirm: async () => {
-        // TODO: empty storage.items
+        addLog({ type: 'emptied', timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
+        emptyCollection(`storages/${match?.params.storageId}/items`)
       }
     })
-  }, [confirmEmptyDialog])
+  }, [confirmEmptyDialog, match, addLog])
+
+  const handleMutateItem = useCallback((item: any, movedAmount: number) => {
+    // TODO: move to StorageItem card?
+  }, [])
 
   return <>
     <DialogAppbar onClose={onClose}>{storage?.name}</DialogAppbar>
     <DialogContent sx={{ p: 0 }}>
+      <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 3, pl: 2, flex: 1, width: '100%' }}>
+        {storage?.type !== 'shute' && storageItems.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
+          <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
+        </Grid>)}
+        <Grid item xs={12} sm={6}>
+          <Card>
+            <CardActionArea onClick={() => navigate(`/stock/${storage?.id}/add`, { state: { referrer: match?.pathname } })}>
+              <CardContent sx={{ color: 'text.secondary', alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', height: !isMobile ? 129 : undefined }}>
+                <Icon fontSize="large" color="inherit">add_circle</Icon>
+                <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Zak toevoegen</Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+      </Grid>
       <Divider>Laatste wijzigingen</Divider>
+      <Timeline>
+        {logItems.map((item, k) => <LogItem item={item as any} key={k} />)}
+      </Timeline>
     </DialogContent>
     <DialogActions>
       {storage?.type === 'shute' && <Button onClick={handleEmpty} color="inherit"><Icon>cancel</Icon>&nbsp;&nbsp;Leegmaken</Button>}

@@ -1,9 +1,9 @@
-import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint } from 'firebase/firestore'
+import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { initializeApp } from 'firebase/app'
 
-export { query, where, orderBy, limit } from 'firebase/firestore'
+export { where, orderBy, limit } from 'firebase/firestore'
 
 type DocumentDataWithID<T = DocumentData> = T & { id: string }
 
@@ -14,17 +14,53 @@ const firestore = getFirestore(app)
 
 const refs: Record<string, DocumentReference<DocumentData> | CollectionReference<DocumentData>> = {}
 
-export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
+type GenericDocReturnType<T = DocumentData> = {
+  get: (path: string) => Promise<DocumentDataWithID<T> | undefined>
+  getSnapshot: (path: string) => Promise<DocumentSnapshot<T>>
+  set: (path: string, data: T, options?: SetOptions) => Promise<void>
+  delete: (path: string) => Promise<void>
+  subscribe: (path: string, next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
+  subscribeSnapshot: (path: string, next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
+}
+
+type DocReturnType<T = DocumentData> = {
+  get: () => Promise<DocumentDataWithID<T> | undefined>
+  getSnapshot: () => Promise<DocumentSnapshot<T>>
+  set: (data: T, options?: SetOptions) => Promise<void>
+  delete: () => Promise<void>
+  subscribe: (next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
+  subscribeSnapshot: (next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
+}
+
+type GenericDocParameters = Parameters<(options?: { parseTimestamp?: boolean }) => void>
+type DocParameters = Parameters<(path: string, options?: { parseTimestamp?: boolean }) => void>
+
+function isDocParameters(params: DocParameters | GenericDocParameters): params is DocParameters {
+  return typeof params[0] === 'string'
+}
+
+type SubscribeDocParameters<T = DocumentData> = Parameters<(next: (snapshot: DocumentSnapshot<T>) => void) => void>
+type GenericSubscribeDocParameters<T = DocumentData> = Parameters<(path:string, next: (snapshot: DocumentSnapshot<T>) => void) => void>
+
+function isSubscribeDocParamters<T = DocumentData>(params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>):params is SubscribeDocParameters<T> {
+  return typeof params[0] === 'string'
+}
+
+export function useDoc<T = DocumentData>(options?: { parseTimestamp?: boolean }): GenericDocReturnType<T>
+export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }): DocReturnType<T>
+export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocParameters): GenericDocReturnType<T> | DocReturnType<T> {
+  const [path, options] = isDocParameters(params) ? params : [undefined, ...params]
   const { parseTimestamp = false } = options || {}
+
   const docRef = useMemo(() => {
-    if (!refs[path]) {
+    if (path && !refs[path]) {
       refs[path] = doc(firestore, path)
     }
-    return refs[path] as DocumentReference<T>
+    return path ? refs[path] as DocumentReference<T> : undefined
   }, [path])
 
-  const getSnapshot = useCallback(async () => {
-    return await getDoc(docRef)
+  const getSnapshot = useCallback(async (path?:string) => {
+    return await getDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
   }, [docRef])
 
   const get = useCallback(async () => {
@@ -33,8 +69,9 @@ export function useDoc<T = DocumentData>(path: string, options?: { parseTimestam
     return { ...values, id: snapshot.id } as DocumentDataWithID<T> | undefined
   }, [getSnapshot, parseTimestamp])
 
-  const subscribeSnapshot = useCallback((next: (snapshot: DocumentSnapshot<T>) => void) => {
-    return onSnapshot(docRef, next)
+  const subscribeSnapshot = useCallback((...params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>) => {
+    const [path, next] = !isSubscribeDocParamters<T>(params) ? params : [undefined, ...params]
+    return onSnapshot(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, next)
   }, [docRef])
 
   const subscribe = useCallback((next: (doc: DocumentDataWithID<T> | null) => void) => {
@@ -212,6 +249,14 @@ export function makeQuery<T = DocumentData>(path: string, ...constraints: QueryC
   return query(collection(firestore, path) as CollectionReference<T>, ...constraints)
 }
 
+export async function emptyCollection(path: string) {
+  const collectionRef = collection(firestore, path)
+  const snapshot = await getDocs(collectionRef)
+  snapshot.forEach(doc => {
+    deleteDoc(doc.ref)
+  })
+}
+
 function timestampValuesToDate<T = DocumentData>(obj?: T) {
   Object.keys(obj || {}).forEach(k => {
     if (obj && obj[k as keyof typeof obj] instanceof Timestamp) {
@@ -234,7 +279,7 @@ function timestampValuesToDate<T = DocumentData>(obj?: T) {
 export type Log = {
   id: string
   type: 'mutation' | 'emptied'
-  date: Date,
+  timestamp: Date,
   storageId: string
 }
 
@@ -259,7 +304,7 @@ const auth = getAuth()
 
 export async function addLog(logItem: Omit<Log, 'date' | 'id'> | Omit<MutationLog, 'date' | 'id'>) {
   return await addDoc(collection(firestore, 'logs'), {
-    timestamp: Timestamp.now(),
+    //timestamp: Timestamp.now(),
     uid: auth.currentUser?.uid,
     ...logItem
   })
@@ -296,7 +341,7 @@ export function useLatestMutations(storageId: string) {
       const logs: MutationLog[] = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as MutationLog)
+        //logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as MutationLog)
       })
       setLogs(logs)
     })
@@ -320,7 +365,7 @@ export function useLogs({ key, value, limit: num = 100 }: { key: 'storageId' | '
       const logs: Array<Log | MutationLog> = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as Log)
+        //logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as Log)
       })
       setLogs(logs)
     })

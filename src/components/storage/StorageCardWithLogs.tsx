@@ -27,7 +27,7 @@ export default function StorageCardWithLogs({ storage }: { storage: Storage }) {
       <Divider />
       {logs.length > 0 && <List disablePadding dense>
         <ListItem>
-          <ListItemText inset primary="Laatste wijziging" primaryTypographyProps={{ variant: 'subtitle2' }} secondary={moment(Number(logs[0].date)).fromNow()} />
+          <ListItemText inset primary="Laatste wijziging" primaryTypographyProps={{ variant: 'subtitle2' }} secondary={moment(Number(logs[0].timestamp)).fromNow()} />
           <ListItemSecondaryAction><Typography variant="subtitle2" color={isMutationLog(logs[0]) && logs[0].amount > 0 ? 'primary' : 'error'}>{isMutationLog(logs[0]) && logs[0].amount > 0 && '+'}{isMutationLog(logs[0]) && logs[0].amount.toLocaleString()}</Typography></ListItemSecondaryAction>
         </ListItem>
       </List>}
