@@ -1,5 +1,4 @@
-import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe, collectionGroup } from 'firebase/firestore'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { initializeApp } from 'firebase/app'
 
@@ -266,6 +265,10 @@ export function makeQuery<T = DocumentData>(path: string, ...constraints: QueryC
   return query(collection(firestore, path) as CollectionReference<T>, ...constraints)
 }
 
+export function makeCollectionGroupQuery<T = DocumentData>(path: string, ...constraints: QueryConstraint[]): Query<T> {
+  return query(collectionGroup(firestore, path) as CollectionReference<T>, ...constraints)
+}
+
 export async function emptyCollection(path: string) {
   const collectionRef = collection(firestore, path)
   const snapshot = await getDocs(collectionRef)
@@ -291,7 +294,7 @@ function timestampValuesToDate<T = DocumentData>(obj?: T) {
 
 
 
-
+// TODO: remove this old code...
 
 export type Log = {
   id: string
@@ -315,16 +318,6 @@ type FirestoreLog = {
   storageId: string
   feedId?: string
   amount?: number
-}
-
-const auth = getAuth()
-
-export async function addLog(logItem: Omit<Log, 'date' | 'id'> | Omit<MutationLog, 'date' | 'id'>) {
-  return await addDoc(collection(firestore, 'logs'), {
-    //timestamp: Timestamp.now(),
-    uid: auth.currentUser?.uid,
-    ...logItem
-  })
 }
 
 export function useLastEmptied(storageId: string) {
@@ -358,7 +351,7 @@ export function useLatestMutations(storageId: string) {
       const logs: MutationLog[] = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        //logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as MutationLog)
+        logs.push({ ...data, id: doc.id, timestamp: timestamp.toDate() } as MutationLog)
       })
       setLogs(logs)
     })
@@ -382,7 +375,7 @@ export function useLogs({ key, value, limit: num = 100 }: { key: 'storageId' | '
       const logs: Array<Log | MutationLog> = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        //logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as Log)
+        logs.push({ ...data, id: doc.id, timestamp: timestamp.toDate() } as Log)
       })
       setLogs(logs)
     })

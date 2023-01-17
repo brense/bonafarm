@@ -62,12 +62,12 @@ export default function StorageDetails() {
 
   const handleMutateItem = useCallback(({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
     if (feed) {
-      const itemPath = `storages/${match?.params.storageId}/items/${feed.id}`
-      amount === 0 ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
-      addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
-      movedAmount < 0 && navigate(`/stock/${match?.params.storageId}/add`, { state: { referrer: `/stock/{$match.params.storageId}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
+      const itemPath = `storages/${storage?.id}/items/${feed.id}`
+      amount === 0 || storage?.type === 'shute' ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
+      addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
+      movedAmount < 0 && navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
     }
-  }, [match, setDoc, addLog, navigate, deleteDoc])
+  }, [storage, setDoc, addLog, navigate, deleteDoc])
 
   return <>
     <DialogAppbar onClose={onClose}>{storage?.name}</DialogAppbar>

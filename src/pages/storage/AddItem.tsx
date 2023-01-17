@@ -18,11 +18,11 @@ export default function AddItem() {
   const location = useLocation()
   const navigate = useNavigate()
   const feeds = useSubscribeCollection<{ name: string, id: string, linkedStorageId?: string }>('feeds')
-  const storages = useSubscribeCollection<{ name: string, id: string, inputValue?: string }>('storages')
+  const storages = useSubscribeCollection<{ name: string, id: string, type: 'shute', inputValue?: string }>('storages')
   const feedInputRef = useRef<HTMLInputElement>()
   const storageInputRef = useRef<HTMLInputElement>()
   const [feed, setFeed] = useState<{ name: string, id: string, inputValue?: string } | null>()
-  const [storage, setStorage] = useState<{ name: string, id: string, inputValue?: string } | null>()
+  const [storage, setStorage] = useState<{ name: string, type: 'shute', id: string, inputValue?: string } | null>()
   const [preSelectedAmount, setPreSelectedAmount] = useState(null)
   const [saving, setSaving] = useState(false)
   const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
@@ -44,7 +44,7 @@ export default function AddItem() {
       await setDoc(`feeds/${feedId}`, { name: feed.inputValue })
     }
     if (feedId && storage?.id) {
-      setDoc(`storages/${storage.id}/items/${feedId}`, { amount: amount ?? preSelectedAmount ?? 0 })
+      storage.type !== 'shute' && setDoc(`storages/${storage.id}/items/${feedId}`, { amount: amount ?? preSelectedAmount ?? 0 })
       addLog({ type: 'mutation', amount: amount ?? preSelectedAmount ?? 0, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
     }
     handleClose()
@@ -86,7 +86,7 @@ export default function AddItem() {
         />
         <CustomAutocomplete
           label="Opslag"
-          value={storage || { name: '', id: '' }}
+          value={storage || { name: '', id: '' } as NonNullable<typeof storage>}
           onChange={setStorage}
           options={storages}
           idKey="id"
@@ -94,7 +94,7 @@ export default function AddItem() {
           newOption={params => ({
             name: `"${params.inputValue}" toevoegen`,
             id: ''
-          })}
+          } as NonNullable<typeof storage>)}
           margin="normal"
           inputRef={storageInputRef}
         />
