@@ -50,7 +50,8 @@ export default function EditStorage() {
   const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1, multiple: false })
   const [changes, setChanges] = useReducer(reducerFunc, initialState)
   const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
-  const { set } = useDoc(`storages/${changes.id || 'add'}`)
+  const { set: setStorage } = useDoc(`storages/${changes.id || 'add'}`)
+  const { set: setDoc } = useDoc()
 
   useEffect(() => {
     setChanges(initialState)
@@ -92,9 +93,14 @@ export default function EditStorage() {
       const result = await uploadString(newImageRef, newImage, 'data_url')
       image = await getDownloadURL(result.ref)
     }
-    await set({ ...data, ...image && { image }, ...color && { color } })
+    await setStorage({ ...data, ...image && { image }, ...color && { color } })
+    if (!isEditing && data.type === 'stable') {
+      setDoc(`storages/${changes.id}/items/hooi`, { amount: 0 })
+      setDoc(`storages/${changes.id}/items/stro`, { amount: 0 })
+    }
+    // TODO: if new storage is of type stable, add items collection with "hooi" and "stro"
     onClose && onClose(e)
-  }, [onClose, changes, set])
+  }, [onClose, changes, setStorage, setDoc, isEditing])
 
   return <>
     <DialogAppbar onClose={onClose}>{isEditing ? `${storage?.name} Bewerken` : 'Opslag toevoegen'}</DialogAppbar>

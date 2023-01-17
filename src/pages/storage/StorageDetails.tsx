@@ -63,9 +63,9 @@ export default function StorageDetails() {
   const handleMutateItem = useCallback(({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
     if (feed) {
       const itemPath = `storages/${storage?.id}/items/${feed.id}`
-      amount === 0 || storage?.type === 'shute' ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
+      amount <= 0 && storage?.type === 'storage' ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
       addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
-      movedAmount < 0 && navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
+      movedAmount < 0 && storage?.type !== 'stable' && navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
     }
   }, [storage, setDoc, addLog, navigate, deleteDoc])
 
@@ -76,7 +76,7 @@ export default function StorageDetails() {
         {storage?.type !== 'shute' && storageItems.map((item) => <Grid key={item.feed?.id} item xs={12} sm={6}>
           <StorageItem item={item} onMutate={async (amount, movedAmount) => handleMutateItem({ ...item, amount }, movedAmount)} />
         </Grid>)}
-        <Grid item xs={12} sm={6}>
+        {storage?.type !== 'stable' && <Grid item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${storage?.id}/add`, { state: { referrer: match?.pathname } })}>
               <CardContent sx={{ color: 'text.secondary', alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', height: !isMobile ? 129 : undefined }}>
@@ -85,7 +85,7 @@ export default function StorageDetails() {
               </CardContent>
             </CardActionArea>
           </Card>
-        </Grid>
+        </Grid>}
       </Grid>
       <Divider>Laatste wijzigingen</Divider>
       <Timeline>

@@ -15,8 +15,8 @@ export default function StorageItem({ onMutate, item }: { item: { feed?: { name:
     <CardHeader title={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="h5" noWrap>{item.feed?.name}</Typography><Typography variant="subtitle2" noWrap>{item.amount.toLocaleString()} stuks</Typography></Box>} disableTypography />
     <Divider />
     <Stack direction="row" justifyContent="space-evenly" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
-      <BigButton color="error" disabled={mutating} onClick={() => handleMutation(-1)}>-1</BigButton>
-      <BigButton size="small" disabled={mutating} color="error" onClick={() => handleMutation(-0.5)}>-0,5</BigButton>
+      <BigButton color="error" disabled={mutating || item.amount <= 0.5} onClick={() => handleMutation(-1)}>-1</BigButton>
+      <BigButton size="small" disabled={mutating || item.amount <= 0} color="error" onClick={() => handleMutation(-0.5)}>-0,5</BigButton>
       <BigButton size="small" disabled={mutating} color="primary" onClick={() => handleMutation(+0.5)}>+0,5</BigButton>
       <BigButton color="primary" disabled={mutating} onClick={() => handleMutation(+1)}>+1</BigButton>
     </Stack>
