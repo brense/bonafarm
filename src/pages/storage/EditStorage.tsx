@@ -98,7 +98,6 @@ export default function EditStorage() {
       setDoc(`storages/${changes.id}/items/hooi`, { amount: 0 })
       setDoc(`storages/${changes.id}/items/stro`, { amount: 0 })
     }
-    // TODO: if new storage is of type stable, add items collection with "hooi" and "stro"
     onClose && onClose(e)
   }, [onClose, changes, setStorage, setDoc, isEditing])
 
