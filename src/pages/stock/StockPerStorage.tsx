@@ -1,13 +1,15 @@
+import { useMemo } from 'react'
 import { Card, CardActionArea, Typography, Icon, CardContent, useTheme, useMediaQuery, Grid } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import StorageCardWithLogs from '../../components/storage/StorageCardWithLogs'
 import StorageCard from '../../components/storage/StorageCard'
-import { useSubscribeCollection } from '../../hooks/firestore'
+import { makeQuery, orderBy, useSubscribeQuery } from '../../hooks/firestore'
 
 export default function StockPerStorage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const storages = useSubscribeCollection<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>('storages')
+  const q = useMemo(() => makeQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>('storages', orderBy('order')), [])
+  const storages = useSubscribeQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>(q)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
