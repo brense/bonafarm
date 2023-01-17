@@ -1,9 +1,8 @@
 import { Box, Card, CardHeader, Divider, LinearProgress, Stack, Typography } from '@mui/material'
 import { useCallback, useState } from 'react'
-import { Feed } from '../../hooks/firebase'
 import BigButton from '../BigButton'
 
-export default function StorageItem({ onMutate, item }: { item: { feed?: Feed, amount: number }, onMutate: (amount: number, movedAmount: number) => Promise<void> }) {
+export default function StorageItem({ onMutate, item }: { item: { feed?: { name: string }, amount: number }, onMutate: (amount: number, movedAmount: number) => Promise<void> }) {
   const [mutating, setMutating] = useState(false)
 
   const handleMutation = useCallback(async (movedAmount: number) => {

@@ -1,12 +1,11 @@
 import { Card, CardActionArea, CardHeader, Divider, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, Avatar, Box, Icon, useTheme, useMediaQuery, ListItemIcon } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Storage } from '../../hooks/firebase'
 import { isMutationLog, useLastEmptied, useLatestMutations } from '../../hooks/firestore'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 moment.locale('nl')
 
-export default function StorageCardWithLogs({ storage }: { storage: Storage }) {
+export default function StorageCardWithLogs({ storage }: { storage: { id: string, name: string, image?: string } }) {
   const location = useLocation()
   const navigate = useNavigate()
   const logs = useLatestMutations(storage.id)

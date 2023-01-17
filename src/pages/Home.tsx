@@ -4,17 +4,17 @@ import CardButtonWithIcon from '../components/CardButtonWithIcon'
 import { useNavigate } from 'react-router-dom'
 import CenteredContent from '../components/CenteredContent'
 import CustomAutocomplete from '../components/CustomAutocomplete'
-import { Feed, useFeed } from '../hooks/firebase'
 import { useIcon, useQRScanner, useTitle } from '../App'
+import { useSubscribeCollection } from '../hooks/firestore'
 
 export default function Home() {
   useTitle(null)
   useIcon(null)
   const navigate = useNavigate()
-  const { data: itemOptions } = useFeed()
+  const feeds = useSubscribeCollection<{ name: string }>('feeds')
   const qrScanner = useQRScanner()
 
-  const handleSelectFeed = useCallback((feed: Feed | null) => {
+  const handleSelectFeed = useCallback((feed: { id: string } | null) => {
     feed?.id && navigate(`/feed/${feed?.id}`)
   }, [navigate])
 
@@ -33,7 +33,7 @@ export default function Home() {
         <CustomAutocomplete
           label="Zoek op voertype"
           onChange={handleSelectFeed}
-          options={itemOptions}
+          options={feeds}
           idKey="id"
           labelKey="name"
           noOptionsText="Niets gevonden..."
