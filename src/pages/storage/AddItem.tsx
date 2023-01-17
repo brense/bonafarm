@@ -3,29 +3,30 @@ import { Box, Button, DialogActions, DialogContent, FormControl, FormLabel, Icon
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../../components/CustomDialog'
-import { useFeed, useStorages } from '../../hooks/firebase'
 import CustomAutocomplete from '../../components/CustomAutocomplete'
-import { getDatabase, ref, runTransaction, set } from 'firebase/database'
-import { addLog } from '../../hooks/firestore'
+import { Timestamp, useCollection, useDoc, useSubscribeCollection } from '../../hooks/firestore'
+import { getAuth } from 'firebase/auth'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
 })
 
-const db = getDatabase()
+const auth = getAuth()
 
 export default function AddItem() {
   const match = useMatch('/stock/:storageId/add')
   const location = useLocation()
   const navigate = useNavigate()
-  const { data: storages } = useStorages() // TODO: make proper loading states in the autocomplete
-  const { data: feeds } = useFeed() // TODO: make proper loading states in the autocomplete
+  const feeds = useSubscribeCollection<{ name: string, id: string, linkedStorageId?: string }>('feeds')
+  const storages = useSubscribeCollection<{ name: string, id: string, inputValue?: string }>('storages')
   const feedInputRef = useRef<HTMLInputElement>()
   const storageInputRef = useRef<HTMLInputElement>()
   const [feed, setFeed] = useState<{ name: string, id: string, inputValue?: string } | null>()
   const [storage, setStorage] = useState<{ name: string, id: string, inputValue?: string } | null>()
   const [preSelectedAmount, setPreSelectedAmount] = useState(null)
   const [saving, setSaving] = useState(false)
+  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
+  const { set: setDoc } = useDoc()
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setStorage(null)
@@ -40,28 +41,14 @@ export default function AddItem() {
     setSaving(true)
     const feedId = feed?.id || feed?.inputValue?.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')
     if (feed?.inputValue) {
-      await set(ref(db, `/feed/${feedId}`), { name: feed.inputValue })
+      await setDoc(`feeds/${feedId}`, { name: feed.inputValue })
     }
     if (feedId && storage?.id) {
-      await runTransaction(ref(db, `/storage/${storage?.id}/items/${feedId}`), (item) => {
-        if (item) {
-          item.amount += amount ?? preSelectedAmount ?? 0
-          return item
-        } else {
-          return {
-            amount: amount ?? preSelectedAmount ?? 0
-          }
-        }
-      })
-      await addLog({
-        type: 'mutation',
-        storageId: storage?.id,
-        feedId,
-        amount: amount ?? preSelectedAmount ?? 0
-      })
+      setDoc(`storages/${storage.id}/items/${feedId}`, { amount: amount ?? preSelectedAmount ?? 0 })
+      addLog({ type: 'mutation', amount: amount ?? preSelectedAmount ?? 0, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
     }
     handleClose()
-  }, [handleClose, feed, storage, preSelectedAmount])
+  }, [feed, storage, handleClose, setDoc, preSelectedAmount, addLog])
 
   useEffect(() => {
     if (location.state?.movedItem) {

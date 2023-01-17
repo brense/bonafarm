@@ -1,13 +1,12 @@
 import { useCallback, useMemo } from 'react'
 import { Button, Card, CardActionArea, CardContent, DialogActions, DialogContent, Divider, Grid, Icon, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, useSubscribeCollection, makeQuery, useDoc, emptyCollection, useCollection } from '../../hooks/firestore'
+import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, makeQuery, useDoc, emptyCollection, useCollection, Timestamp } from '../../hooks/firestore'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import DialogAppbar from '../../components/DialogAppbar'
 import { Timeline } from '@mui/lab'
 import LogItem from '../../components/LogItem'
 import StorageItem from '../../components/storage/StorageItem'
-import { Timestamp } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 type Storage = {
@@ -21,14 +20,15 @@ export default function StorageDetails() {
   const match = useMatch('/stock/:storageId/*')
   const storage = useSubscribeDoc<Storage>(`storages/${match?.params.storageId}`)
   const doc = useDoc(`storages/${match?.params.storageId}`)
+  const { set: setDoc, delete: deleteDoc } = useDoc()
   const navigate = useNavigate()
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
-  const feed = useSubscribeCollection<{ name: string }>('feeds')
-  const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>('logs', where('storageId', '==', storage?.id || '')), [storage?.id])
+  const feed = useSubscribeCollection<{ name: string, id: string }>('feeds')
+  const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>('logs', where('storageId', '==', storage?.id || ''), orderBy('timestamp', 'desc'), limit(100)), [storage?.id])
   const logs = useSubscribeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(q, { parseTimestamp: true })
-  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', timestamp: Timestamp, storageId: string, uid: string }>('logs')
+  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
   const logItems = useMemo(() => logs.map(l => ({ ...l, ...isMutationLog(l) && { feed: feed.find(f => f.id === l.feedId) } })), [feed, logs])
   const items = useSubscribeCollection<{ amount: number }>(`storages/${match?.params.storageId}/items`)
   const storageItems = useMemo(() => items.map(item => {
@@ -60,9 +60,14 @@ export default function StorageDetails() {
     })
   }, [confirmEmptyDialog, match, addLog])
 
-  const handleMutateItem = useCallback((item: any, movedAmount: number) => {
-    // TODO: move to StorageItem card?
-  }, [])
+  const handleMutateItem = useCallback(({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
+    if (feed) {
+      const itemPath = `storages/${match?.params.storageId}/items/${feed.id}`
+      amount === 0 ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
+      addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
+      movedAmount < 0 && navigate(`/stock/${match?.params.storageId}/add`, { state: { referrer: `/stock/{$match.params.storageId}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
+    }
+  }, [match, setDoc, addLog, navigate, deleteDoc])
 
   return <>
     <DialogAppbar onClose={onClose}>{storage?.name}</DialogAppbar>

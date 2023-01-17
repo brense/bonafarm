@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { initializeApp } from 'firebase/app'
 
-export { where, orderBy, limit } from 'firebase/firestore'
+export { where, orderBy, limit, Timestamp } from 'firebase/firestore'
 
 type DocumentDataWithID<T = DocumentData> = T & { id: string }
 
@@ -32,24 +32,38 @@ type DocReturnType<T = DocumentData> = {
   subscribeSnapshot: (next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
 }
 
-type GenericDocParameters = Parameters<(options?: { parseTimestamp?: boolean }) => void>
-type DocParameters = Parameters<(path: string, options?: { parseTimestamp?: boolean }) => void>
+type GenericDocParameters = Parameters<(path: string, options?: { parseTimestamp?: boolean }) => void>
+type DocParameters = Parameters<(options?: { parseTimestamp?: boolean }) => void>
 
 function isDocParameters(params: DocParameters | GenericDocParameters): params is DocParameters {
-  return typeof params[0] === 'string'
+  return typeof params[0] !== 'string'
 }
 
-type SubscribeDocParameters<T = DocumentData> = Parameters<(next: (snapshot: DocumentSnapshot<T>) => void) => void>
-type GenericSubscribeDocParameters<T = DocumentData> = Parameters<(path:string, next: (snapshot: DocumentSnapshot<T>) => void) => void>
+type SubscribeSnapshotParameters<T = DocumentData> = Parameters<(next: (snapshot: DocumentSnapshot<T>) => void) => void>
+type GenericSubscribeSnapshotParameters<T = DocumentData> = Parameters<(path: string, next: (snapshot: DocumentSnapshot<T>) => void) => void>
 
-function isSubscribeDocParamters<T = DocumentData>(params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>):params is SubscribeDocParameters<T> {
-  return typeof params[0] === 'string'
+function isSubscribeSnapshotParamters<T = DocumentData>(params: SubscribeSnapshotParameters<T> | GenericSubscribeSnapshotParameters<T>): params is SubscribeSnapshotParameters<T> {
+  return typeof params[0] !== 'string'
+}
+
+type SubscribeDocParameters<T = DocumentData> = Parameters<(next: (doc: DocumentDataWithID<T>) => void) => void>
+type GenericSubscribeDocParameters<T = DocumentData> = Parameters<(path: string, next: (doc: DocumentDataWithID<T>) => void) => void>
+
+function isSubscribeDocParamters<T = DocumentData>(params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>): params is SubscribeDocParameters<T> {
+  return typeof params[0] !== 'string'
+}
+
+type SetDocParameters<T = DocumentData> = Parameters<(data: T, options?: SetOptions) => void>
+type GenericSetDocParameters<T = DocumentData> = Parameters<(path: string, data: T, options?: SetOptions) => void>
+
+function isSetDocParameters<T = DocumentData>(params: SetDocParameters<T> | GenericSetDocParameters<T>): params is SetDocParameters<T> {
+  return typeof params[0] !== 'string'
 }
 
 export function useDoc<T = DocumentData>(options?: { parseTimestamp?: boolean }): GenericDocReturnType<T>
 export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }): DocReturnType<T>
 export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocParameters): GenericDocReturnType<T> | DocReturnType<T> {
-  const [path, options] = isDocParameters(params) ? params : [undefined, ...params]
+  const [path, options] = !isDocParameters(params) ? params : [undefined, ...params]
   const { parseTimestamp = false } = options || {}
 
   const docRef = useMemo(() => {
@@ -59,34 +73,37 @@ export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocPa
     return path ? refs[path] as DocumentReference<T> : undefined
   }, [path])
 
-  const getSnapshot = useCallback(async (path?:string) => {
+  const getSnapshot = useCallback(async (path?: string) => {
     return await getDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
   }, [docRef])
 
-  const get = useCallback(async () => {
-    const snapshot = await getSnapshot()
+  const get = useCallback(async (path?: string) => {
+    const snapshot = await getSnapshot(path)
     const values = !parseTimestamp ? snapshot.data() : timestampValuesToDate<T>(snapshot.data())
     return { ...values, id: snapshot.id } as DocumentDataWithID<T> | undefined
   }, [getSnapshot, parseTimestamp])
 
-  const subscribeSnapshot = useCallback((...params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>) => {
-    const [path, next] = !isSubscribeDocParamters<T>(params) ? params : [undefined, ...params]
-    return onSnapshot(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, next)
+  const subscribeSnapshot = useCallback((...params: SubscribeSnapshotParameters<T> | GenericSubscribeSnapshotParameters<T>) => {
+    const [path, next] = !isSubscribeSnapshotParamters<T>(params) ? params : [undefined, ...params]
+    return onSnapshot(docRef && !path ? docRef : doc(firestore, path || '') as DocumentReference<T>, next)
   }, [docRef])
 
-  const subscribe = useCallback((next: (doc: DocumentDataWithID<T> | null) => void) => {
-    return subscribeSnapshot(snapshot => {
+  const subscribe = useCallback((...params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>) => {
+    const [path, next] = !isSubscribeDocParamters<T>(params) ? params : [undefined, ...params]
+    function nextSnapshot(snapshot: DocumentSnapshot<T>) {
       const values = !parseTimestamp ? snapshot.data() : timestampValuesToDate<T>(snapshot.data())
       next({ ...values, id: snapshot.id } as DocumentDataWithID<T>)
-    })
+    }
+    return subscribeSnapshot(...path ? [path, nextSnapshot] : [nextSnapshot])
   }, [subscribeSnapshot, parseTimestamp])
 
-  const set = useCallback(async (data: T, options?: SetOptions) => {
-    return options ? await setDoc<T>(docRef, data, options) : await setDoc<T>(docRef, data)
+  const set = useCallback(async (...params: SetDocParameters<T> | GenericSetDocParameters<T>) => {
+    const [path, data, options] = !isSetDocParameters<T>(params) ? params : [undefined, ...params]
+    return options ? await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data, options) : await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data)
   }, [docRef])
 
-  const deleteFunc = useCallback(async () => {
-    return await deleteDoc(docRef)
+  const deleteFunc = useCallback(async (path?: string) => {
+    return await deleteDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
   }, [docRef])
 
   return {

@@ -160,7 +160,7 @@ export default function App() {
 
 function StorageDialogs() {
   const match = useMatch('/stock/:storageId/*')
-  return <DetailDialog open={Boolean(match)} >
+  return <DetailDialog open={Boolean(match) && match?.params['*'] !== 'add'} >
     <Route path="/stock/add" element={<EditStorage />} />
     <Route path="/stock/:storageId" element={<StorageDetails />} />
     <Route path="/stock/:storageId/edit" element={<EditStorage />} />
