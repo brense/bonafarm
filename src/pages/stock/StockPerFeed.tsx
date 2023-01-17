@@ -1,4 +1,4 @@
-import { Stack, Card, CardActionArea, Grid, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, Icon, ButtonBase, Chip } from '@mui/material'
+import { Stack, Card, CardActionArea, Grid, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, Icon, ButtonBase, Chip, useTheme, useMediaQuery } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { makeCollectionGroupQuery, useSubscribeCollection, useQuery, useDoc } from '../../hooks/firestore'
@@ -11,6 +11,8 @@ function FeedCard({ feed }: { feed: { name: string, id: string } }) {
   const { get: getDoc } = useDoc()
   const [storages, setStorages] = useState<Array<{ amount: number, name: string, id: string, color?: string, type: 'shute' }>>([])
   const total = useMemo(() => storages.reduce((total, s) => total += s.amount, 0), [storages])
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   useEffect(() => {
     const unsubscribe = subscribeSnapshot(async snapshot => {
@@ -30,7 +32,7 @@ function FeedCard({ feed }: { feed: { name: string, id: string } }) {
 
   return <Card>
     <CardActionArea onClick={() => navigate(`/feed/${feed.id}`, { state: { referrer: location.pathname } })}>
-      <List disablePadding sx={{ height: 106 }}>
+      <List disablePadding sx={{ ...!isMobile && { height: 106 } }}>
         <ListItem>
           <ListItemText primary={<Typography gutterBottom>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}>
             {storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name}${storage.type === 'shute' ? '' : ` (${storage.amount.toLocaleString()})`}`} sx={{ bgcolor: storage.color }} />)}

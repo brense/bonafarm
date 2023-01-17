@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useEffect, useReducer } from 'react'
-import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, LinearProgress, Popover, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, LinearProgress, Popover, Radio, RadioGroup, Stack, TextField, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import DialogAppbar from '../../components/DialogAppbar'
 import { useDoc, useSubscribeDoc } from '../../hooks/firestore'
@@ -52,6 +52,8 @@ export default function EditStorage() {
   const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
   const { set: setStorage } = useDoc(`storages/${changes.id || 'add'}`)
   const { set: setDoc } = useDoc()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   useEffect(() => {
     setChanges(initialState)
@@ -116,11 +118,11 @@ export default function EditStorage() {
       </FormControl>
       <FormControl margin="normal" fullWidth>
         <FormLabel>Kies een icoontje of kleur voor de opslag</FormLabel>
-        <Stack direction="row" gap={1} sx={{ my: 1 }}>
+        <Stack direction={isMobile ? 'column' : 'row'} gap={1} sx={{ my: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <Box sx={{ height: 192, width: 192, p: !previewImg ? 1 : 0, borderRadius: 3, cursor: 'pointer', border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} {...getRootProps()}>
               {!previewImg && <input {...getInputProps()} />}
-              {!previewImg && changes.image && <Avatar><img src={changes.image} alt="" width={40} height={40} style={{ borderRadius: 96 }} /></Avatar>}
+              {!previewImg && changes.image && <Avatar variant="rounded"><img src={changes.image} alt="" width={40} height={40} /></Avatar>}
               {!previewImg && !changes.image && <Typography align="center" variant="body2">Klik om een afbeelding te kiezen, of sleep de afbeelding naar dit kader.</Typography>}
               {previewImg && !loadingPreview && <Cropper
                 src={previewImg?.image}
@@ -132,7 +134,7 @@ export default function EditStorage() {
               {loadingPreview && <CircularProgress />}
             </Box>
           </Box>
-          <Divider orientation="vertical" flexItem><Typography variant="button" color="textSecondary">Of</Typography></Divider>
+          <Divider orientation={isMobile ? 'horizontal' : 'vertical'} flexItem><Typography variant="button" color="textSecondary">Of</Typography></Divider>
           <TextField inputRef={inputRef} onClick={e => setAnchorEl(e.currentTarget)} label="Kleur" required value={changes.color || ''} onChange={e => setChanges({ color: e.target.value })} variant="filled" fullWidth InputLabelProps={{ shrink: true }} InputProps={{
             startAdornment: <InputAdornment position="start">
               <Avatar sx={{ bgcolor: changes.color, height: 24, width: 24 }}>{''}</Avatar>
