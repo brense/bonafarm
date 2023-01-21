@@ -1,67 +1,75 @@
-import { Stack, Card, CardActionArea, Grid, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, Icon, ButtonBase, Chip, useTheme, useMediaQuery } from '@mui/material'
+import { Stack, Typography, Icon, Chip, useTheme, useMediaQuery, Table, TableRow, TableCell, TableHead, TableBody, Box, IconButton, Button } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { makeCollectionGroupQuery, useSubscribeCollection, useQuery, useDoc } from '../../hooks/firestore'
 
-function FeedCard({ feed }: { feed: { name: string, id: string } }) {
-  const location = useLocation()
-  const navigate = useNavigate()
+function useFeeds() {
   const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>('items'), [])
   const { subscribeSnapshot } = useQuery<{ amount: number }>(q)
   const { get: getDoc } = useDoc()
-  const [storages, setStorages] = useState<Array<{ amount: number, name: string, id: string, color?: string, type: 'shute' }>>([])
-  const total = useMemo(() => storages.reduce((total, s) => total += s.amount, 0), [storages])
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const [items, setItems] = useState<Array<{ feedId: string, amount: number, storageId: string }>>([])
+  const feeds = useSubscribeCollection<{ id: string, name: string, linkedStorageId: string }>('feeds')
+  const storages = useSubscribeCollection<{ id: string, name: string, type: 'shute', color?: string, image?: string }>('storages')
 
   useEffect(() => {
     const unsubscribe = subscribeSnapshot(async snapshot => {
-      const promisses: Promise<{ amount: number, id: string, name: string, type: 'shute' }>[] = []
+      const promisses: Promise<{ feedId: string, amount: number, storageId: string }>[] = []
       snapshot.forEach(doc => {
-        if (doc.id === feed.id) {
-          promisses.push(new Promise(async resolve => {
-            const storage = await getDoc(doc.ref.parent.parent?.path || '') as any
-            resolve({ amount: doc.data().amount, ...storage })
-          }))
-        }
+        promisses.push(new Promise(async resolve => {
+          const storage = await getDoc(doc.ref.parent.parent?.path || '') as any
+          resolve({ feedId: doc.id, amount: doc.data().amount, storageId: storage.id })
+        }))
       })
-      setStorages(await Promise.all(promisses))
+      setItems(await Promise.all(promisses))
     })
     return () => unsubscribe()
-  }, [subscribeSnapshot, getDoc, feed.id])
+  }, [subscribeSnapshot, getDoc])
 
-  return <Card>
-    <CardActionArea onClick={() => navigate(`/feed/${feed.id}`, { state: { referrer: location.pathname } })}>
-      <List disablePadding sx={{ ...!isMobile && { height: 106 } }}>
-        <ListItem>
-          <ListItemText primary={<Typography gutterBottom>{feed.name}</Typography>} secondary={<Stack direction="row" spacing={1}>
-            {storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name}${storage.type === 'shute' ? '' : ` (${storage.amount.toLocaleString()})`}`} sx={{ bgcolor: storage.color }} />)}
-          </Stack>} disableTypography />
-          <ListItemSecondaryAction><Typography variant="subtitle2">{`${total.toLocaleString()} stuks`}</Typography></ListItemSecondaryAction>
-        </ListItem>
-      </List>
-    </CardActionArea>
-  </Card>
+  return useMemo(() => feeds.map(({ linkedStorageId, ...feed }) => {
+    const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))
+    return { ...feed, linkedStorage: storages.find(s => s.id === linkedStorageId), storages: inStorages, total: inStorages.reduce((t, i) => t += i.amount, 0) }
+  }), [feeds, items, storages])
 }
 
 export default function StockPerFeed() {
-  const feeds = useSubscribeCollection<{ name: string }>('feeds')
+  const feeds = useFeeds()
   const location = useLocation()
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // TODO: show search field on mobile?
 
-  return <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
-    {feeds.map(feed => <Grid key={feed.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
-      <FeedCard feed={feed} />
-    </Grid>)}
-    <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
-      <Card>
-        <ButtonBase onClick={() => navigate('/feed/add', { state: { referrer: location.pathname } })} sx={{ p: 2, overflow: 'hidden', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: 'text.secondary' }}>
-          <Icon fontSize="large" color="inherit">add_circle</Icon>
-          <Typography sx={{ mt: 2 }} color="inherit" variant="subtitle2">Voertype toevoegen</Typography>
-        </ButtonBase>
-      </Card>
-    </Grid>
-  </Grid>
+  return <Table padding="normal" stickyHeader={true} size={isMobile ? 'small' : 'medium'}>
+    <TableHead>
+      <TableRow>
+        <TableCell>Voertype</TableCell>
+        <TableCell align="right">Vooraad</TableCell>
+        <TableCell colSpan={2}>&nbsp;</TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {feeds.map(feed => <TableRow key={feed.id} hover>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{feed.name}</TableCell>
+        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{feed.total.toLocaleString()} stuks</TableCell>
+        <TableCell>
+          <Stack direction={isMobile ? 'column' : 'row'} spacing={1} flexWrap="wrap">
+            {feed.storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name}${storage.type === 'shute' ? '' : ` (${storage.amount.toLocaleString()})`}`} sx={{ bgcolor: storage.color }} />)}
+            {feed.linkedStorage && feed.linkedStorage.type === 'shute' && <Chip key={feed.linkedStorage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${feed.linkedStorage?.id}`) }} size="small" label={`${feed.linkedStorage.name}`} sx={{ bgcolor: feed.linkedStorage.color }} />}
+          </Stack>
+        </TableCell>
+        <TableCell>
+          {isMobile ? <IconButton size="small" color="primary"><Icon fontSize="small">visibility</Icon></IconButton> : <Button size="small"><Icon fontSize="small">visibility</Icon>&nbsp;&nbsp; Details</Button>}
+        </TableCell>
+      </TableRow>)}
+      <TableRow hover>
+        <TableCell colSpan={4} onClick={() => navigate('/feed/add', { state: { referrer: location.pathname } })} sx={{ cursor: 'pointer' }}>
+          <Box component="span" sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+            <Icon fontSize="small" color="inherit">add_circle</Icon>&nbsp;
+            <Typography color="inherit" variant="subtitle2" component="span">Voertype toevoegen</Typography>
+          </Box>
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  </Table>
 }
