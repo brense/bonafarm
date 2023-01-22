@@ -1,29 +1,25 @@
 import { Stack, Typography, Icon, Chip, useTheme, useMediaQuery, Table, TableRow, TableCell, TableHead, TableBody, Box, IconButton, Button } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { makeCollectionGroupQuery, useSubscribeCollection, useQuery, useDoc } from '../../hooks/firestore'
+import { makeCollectionGroupQuery, useSubscribeCollection, useQuery } from '../../hooks/firestore'
 
 function useFeeds() {
   const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>('items'), [])
   const { subscribeSnapshot } = useQuery<{ amount: number }>(q)
-  const { get: getDoc } = useDoc()
   const [items, setItems] = useState<Array<{ feedId: string, amount: number, storageId: string }>>([])
   const feeds = useSubscribeCollection<{ id: string, name: string, linkedStorageId: string }>('feeds')
   const storages = useSubscribeCollection<{ id: string, name: string, type: 'shute', color?: string, image?: string }>('storages')
 
   useEffect(() => {
     const unsubscribe = subscribeSnapshot(async snapshot => {
-      const promisses: Promise<{ feedId: string, amount: number, storageId: string }>[] = []
+      const items: Array<{ feedId: string, amount: number, storageId: string }> = []
       snapshot.forEach(doc => {
-        promisses.push(new Promise(async resolve => {
-          const storage = await getDoc(doc.ref.parent.parent?.path || '') as any
-          resolve({ feedId: doc.id, amount: doc.data().amount, storageId: storage.id })
-        }))
+        items.push({ feedId: doc.id, amount: doc.data().amount, storageId: doc.ref.parent.parent?.id! })
       })
-      setItems(await Promise.all(promisses))
+      setItems(items)
     })
     return () => unsubscribe()
-  }, [subscribeSnapshot, getDoc])
+  }, [subscribeSnapshot])
 
   return useMemo(() => feeds.map(({ linkedStorageId, ...feed }) => {
     const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))
@@ -49,7 +45,7 @@ export default function StockPerFeed() {
       </TableRow>
     </TableHead>
     <TableBody>
-      {feeds.map(feed => <TableRow key={feed.id} hover>
+      {feeds.map(feed => <TableRow key={feed.id} hover onClick={() => navigate(`/feed/${feed.id}`)}>
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{feed.name}</TableCell>
         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{feed.total.toLocaleString()} stuks</TableCell>
         <TableCell>
