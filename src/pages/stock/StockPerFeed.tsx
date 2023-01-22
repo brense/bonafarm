@@ -54,8 +54,8 @@ export default function StockPerFeed() {
             {feed.linkedStorage && feed.linkedStorage.type === 'shute' && <Chip key={feed.linkedStorage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${feed.linkedStorage?.id}`) }} size="small" label={`${feed.linkedStorage.name}`} sx={{ bgcolor: feed.linkedStorage.color }} />}
           </Stack>
         </TableCell>
-        <TableCell>
-          {isMobile ? <IconButton size="small" color="primary"><Icon fontSize="small">visibility</Icon></IconButton> : <Button size="small"><Icon fontSize="small">visibility</Icon>&nbsp;&nbsp; Details</Button>}
+        <TableCell sx={{ width: '1px' }}>
+          {isMobile ? <IconButton size="small" color="primary"><Icon fontSize="small">visibility</Icon></IconButton> : <Button size="small" sx={{ whiteSpace: 'nowrap' }}><Icon fontSize="small">visibility</Icon>&nbsp;&nbsp; Details</Button>}
         </TableCell>
       </TableRow>)}
       <TableRow hover>

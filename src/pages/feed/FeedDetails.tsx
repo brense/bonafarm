@@ -1,4 +1,4 @@
-import { Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Grid, Icon } from '@mui/material'
+import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Grid, Icon } from '@mui/material'
 import { useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { makeCollectionGroupQuery, useQuery, useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
@@ -36,15 +36,16 @@ export default function FeedDetails() {
   return <>
     <DialogAppbar onClose={onClose}>{feed?.name}</DialogAppbar>
     <DialogContent sx={{ p: 0 }}>
-      <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
-        {linkedStorage && linkedStorage.type === 'shute' && <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
+      <Alert severity="info" square sx={{ mb: 2 }}>Klik op een van de opslagen om de voorraad {feed?.name} aan te passen.</Alert>
+      <Grid container alignContent="flex-start" spacing={2} sx={{ mb: 2, pl: 2, flex: 1, width: '100%' }}>
+        {linkedStorage && linkedStorage.type === 'shute' && <Grid item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${linkedStorage.id}`, { state: { goBack: location.pathname } })}>
               <CardHeader avatar={<Avatar variant="rounded" sx={{ background: 'none' }}>{linkedStorage.image ? <img src={linkedStorage.image || ''} height={40} alt={linkedStorage.name} /> : ''}</Avatar>} title="Gekoppelde opslag" titleTypographyProps={{ color: 'text.secondary' }} subheader={linkedStorage.name} subheaderTypographyProps={{ variant: 'h6', color: 'text.primary' }} />
             </CardActionArea>
           </Card>
         </Grid>}
-        {feedStorages.map(storage => <Grid key={storage.id} item xs={12} sm={6} md={4} lg={3} xl={2}>
+        {feedStorages.map(storage => <Grid key={storage.id} item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })}>
               <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} subheader={`Voorraad: ${storage.amount} stuks`} />
