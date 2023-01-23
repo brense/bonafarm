@@ -1,4 +1,4 @@
-import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe, collectionGroup } from 'firebase/firestore'
+import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe, collectionGroup, updateDoc } from 'firebase/firestore'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { initializeApp } from 'firebase/app'
 
@@ -17,6 +17,7 @@ type GenericDocReturnType<T = DocumentData> = {
   get: (path: string) => Promise<DocumentDataWithID<T> | undefined>
   getSnapshot: (path: string) => Promise<DocumentSnapshot<T>>
   set: (path: string, data: T, options?: SetOptions) => Promise<void>
+  update: (path: string, data: T) => Promise<void>
   delete: (path: string) => Promise<void>
   subscribe: (path: string, next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
   subscribeSnapshot: (path: string, next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
@@ -26,6 +27,7 @@ type DocReturnType<T = DocumentData> = {
   get: () => Promise<DocumentDataWithID<T> | undefined>
   getSnapshot: () => Promise<DocumentSnapshot<T>>
   set: (data: T, options?: SetOptions) => Promise<void>
+  update: (data: T) => Promise<void>
   delete: () => Promise<void>
   subscribe: (next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
   subscribeSnapshot: (next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
@@ -101,6 +103,11 @@ export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocPa
     return options ? await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data, options) : await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data)
   }, [docRef])
 
+  const update = useCallback(async (...params: SetDocParameters<T> | GenericSetDocParameters<T>) => {
+    const [path, data] = !isSetDocParameters<T>(params) ? params : [undefined, ...params]
+    return await updateDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data as any)
+  }, [docRef])
+
   const deleteFunc = useCallback(async (path?: string) => {
     return await deleteDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
   }, [docRef])
@@ -109,6 +116,7 @@ export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocPa
     get,
     getSnapshot,
     set,
+    update,
     delete: deleteFunc,
     subscribe,
     subscribeSnapshot

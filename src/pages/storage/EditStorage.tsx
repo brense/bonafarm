@@ -135,7 +135,7 @@ export default function EditStorage() {
             </Box>
           </Box>
           <Divider orientation={isMobile ? 'horizontal' : 'vertical'} flexItem><Typography variant="button" color="textSecondary">Of</Typography></Divider>
-          <TextField inputRef={inputRef} onClick={e => setAnchorEl(e.currentTarget)} label="Kleur" required value={changes.color || ''} onChange={e => setChanges({ color: e.target.value })} variant="filled" fullWidth InputLabelProps={{ shrink: true }} InputProps={{
+          <TextField onClick={e => setAnchorEl(e.currentTarget)} label="Kleur" required value={changes.color || ''} onChange={e => setChanges({ color: e.target.value })} variant="filled" fullWidth InputLabelProps={{ shrink: true }} InputProps={{
             startAdornment: <InputAdornment position="start">
               <Avatar sx={{ bgcolor: changes.color, height: 24, width: 24 }}>{''}</Avatar>
             </InputAdornment>
