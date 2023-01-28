@@ -2,16 +2,15 @@ import { TimelineItem, TimelineOppositeContent, TimelineContent, TimelineSeparat
 import { Icon, List, ListItem, ListItemText, Typography } from '@mui/material'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
-import { Feed } from '../hooks/firebase'
 import { isMutationLog, Log, MutationLog } from '../hooks/firestore'
 moment.locale('nl')
 
-export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?: Feed } }) {
+export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?: { name: string } } }) {
   return <TimelineItem>
     <TimelineOppositeContent sx={{ width: 50, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }}>
       <List disablePadding>
         <ListItem sx={{ textAlign: 'inherit' }}>
-          <ListItemText primary={moment(Number(item.date)).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(Number(item.date)).fromNow()} secondaryTypographyProps={{ noWrap: true }} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
+          <ListItemText primary={moment(item.timestamp).format('ddd D MMM YYYY, H:mm:ss')} secondary={moment(item.timestamp).fromNow()} secondaryTypographyProps={{ noWrap: true }} primaryTypographyProps={{ component: 'code', fontFamily: 'Roboto Mono', fontSize: 14 }} />
         </ListItem>
       </List>
     </TimelineOppositeContent>

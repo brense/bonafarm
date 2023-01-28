@@ -1,3 +1,0 @@
-mutation AddLog($item: LogInput!) {
-  addLog(item: $item)
-}

@@ -1,21 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { AppBar, Avatar, Box, CircularProgress, Icon, IconButton, ListItemIcon, Menu, MenuItem, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material'
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink, User } from 'firebase/auth'
 import CenteredContent from './components/CenteredContent'
-import AddStorage from './pages/AddStorage'
-import AddFeed from './pages/AddFeed'
-import EditStorage from './pages/EditStorage'
-import AddItem from './pages/AddItem'
-import EditFeed from './pages/EditFeed'
-import Signin from './pages/Signin'
 import { Subject } from 'rxjs'
-import Home from './pages/Home'
 import QrReaderDialog from './components/QrReaderDialog'
+import DetailDialog from './components/DetailDialog'
+import { initializeApp } from 'firebase/app'
 
-const Stock = React.lazy(() => import('./pages/Stock'))
+const Home = React.lazy(() => import('./pages/Home'))
+const Stock = React.lazy(() => import('./pages/stock/Stock'))
+const EditStorage = React.lazy(() => import('./pages/storage/EditStorage'))
+const AddItem = React.lazy(() => import('./pages/storage/AddItem'))
+const Signin = React.lazy(() => import('./pages/Signin'))
+const StorageDetails = React.lazy(() => import('./pages/storage/StorageDetails'))
+const FeedDetails = React.lazy(() => import('./pages/feed/FeedDetails'))
+const EditFeed = React.lazy(() => import('./pages/feed/EditFeed'))
 
-const auth = getAuth()
+// TODO: refactor this...
+const { VITE_FIREBASE_CONFIG = '{}' } = import.meta.env
+const app = initializeApp(JSON.parse(VITE_FIREBASE_CONFIG))
+const auth = getAuth(app)
+
 const authLoaded = new Subject<void>()
 function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -145,11 +151,27 @@ export default function App() {
         </>}
       </Routes>
       <AddItem />
-      <AddStorage />
-      <EditStorage />
-      <AddFeed />
-      <EditFeed />
+      <StorageDialogs />
+      <FeedDialogs />
       <QrReaderDialog open={showScanner} onClose={handleScannerClose} />
     </React.Suspense>
   </Box>
+}
+
+function StorageDialogs() {
+  const match = useMatch('/stock/:storageId/*')
+  return <DetailDialog open={Boolean(match) && match?.params['*'] !== 'add'} >
+    <Route path="/stock/add" element={<EditStorage />} />
+    <Route path="/stock/:storageId" element={<StorageDetails />} />
+    <Route path="/stock/:storageId/edit" element={<EditStorage />} />
+  </DetailDialog>
+}
+
+function FeedDialogs() {
+  const match = useMatch('/feed/:feedId/*')
+  return <DetailDialog open={Boolean(match)} >
+    <Route path="/feed/add" element={<EditFeed />} />
+    <Route path="/feed/:feedId" element={<FeedDetails />} />
+    <Route path="/feed/:feedId/edit" element={<EditFeed />} />
+  </DetailDialog>
 }

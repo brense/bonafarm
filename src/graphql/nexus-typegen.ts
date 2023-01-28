@@ -14,17 +14,9 @@ declare global {
 }
 
 export interface NexusGenInputs {
-  LogInput: { // input type
-    amount?: number | null; // Float
-    slug?: string | null; // String
-    storageId: string; // String!
-    title?: string | null; // String
-    type?: NexusGenEnums['LogType'] | null; // LogType
-  }
 }
 
 export interface NexusGenEnums {
-  LogType: "emptied" | "mutation"
 }
 
 export interface NexusGenScalars {
@@ -36,29 +28,7 @@ export interface NexusGenScalars {
 }
 
 export interface NexusGenObjects {
-  Log: { // root type
-    amount?: number | null; // Float
-    date: string; // String!
-    id: string; // String!
-    slug?: string | null; // String
-    title?: string | null; // String
-    type: NexusGenEnums['LogType']; // LogType!
-  }
-  Mutation: {};
   Query: {};
-  StockItem: { // root type
-    amount: number; // Float!
-    slug: string; // String!
-    title: string; // String!
-  }
-  Storage: { // root type
-    canEmpty: boolean; // Boolean!
-    color?: string | null; // String
-    id: string; // String!
-    image?: string | null; // String
-    order: number; // Int!
-    title: string; // String!
-  }
 }
 
 export interface NexusGenInterfaces {
@@ -69,83 +39,21 @@ export interface NexusGenUnions {
 
 export type NexusGenRootTypes = NexusGenObjects
 
-export type NexusGenAllTypes = NexusGenRootTypes & NexusGenScalars & NexusGenEnums
+export type NexusGenAllTypes = NexusGenRootTypes & NexusGenScalars
 
 export interface NexusGenFieldTypes {
-  Log: { // field return type
-    amount: number | null; // Float
-    date: string; // String!
-    id: string; // String!
-    slug: string | null; // String
-    title: string | null; // String
-    type: NexusGenEnums['LogType']; // LogType!
-  }
-  Mutation: { // field return type
-    addLog: string | null; // String
-  }
   Query: { // field return type
-    storages: NexusGenRootTypes['Storage'][]; // [Storage!]!
-  }
-  StockItem: { // field return type
-    amount: number; // Float!
-    slug: string; // String!
-    title: string; // String!
-  }
-  Storage: { // field return type
-    canEmpty: boolean; // Boolean!
-    color: string | null; // String
-    id: string; // String!
-    image: string | null; // String
-    items: NexusGenRootTypes['StockItem'][]; // [StockItem!]!
-    logs: NexusGenRootTypes['Log'][]; // [Log!]!
-    order: number; // Int!
-    title: string; // String!
+    ok: boolean; // Boolean!
   }
 }
 
 export interface NexusGenFieldTypeNames {
-  Log: { // field return type name
-    amount: 'Float'
-    date: 'String'
-    id: 'String'
-    slug: 'String'
-    title: 'String'
-    type: 'LogType'
-  }
-  Mutation: { // field return type name
-    addLog: 'String'
-  }
   Query: { // field return type name
-    storages: 'Storage'
-  }
-  StockItem: { // field return type name
-    amount: 'Float'
-    slug: 'String'
-    title: 'String'
-  }
-  Storage: { // field return type name
-    canEmpty: 'Boolean'
-    color: 'String'
-    id: 'String'
-    image: 'String'
-    items: 'StockItem'
-    logs: 'Log'
-    order: 'Int'
-    title: 'String'
+    ok: 'Boolean'
   }
 }
 
 export interface NexusGenArgTypes {
-  Mutation: {
-    addLog: { // args
-      item: NexusGenInputs['LogInput']; // LogInput!
-    }
-  }
-  Query: {
-    storages: { // args
-      id?: string | null; // String
-    }
-  }
 }
 
 export interface NexusGenAbstractTypeMembers {
@@ -156,9 +64,9 @@ export interface NexusGenTypeInterfaces {
 
 export type NexusGenObjectNames = keyof NexusGenObjects;
 
-export type NexusGenInputNames = keyof NexusGenInputs;
+export type NexusGenInputNames = never;
 
-export type NexusGenEnumNames = keyof NexusGenEnums;
+export type NexusGenEnumNames = never;
 
 export type NexusGenInterfaceNames = never;
 

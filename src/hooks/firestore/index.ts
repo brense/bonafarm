@@ -1,47 +1,313 @@
-import { addDoc, collection, CollectionReference, DocumentData, getFirestore, limit, onSnapshot, orderBy, Query, query, QueryDocumentSnapshot, Timestamp, where } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
-import { useEffect, useState } from 'react'
-import { Subject } from 'rxjs'
+import { query, where, orderBy, limit, addDoc, doc, collection, CollectionReference, DocumentData, getFirestore, onSnapshot, Query, Timestamp, getDoc, DocumentReference, getDocs, setDoc, deleteDoc, SetOptions, getCountFromServer, QuerySnapshot, DocumentSnapshot, QueryConstraint, Unsubscribe, collectionGroup, updateDoc } from 'firebase/firestore'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { initializeApp } from 'firebase/app'
 
-type CollectionParams = { getCollection: () => CollectionReference<DocumentData> }
-type CollectionQueryParams = { name: string, getQuery: () => Query<DocumentData> }
-type UseCollectionParams = CollectionParams | CollectionQueryParams
+export { where, orderBy, limit, Timestamp } from 'firebase/firestore'
 
-function isQueryParams(params: UseCollectionParams): params is CollectionQueryParams {
-  return Object.hasOwn(params, 'name')
+type DocumentDataWithID<T = DocumentData> = T & { id: string }
+
+// TODO: refactor this...
+const { VITE_FIREBASE_CONFIG = '{}' } = import.meta.env
+const app = initializeApp(JSON.parse(VITE_FIREBASE_CONFIG))
+const firestore = getFirestore(app)
+
+const refs: Record<string, DocumentReference<DocumentData> | CollectionReference<DocumentData>> = {}
+
+type GenericDocReturnType<T = DocumentData> = {
+  get: (path: string) => Promise<DocumentDataWithID<T> | undefined>
+  getSnapshot: (path: string) => Promise<DocumentSnapshot<T>>
+  set: (path: string, data: T, options?: SetOptions) => Promise<void>
+  update: (path: string, data: T) => Promise<void>
+  delete: (path: string) => Promise<void>
+  subscribe: (path: string, next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
+  subscribeSnapshot: (path: string, next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
 }
 
-const subjects: Record<string, Subject<QueryDocumentSnapshot<DocumentData>[]>> = {}
+type DocReturnType<T = DocumentData> = {
+  get: () => Promise<DocumentDataWithID<T> | undefined>
+  getSnapshot: () => Promise<DocumentSnapshot<T>>
+  set: (data: T, options?: SetOptions) => Promise<void>
+  update: (data: T) => Promise<void>
+  delete: () => Promise<void>
+  subscribe: (next: (doc: DocumentDataWithID<T> | null) => void) => Unsubscribe
+  subscribeSnapshot: (next: (snapshot: DocumentSnapshot<T>) => void) => Unsubscribe
+}
 
-function getSubject(name: string, q: Query<DocumentData>) {
-  if (!subjects[name]) {
-    const subject = new Subject<QueryDocumentSnapshot<DocumentData>[]>()
-    onSnapshot(q, (querySnapshot) => {
-      const docs: QueryDocumentSnapshot<DocumentData>[] = []
-      querySnapshot.forEach((doc) => {
-        docs.push(doc)
-      })
-      subject.next(docs)
-    })
-    subjects[name] = subject
+type GenericDocParameters = Parameters<(path: string, options?: { parseTimestamp?: boolean }) => void>
+type DocParameters = Parameters<(options?: { parseTimestamp?: boolean }) => void>
+
+function isDocParameters(params: DocParameters | GenericDocParameters): params is DocParameters {
+  return typeof params[0] !== 'string'
+}
+
+type SubscribeSnapshotParameters<T = DocumentData> = Parameters<(next: (snapshot: DocumentSnapshot<T>) => void) => void>
+type GenericSubscribeSnapshotParameters<T = DocumentData> = Parameters<(path: string, next: (snapshot: DocumentSnapshot<T>) => void) => void>
+
+function isSubscribeSnapshotParamters<T = DocumentData>(params: SubscribeSnapshotParameters<T> | GenericSubscribeSnapshotParameters<T>): params is SubscribeSnapshotParameters<T> {
+  return typeof params[0] !== 'string'
+}
+
+type SubscribeDocParameters<T = DocumentData> = Parameters<(next: (doc: DocumentDataWithID<T>) => void) => void>
+type GenericSubscribeDocParameters<T = DocumentData> = Parameters<(path: string, next: (doc: DocumentDataWithID<T>) => void) => void>
+
+function isSubscribeDocParamters<T = DocumentData>(params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>): params is SubscribeDocParameters<T> {
+  return typeof params[0] !== 'string'
+}
+
+type SetDocParameters<T = DocumentData> = Parameters<(data: T, options?: SetOptions) => void>
+type GenericSetDocParameters<T = DocumentData> = Parameters<(path: string, data: T, options?: SetOptions) => void>
+
+function isSetDocParameters<T = DocumentData>(params: SetDocParameters<T> | GenericSetDocParameters<T>): params is SetDocParameters<T> {
+  return typeof params[0] !== 'string'
+}
+
+export function useDoc<T = DocumentData>(options?: { parseTimestamp?: boolean }): GenericDocReturnType<T>
+export function useDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }): DocReturnType<T>
+export function useDoc<T = DocumentData>(...params: GenericDocParameters | DocParameters): GenericDocReturnType<T> | DocReturnType<T> {
+  const [path, options] = !isDocParameters(params) ? params : [undefined, ...params]
+  const { parseTimestamp = false } = options || {}
+
+  const docRef = useMemo(() => {
+    if (path && !refs[path]) {
+      refs[path] = doc(firestore, path)
+    }
+    return path ? refs[path] as DocumentReference<T> : undefined
+  }, [path])
+
+  const getSnapshot = useCallback(async (path?: string) => {
+    return await getDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
+  }, [docRef])
+
+  const get = useCallback(async (path?: string) => {
+    const snapshot = await getSnapshot(path)
+    const values = !parseTimestamp ? snapshot.data() : timestampValuesToDate<T>(snapshot.data())
+    return { ...values, id: snapshot.id } as DocumentDataWithID<T> | undefined
+  }, [getSnapshot, parseTimestamp])
+
+  const subscribeSnapshot = useCallback((...params: SubscribeSnapshotParameters<T> | GenericSubscribeSnapshotParameters<T>) => {
+    const [path, next] = !isSubscribeSnapshotParamters<T>(params) ? params : [undefined, ...params]
+    return onSnapshot(docRef && !path ? docRef : doc(firestore, path || '') as DocumentReference<T>, next)
+  }, [docRef])
+
+  const subscribe = useCallback((...params: SubscribeDocParameters<T> | GenericSubscribeDocParameters<T>) => {
+    const [path, next] = !isSubscribeDocParamters<T>(params) ? params : [undefined, ...params]
+    function nextSnapshot(snapshot: DocumentSnapshot<T>) {
+      const values = !parseTimestamp ? snapshot.data() : timestampValuesToDate<T>(snapshot.data())
+      next({ ...values, id: snapshot.id } as DocumentDataWithID<T>)
+    }
+    return subscribeSnapshot(...path ? [path, nextSnapshot] : [nextSnapshot])
+  }, [subscribeSnapshot, parseTimestamp])
+
+  const set = useCallback(async (...params: SetDocParameters<T> | GenericSetDocParameters<T>) => {
+    const [path, data, options] = !isSetDocParameters<T>(params) ? params : [undefined, ...params]
+    return options ? await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data, options) : await setDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data)
+  }, [docRef])
+
+  const update = useCallback(async (...params: SetDocParameters<T> | GenericSetDocParameters<T>) => {
+    const [path, data] = !isSetDocParameters<T>(params) ? params : [undefined, ...params]
+    return await updateDoc<T>(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>, data as any)
+  }, [docRef])
+
+  const deleteFunc = useCallback(async (path?: string) => {
+    return await deleteDoc(docRef ? docRef : doc(firestore, path || '') as DocumentReference<T>)
+  }, [docRef])
+
+  return {
+    get,
+    getSnapshot,
+    set,
+    update,
+    delete: deleteFunc,
+    subscribe,
+    subscribeSnapshot
   }
-  return subjects[name]
 }
 
-export function useCollection(params: UseCollectionParams) {
-  const { query: q, name } = isQueryParams(params) ? { name: params.name, query: params.getQuery() } : { name: params.getCollection().path, query: query(params.getCollection()) }
-  const [docs, setDocs] = useState<QueryDocumentSnapshot<DocumentData>[]>([])
-  useEffect(() => {
-    const subscriber = getSubject(name, q).subscribe(docs => setDocs(docs))
-    return () => subscriber.unsubscribe()
-  }, [name, q])
-  return docs
+export function useCollection<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
+  const { parseTimestamp = false } = options || {}
+  const collectionRef = useMemo(() => {
+    if (!refs[path]) {
+      refs[path] = collection(firestore, path)
+    }
+    return refs[path] as CollectionReference<T>
+  }, [path])
+
+  const getSnapshot = useCallback(async () => {
+    return await getDocs(collectionRef)
+  }, [collectionRef])
+
+  const get = useCallback(async () => {
+    const snapshot = await getSnapshot()
+    const docs: Array<DocumentDataWithID<T>> = []
+    snapshot.forEach(doc => {
+      const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
+      docs.push({ ...values, id: doc.id })
+    })
+    return docs
+  }, [getSnapshot, parseTimestamp])
+
+  const countSnapshot = useCallback(async () => {
+    return await getCountFromServer(collectionRef)
+  }, [collectionRef])
+
+  const count = useCallback(async () => {
+    const snapshot = await countSnapshot()
+    return snapshot.data().count
+  }, [countSnapshot])
+
+  const subscribeSnapshot = useCallback((next: (snapshot: QuerySnapshot<T>) => void) => {
+    return onSnapshot(collectionRef, next)
+  }, [collectionRef])
+
+  const subscribe = useCallback((next: (docs: DocumentDataWithID<T>[]) => void) => {
+    return subscribeSnapshot(snapshot => {
+      const docs: DocumentDataWithID<T>[] = []
+      snapshot.forEach((doc) => {
+        const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
+        docs.push({ ...values, id: doc.id })
+      })
+      next(docs)
+    })
+  }, [subscribeSnapshot, parseTimestamp])
+
+  const add = useCallback(async (data: T) => {
+    return await addDoc<T>(collectionRef, data)
+  }, [collectionRef])
+
+  return {
+    get,
+    getSnapshot,
+    count,
+    countSnapshot,
+    add,
+    subscribe,
+    subscribeSnapshot
+  }
 }
+
+export function useQuery<T = DocumentData>(q: Query<T>, options?: { parseTimestamp?: boolean }) {
+  const { parseTimestamp = false } = options || {}
+  const getSnapshot = useCallback(async () => {
+    return await getDocs(q)
+  }, [q])
+
+  const get = useCallback(async () => {
+    const snapshot = await getSnapshot()
+    const docs: Array<DocumentDataWithID<T>> = []
+    snapshot.forEach(doc => {
+      const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
+      docs.push({ ...values, id: doc.id })
+    })
+    return docs
+  }, [getSnapshot, parseTimestamp])
+
+  const countSnapshot = useCallback(async () => {
+    return await getCountFromServer(q)
+  }, [q])
+
+  const count = useCallback(async () => {
+    const snapshot = await countSnapshot()
+    return snapshot.data().count
+  }, [countSnapshot])
+
+  const subscribeSnapshot = useCallback((next: (snapshot: QuerySnapshot<T>) => void) => {
+    return onSnapshot(q, next)
+  }, [q])
+
+  const subscribe = useCallback((next: (docs: DocumentDataWithID<T>[]) => void) => {
+    return subscribeSnapshot(snapshot => {
+      const docs: DocumentDataWithID<T>[] = []
+      snapshot.forEach((doc) => {
+        const values = !parseTimestamp ? doc.data() : timestampValuesToDate<T>(doc.data())
+        docs.push({ ...values, id: doc.id })
+      })
+      next(docs)
+    })
+  }, [subscribeSnapshot, parseTimestamp])
+
+  return {
+    get,
+    getSnapshot,
+    count,
+    countSnapshot,
+    subscribe,
+    subscribeSnapshot
+  }
+}
+
+export function useSubscribeDoc<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
+  const [result, setResult] = useState<DocumentDataWithID<T> | null>(null)
+  const { subscribe } = useDoc<T>(path, options)
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
+}
+
+export function useSubscribeCollection<T = DocumentData>(path: string, options?: { parseTimestamp?: boolean }) {
+  const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
+  const { subscribe } = useCollection<T>(path, options)
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
+}
+
+export function useSubscribeQuery<T = DocumentData>(q: Query<T>, options?: { parseTimestamp?: boolean }) {
+  const [result, setResult] = useState<DocumentDataWithID<T>[]>([])
+  const { subscribe } = useQuery<T>(q, options)
+  useEffect(() => {
+    const unsubscribe = subscribe(setResult)
+    return () => unsubscribe()
+  }, [subscribe])
+  return result
+}
+
+export function dateToTimestamp(date: Date) {
+  return Timestamp.fromDate(date)
+}
+
+export function makeQuery<T = DocumentData>(path: string, ...constraints: QueryConstraint[]): Query<T> {
+  return query(collection(firestore, path) as CollectionReference<T>, ...constraints)
+}
+
+export function makeCollectionGroupQuery<T = DocumentData>(path: string, ...constraints: QueryConstraint[]): Query<T> {
+  return query(collectionGroup(firestore, path) as CollectionReference<T>, ...constraints)
+}
+
+export async function emptyCollection(path: string) {
+  const collectionRef = collection(firestore, path)
+  const snapshot = await getDocs(collectionRef)
+  snapshot.forEach(doc => {
+    deleteDoc(doc.ref)
+  })
+}
+
+function timestampValuesToDate<T = DocumentData>(obj?: T) {
+  Object.keys(obj || {}).forEach(k => {
+    if (obj && obj[k as keyof typeof obj] instanceof Timestamp) {
+      const timestamp = obj[k as keyof typeof obj] as Timestamp
+      (obj as any)[k as keyof typeof obj] = timestamp.toDate()
+    }
+  })
+  return obj as T
+}
+
+
+
+
+
+
+
+
+// TODO: remove this old code...
 
 export type Log = {
   id: string
   type: 'mutation' | 'emptied'
-  date: Date,
+  timestamp: Date,
   storageId: string
 }
 
@@ -60,17 +326,6 @@ type FirestoreLog = {
   storageId: string
   feedId?: string
   amount?: number
-}
-
-const firestore = getFirestore()
-const auth = getAuth()
-
-export async function addLog(logItem: Omit<Log, 'date' | 'id'> | Omit<MutationLog, 'date' | 'id'>) {
-  return await addDoc(collection(firestore, 'logs'), {
-    timestamp: Timestamp.now(),
-    uid: auth.currentUser?.uid,
-    ...logItem
-  })
 }
 
 export function useLastEmptied(storageId: string) {
@@ -104,7 +359,7 @@ export function useLatestMutations(storageId: string) {
       const logs: MutationLog[] = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as MutationLog)
+        logs.push({ ...data, id: doc.id, timestamp: timestamp.toDate() } as MutationLog)
       })
       setLogs(logs)
     })
@@ -128,7 +383,7 @@ export function useLogs({ key, value, limit: num = 100 }: { key: 'storageId' | '
       const logs: Array<Log | MutationLog> = []
       querySnapshot.forEach((doc) => {
         const { timestamp, ...data } = doc.data() as FirestoreLog
-        logs.push({ ...data, id: doc.id, date: timestamp.toDate() } as Log)
+        logs.push({ ...data, id: doc.id, timestamp: timestamp.toDate() } as Log)
       })
       setLogs(logs)
     })
