@@ -1,9 +1,9 @@
-import { useMemo, useCallback, CSSProperties, useState, useEffect } from 'react'
+import React, { useMemo, useCallback, CSSProperties, useState, useEffect } from 'react'
 import { Card, CardActionArea, Typography, Icon, CardContent, useTheme, useMediaQuery, Grid, IconButton } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import StorageCardWithLogs from '../../components/storage/StorageCardWithLogs'
 import StorageCard from '../../components/storage/StorageCard'
-import { makeQuery, orderBy, useDoc, useQuery, useSubscribeQuery } from '../../hooks/firestore'
+import { makeQuery, orderBy, useDoc, useQuery } from '../../hooks/firestore'
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { DndContext } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -29,7 +29,7 @@ function Draggable({ storageId, children }: React.PropsWithChildren<{ storageId:
 
   return <Grid item xs={12} sm={6} md={4} lg={3} xl={2} ref={setNodeRef} sx={{ position: 'relative' }} style={style}>
     {children}
-    <IconButton sx={{ position: 'absolute', top: 16, right: 0, cursor: 'move' }} disableRipple ref={setActivatorNodeRef} {...attributes} {...listeners}><Icon color="action">drag_indicator</Icon></IconButton>
+    <IconButton sx={{ position: 'absolute', top: 16, right: 0, cursor: 'move', color: 'text.secondary' }} disableRipple ref={setActivatorNodeRef} {...attributes} {...listeners}><Icon color="inherit">drag_indicator</Icon></IconButton>
   </Grid>
 }
 
