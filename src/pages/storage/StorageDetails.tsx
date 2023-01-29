@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { Button, Card, CardActionArea, CardContent, DialogActions, DialogContent, Divider, Grid, Icon, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, makeQuery, useDoc, emptyCollection, useCollection, Timestamp } from '../../hooks/firestore'
@@ -20,7 +20,7 @@ export default function StorageDetails() {
   const match = useMatch('/stock/:storageId/*')
   const storage = useSubscribeDoc<Storage>(`storages/${match?.params.storageId}`)
   const doc = useDoc(`storages/${match?.params.storageId}`)
-  const { set: setDoc, delete: deleteDoc } = useDoc()
+  const { set: setDoc, update: updateDoc, delete: deleteDoc } = useDoc()
   const navigate = useNavigate()
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
@@ -39,6 +39,9 @@ export default function StorageDetails() {
   }, []), [items, feed])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const timeoutRef = useRef<NodeJS.Timeout>()
+  const movedAmountRef = useRef<number>(0)
+  const logRef = useRef<{ id: string }>()
 
   const handleDelete = useCallback(() => {
     confirmDeleteDialog.open({
@@ -60,14 +63,26 @@ export default function StorageDetails() {
     })
   }, [confirmEmptyDialog, match, addLog])
 
-  const handleMutateItem = useCallback(({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
+  const handleMutateItem = useCallback(async ({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
     if (feed) {
       const itemPath = `storages/${storage?.id}/items/${feed.id}`
       amount <= 0 && storage?.type === 'storage' ? deleteDoc(itemPath) : setDoc(itemPath, { amount })
-      addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
+      movedAmountRef.current += movedAmount
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      if (logRef.current) {
+        updateDoc(`/logs/${logRef.current.id}`, { amount: movedAmountRef.current })
+      } else {
+        logRef.current = await addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
+      }
+      timeoutRef.current = setTimeout(() => {
+        movedAmountRef.current = 0
+        logRef.current = undefined
+      }, 10000)
       movedAmount < 0 && storage?.type !== 'stable' && navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
     }
-  }, [storage, setDoc, addLog, navigate, deleteDoc])
+  }, [storage, setDoc, addLog, navigate, updateDoc, deleteDoc])
 
   return <>
     <DialogAppbar onClose={onClose}>{storage?.name}</DialogAppbar>
