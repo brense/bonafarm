@@ -116,7 +116,7 @@ export default function AddItem() {
         </FormControl>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => handleClose()}>Annuleren</Button>
+        <Button onClick={() => handleClose()}>{location.state?.movedItem ? 'Niet verplaatsen' : 'Annuleren'}</Button>
         <Button color="success" type="submit" disabled={!storage || !feed}><Icon>save</Icon>&nbsp;&nbsp;Opslaan</Button>
       </DialogActions>
       {saving && <LinearProgress variant="indeterminate" />}
