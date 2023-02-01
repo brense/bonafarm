@@ -41,6 +41,7 @@ export default function StorageDetails() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const timeoutRef = useRef<NodeJS.Timeout>()
   const movedAmountRef = useRef<number>(0)
+  const movedFeedIdRef = useRef<string>()
   const logRef = useRef<{ id: string }>()
 
   const handleDelete = useCallback(() => {
@@ -71,9 +72,11 @@ export default function StorageDetails() {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
-      if (logRef.current) {
+      if (logRef.current && movedFeedIdRef.current && movedFeedIdRef.current === feed.id) {
         updateDoc(`/logs/${logRef.current.id}`, { amount: movedAmountRef.current })
       } else {
+        movedFeedIdRef.current = feed.id
+        movedAmountRef.current = movedAmount
         logRef.current = await addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
       }
       timeoutRef.current = setTimeout(() => {
