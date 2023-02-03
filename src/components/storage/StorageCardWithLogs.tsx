@@ -1,15 +1,15 @@
 import { Card, CardActionArea, CardHeader, Divider, List, ListItem, ListItemSecondaryAction, ListItemText, Typography, Avatar, Box, Icon, useTheme, useMediaQuery, ListItemIcon } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { isMutationLog, useLastEmptied, useLatestMutations } from '../../hooks/firestore'
+import { isMutationLog, useLastEmptiedOrEmptying, useLatestMutations } from '../../hooks/firestore'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
 moment.locale('nl')
 
-export default function StorageCardWithLogs({ storage }: { storage: { id: string, name: string, image?: string } }) {
+export default function StorageCardWithLogs({ storage }: { storage: { id: string, name: string, image?: string, status: 'emptying' } }) {
   const location = useLocation()
   const navigate = useNavigate()
   const logs = useLatestMutations(storage.id)
-  const lastEmptied = useLastEmptied(storage.id)
+  const lastEmptied = useLastEmptiedOrEmptying(storage)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -19,8 +19,8 @@ export default function StorageCardWithLogs({ storage }: { storage: { id: string
       <Divider />
       <List disablePadding dense>
         <ListItem>
-          <ListItemIcon><Icon color={lastEmptied ? 'inherit' : 'disabled'}>cancel</Icon></ListItemIcon>
-          <ListItemText primary="Laatst geleegd" primaryTypographyProps={{ variant: 'subtitle2' }} secondary={lastEmptied ? moment(lastEmptied).fromNow() : 'Nooit'} />
+          <ListItemIcon><Icon color={!lastEmptied ? 'disabled' : storage.status === 'emptying' ? 'error' : 'success'}>{storage.status === 'emptying' || !lastEmptied ? 'cancel' : 'check_circle'}</Icon></ListItemIcon>
+          <ListItemText primary={storage.status === 'emptying' ? 'Wordt geleegd' : 'Laatst geleegd'} primaryTypographyProps={{ variant: 'subtitle2' }} secondary={lastEmptied ? moment(lastEmptied).fromNow() : 'Nooit'} />
         </ListItem>
       </List>
       <Divider />
