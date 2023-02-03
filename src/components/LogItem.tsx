@@ -16,14 +16,14 @@ export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?:
     </TimelineOppositeContent>
     <TimelineSeparator>
       <TimelineConnector />
-      <TimelineDot variant={item.type === 'emptied' ? 'outlined' : 'filled'}>{item.type === 'emptied' && <Icon color="error">cancel</Icon>}</TimelineDot>
+      <TimelineDot variant={item.type === 'emptied' || item.type === 'emptying' ? 'outlined' : 'filled'}>{(item.type === 'emptied' || item.type === 'emptying') && <Icon color={item.type === 'emptying' ? 'error' : 'success'}>{item.type === 'emptying' ? 'cancel' : 'check'}</Icon>}</TimelineDot>
       <TimelineConnector />
     </TimelineSeparator>
     <TimelineContent sx={{ width: 50, display: 'flex', alignItems: 'center' }}>
       <List disablePadding>
         <ListItem>
           {isMutationLog(item) && item.amount && <Typography variant="subtitle2" textAlign="right" sx={{ mr: 2 }} color={item.amount > 0 ? 'primary' : 'error'}>{item.amount > 0 && '+'}{item.amount.toLocaleString()}</Typography>}
-          <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.feed?.name} primaryTypographyProps={{ textAlign: 'left' }} />
+          <ListItemText primary={item.type === 'emptied' ? 'Koker leeg gemaakt' : item.type === 'emptying' ? 'Wordt leeggemaakt' : item.feed?.name} primaryTypographyProps={{ textAlign: 'left' }} />
         </ListItem>
       </List>
     </TimelineContent>

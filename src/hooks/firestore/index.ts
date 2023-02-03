@@ -306,7 +306,7 @@ function timestampValuesToDate<T = DocumentData>(obj?: T) {
 
 export type Log = {
   id: string
-  type: 'mutation' | 'emptied'
+  type: 'mutation' | 'emptied' | 'emptying'
   timestamp: Date,
   storageId: string
 }
@@ -341,6 +341,27 @@ export function useLastEmptied(storageId: string) {
     })
     return () => unsubscribe()
   }, [storageId])
+
+  useEffect(() => {
+    setLastEmptied(null)
+  }, [])
+
+  return lastEmptied
+}
+
+export function useLastEmptiedOrEmptying(storage: { id: string, status: 'emptying' }) {
+  const [lastEmptied, setLastEmptied] = useState<Date | null>(null)
+
+  useEffect(() => {
+    const q = query(collection(firestore, 'logs'), where('storageId', '==', storage.id), where('type', '==', storage.status === 'emptying' ? 'emptying' : 'emptied'), orderBy('timestamp', 'desc'), limit(1))
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      querySnapshot.forEach((doc) => {
+        const { timestamp } = doc.data() as FirestoreLog
+        setLastEmptied(timestamp.toDate())
+      })
+    })
+    return () => unsubscribe()
+  }, [storage])
 
   useEffect(() => {
     setLastEmptied(null)
