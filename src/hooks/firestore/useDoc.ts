@@ -72,12 +72,6 @@ export function useSubscribeDocument<T = DocumentData>(path: string) {
   return doc
 }
 
-export function useDocumentSnapshot<T = DocumentData>(snapshot: DocumentSnapshot<T>, options?: { parseTimestamp?: boolean, transform?: (doc: DocumentSnapshot<T>) => unknown }) {
-  const { transform, parseTimestamp = false } = options || {}
-  // TODO: parse timestamp...
-  return useMemo(() => transform ? transform(snapshot) : { id: snapshot.id, ...snapshot.data() as T }, [snapshot, transform])
-}
-
 export function useQuerySnapshot<T = DocumentData, K = unknown>(snapshot: QuerySnapshot<T>, options?: { parseTimestamp?: boolean, transform?: (doc: QueryDocumentSnapshot<T>) => K }) {
   const { transform, parseTimestamp = false } = options || {}
   const transformed = useMemo(() => {
