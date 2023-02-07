@@ -36,7 +36,7 @@ export default function StockPerFeed() {
 
   // TODO: show search field on mobile?
 
-  return <Table padding="normal" stickyHeader={true} size={isMobile ? 'small' : 'medium'}>
+  return <Table padding="normal" stickyHeader={true} size={isMobile ? 'small' : 'medium'} sx={{ mb: 8 }}>
     <TableHead>
       <TableRow>
         <TableCell>Voertype</TableCell>
