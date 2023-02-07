@@ -26,7 +26,7 @@ export default function AddItem() {
   const [preSelectedAmount, setPreSelectedAmount] = useState(null)
   const [saving, setSaving] = useState(false)
   const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
-  const { set: setDoc } = useDoc()
+  const { set: setDoc, get: getDoc } = useDoc()
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setStorage(null)
@@ -44,11 +44,14 @@ export default function AddItem() {
       await setDoc(`feeds/${feedId}`, { name: feed.inputValue })
     }
     if (feedId && storage?.id) {
-      storage.type !== 'shute' && setDoc(`storages/${storage.id}/items/${feedId}`, { amount: amount ?? preSelectedAmount ?? 0 })
-      addLog({ type: 'mutation', amount: amount ?? preSelectedAmount ?? 0, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
+      const increment = amount ?? preSelectedAmount ?? 0
+      const current = (await getDoc(`storages/${storage.id}/items/${feedId}`)) || { amount: 0 }
+      const currentAmount = (isNaN(current.amount) ? 0 : current.amount)
+      storage.type !== 'shute' && setDoc(`storages/${storage.id}/items/${feedId}`, { amount: currentAmount + increment })
+      addLog({ type: 'mutation', amount: increment, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
     }
     handleClose()
-  }, [feed, storage, handleClose, setDoc, preSelectedAmount, addLog])
+  }, [feed, storage, handleClose, setDoc, preSelectedAmount, addLog, getDoc])
 
   useEffect(() => {
     if (location.state?.movedItem) {
