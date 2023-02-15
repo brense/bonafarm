@@ -2,12 +2,13 @@ import { useCallback, useMemo, useRef, useState, useEffect, useReducer } from 'r
 import { Avatar, Box, Button, CircularProgress, DialogActions, DialogContent, Divider, FormControl, FormControlLabel, FormLabel, InputAdornment, LinearProgress, Popover, Radio, RadioGroup, Stack, TextField, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import DialogAppbar from '../../components/DialogAppbar'
-import { useDoc, useSubscribeDoc } from '../../hooks/firestore'
+import { useSubscribeDoc } from '../../hooks/firestore'
 import { CircleStencil, Cropper, CropperRef } from 'react-advanced-cropper'
 import { useDropzone } from 'react-dropzone'
 import { HexColorPicker } from 'react-colorful'
 import { getDownloadURL, getStorage, ref as storageRef, uploadString } from 'firebase/storage'
 import 'react-advanced-cropper/dist/style.css'
+import { useDoc } from 'firestore-react-hooks'
 
 const firebaseStorage = getStorage()
 
@@ -50,8 +51,8 @@ export default function EditStorage() {
   const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1, multiple: false })
   const [changes, setChanges] = useReducer(reducerFunc, initialState)
   const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
-  const { set: setStorage } = useDoc(`storages/${changes.id || 'add'}`)
-  const { set: setDoc } = useDoc()
+  const { setDoc: setStorage } = useDoc(`storages/${changes.id || 'add'}`)
+  const { setDoc } = useDoc()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 

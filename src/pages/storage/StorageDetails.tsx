@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { Button, Card, CardActionArea, CardContent, DialogActions, DialogContent, Divider, Grid, Icon, Typography, useMediaQuery, useTheme, Box, Alert, AlertTitle } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, makeQuery, useDoc, emptyCollection, useCollection, Timestamp } from '../../hooks/firestore'
+import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, emptyCollection, Timestamp } from '../../hooks/firestore'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import DialogAppbar from '../../components/DialogAppbar'
 import { Timeline } from '@mui/lab'
 import LogItem from '../../components/LogItem'
 import StorageItem from '../../components/storage/StorageItem'
 import { getAuth } from 'firebase/auth'
+import { useCollection, makeQuery, useFirestore, useDoc } from 'firestore-react-hooks'
 
 type Storage = {
   name: string
@@ -21,15 +22,16 @@ export default function StorageDetails() {
   const match = useMatch('/stock/:storageId/*')
   const storage = useSubscribeDoc<Storage>(`storages/${match?.params.storageId}`)
   const doc = useDoc(`storages/${match?.params.storageId}`)
-  const { set: setDoc, update: updateDoc, delete: deleteDoc } = useDoc()
+  const { setDoc, updateDoc, deleteDoc } = useDoc()
   const navigate = useNavigate()
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const feed = useSubscribeCollection<{ name: string, id: string }>('feeds')
-  const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>('logs', where('storageId', '==', storage?.id || ''), orderBy('timestamp', 'desc'), limit(100)), [storage?.id])
+  const firestore = useFirestore()
+  const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(firestore, 'logs', where('storageId', '==', storage?.id || ''), orderBy('timestamp', 'desc'), limit(100)), [storage?.id, firestore])
   const logs = useSubscribeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(q, { parseTimestamp: true })
-  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied' | 'emptying', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
+  const { addDoc } = useCollection<{ type: 'mutation' | 'emptied' | 'emptying', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
   const logItems = useMemo(() => logs.map(l => ({ ...l, ...isMutationLog(l) && { feed: feed.find(f => f.id === l.feedId) } })), [feed, logs])
   const items = useSubscribeCollection<{ amount: number }>(`storages/${match?.params.storageId}/items`)
   const storageItems = useMemo(() => items.map(item => {
@@ -49,7 +51,7 @@ export default function StorageDetails() {
     confirmDeleteDialog.open({
       confirmMessage: 'Weet je zeker dat je deze opslag wilt verwijderen?',
       onConfirm: async () => {
-        await doc.delete()
+        await doc.deleteDoc()
         navigate('/stock')
       }
     })
@@ -59,22 +61,22 @@ export default function StorageDetails() {
     confirmEmptyDialog.open({
       confirmMessage: 'Weet je zeker dat je deze opslag wilt leegmaken?',
       onConfirm: async () => {
-        addLog({ type: 'emptying', timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
-        doc.update({ status: 'emptying' })
+        addDoc({ type: 'emptying', timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
+        doc.updateDoc({ status: 'emptying' })
       }
     })
-  }, [confirmEmptyDialog, match, addLog, doc])
+  }, [confirmEmptyDialog, match, addDoc, doc])
 
   const handleEmptied = useCallback(() => {
     confirmEmptyDialog.open({
       confirmMessage: 'Weet je zeker dat je deze opslag wilt leegmaken?',
       onConfirm: async () => {
-        addLog({ type: 'emptied', timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
-        doc.update({ status: 'emptied' })
+        addDoc({ type: 'emptied', timestamp: Timestamp.now(), storageId: match?.params.storageId || '', uid: auth.currentUser?.uid || '' })
+        doc.updateDoc({ status: 'emptied' })
         emptyCollection(`storages/${match?.params.storageId}/items`)
       }
     })
-  }, [confirmEmptyDialog, match, addLog, doc])
+  }, [confirmEmptyDialog, match, addDoc, doc])
 
   const handleMutateItem = useCallback(async ({ amount, feed }: { amount: number, feed?: { id: string } }, movedAmount: number) => {
     if (feed) {
@@ -89,7 +91,7 @@ export default function StorageDetails() {
       } else {
         movedFeedIdRef.current = feed.id
         movedAmountRef.current = movedAmount
-        logRef.current = await addLog({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
+        logRef.current = await addDoc({ type: 'mutation', amount: movedAmount, feedId: feed.id, timestamp: Timestamp.now(), storageId: storage?.id || '', uid: auth.currentUser?.uid || '' })
       }
       timeoutRef.current = setTimeout(() => {
         movedAmountRef.current = 0
@@ -97,7 +99,7 @@ export default function StorageDetails() {
       }, 10000)
       movedAmount < 0 && storage?.type !== 'stable' && navigate(`/stock/${storage?.id}/add`, { state: { referrer: `/stock/${storage?.id}`, movedItem: { amount: Math.abs(movedAmount), feedId: feed.id } } })
     }
-  }, [storage, setDoc, addLog, navigate, updateDoc, deleteDoc])
+  }, [storage, setDoc, addDoc, navigate, updateDoc, deleteDoc])
 
   return <>
     <DialogAppbar onClose={onClose}>{storage?.name}</DialogAppbar>

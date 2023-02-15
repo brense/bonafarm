@@ -1,8 +1,9 @@
 import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Grid, Icon } from '@mui/material'
 import { useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { makeCollectionGroupQuery, useQuery, useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
+import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery, makeCollectionGroupQuery, useFirestore } from 'firestore-react-hooks'
 
 type Feed = {
   name: string
@@ -13,15 +14,16 @@ export default function FeedDetails() {
   const match = useMatch('/feed/:feedId/*')
   const feed = useSubscribeDoc<Feed>(`feeds/${match?.params.feedId}`)
   const storages = useSubscribeCollection<{ name: string, color?: string, image?: string, type: 'shute' }>('storages')
-  const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>('items'), [])
-  const { subscribeSnapshot } = useQuery<{ amount: number }>(q)
+  const firestore = useFirestore()
+  const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>(firestore, 'items'), [firestore])
+  const { subscribe } = useQuery<{ amount: number }>(q)
   const navigate = useNavigate()
   const [feedStorages, setFeedStorages] = useState<Array<{ amount: number, name: string, id: string, color?: string }>>([])
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const location = useLocation()
 
   useEffect(() => {
-    const unsubscribe = subscribeSnapshot(async snapshot => {
+    const unsubscribe = subscribe(async snapshot => {
       const items: typeof feedStorages = []
       snapshot.forEach(doc => {
         doc.id === feed?.id && items.push({ amount: doc.data().amount, ...storages.find(s => s.id === doc.ref.parent.parent?.id)! })
@@ -29,7 +31,7 @@ export default function FeedDetails() {
       setFeedStorages(items)
     })
     return () => unsubscribe()
-  }, [subscribeSnapshot, feed, storages])
+  }, [subscribe, feed, storages])
 
   const linkedStorage = useMemo(() => storages.find(s => s.id === feed?.linkedStorageId), [feed, storages])
 
