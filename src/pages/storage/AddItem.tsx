@@ -4,8 +4,9 @@ import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import CustomDialog from '../../components/CustomDialog'
 import CustomAutocomplete from '../../components/CustomAutocomplete'
-import { Timestamp, useCollection, useDoc, useSubscribeCollection } from '../../hooks/firestore'
+import { Timestamp, useSubscribeCollection } from '../../hooks/firestore'
 import { getAuth } from 'firebase/auth'
+import { useCollection, useDoc } from 'firestore-react-hooks'
 
 const Transition = React.forwardRef(function Transition(props: TransitionProps & { children: React.ReactElement<any, any> }, ref: React.Ref<unknown>,) {
   return <Slide direction="up" ref={ref} {...props} />
@@ -25,8 +26,8 @@ export default function AddItem() {
   const [storage, setStorage] = useState<{ name: string, type: 'shute', id: string, inputValue?: string } | null>()
   const [preSelectedAmount, setPreSelectedAmount] = useState(null)
   const [saving, setSaving] = useState(false)
-  const { add: addLog } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
-  const { set: setDoc, get: getDoc } = useDoc()
+  const { addDoc } = useCollection<{ type: 'mutation' | 'emptied', amount?: number, feedId?: string, timestamp: Timestamp, storageId: string, uid: string }>('logs')
+  const { setDoc, getDoc } = useDoc({ returnDocumentData: true })
 
   const handleClose = useCallback((reason?: 'backdropClick' | 'escapeKeyDown') => {
     setStorage(null)
@@ -48,10 +49,10 @@ export default function AddItem() {
       const current = (await getDoc(`storages/${storage.id}/items/${feedId}`)) || { amount: 0 }
       const currentAmount = (isNaN(current.amount) ? 0 : current.amount)
       storage.type !== 'shute' && setDoc(`storages/${storage.id}/items/${feedId}`, { amount: currentAmount + increment })
-      addLog({ type: 'mutation', amount: increment, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
+      addDoc({ type: 'mutation', amount: increment, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
     }
     handleClose()
-  }, [feed, storage, handleClose, setDoc, preSelectedAmount, addLog, getDoc])
+  }, [feed, storage, handleClose, setDoc, preSelectedAmount, addDoc, getDoc])
 
   useEffect(() => {
     if (location.state?.movedItem) {

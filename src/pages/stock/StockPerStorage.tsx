@@ -3,10 +3,11 @@ import { Card, CardActionArea, Typography, Icon, CardContent, useTheme, useMedia
 import { useLocation, useNavigate } from 'react-router-dom'
 import StorageCardWithLogs from '../../components/storage/StorageCardWithLogs'
 import StorageCard from '../../components/storage/StorageCard'
-import { makeQuery, orderBy, useDoc, useQuery } from '../../hooks/firestore'
+import { orderBy } from '../../hooks/firestore'
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { DndContext } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { useQuery, makeQuery, useFirestore, useDoc } from 'firestore-react-hooks'
 
 function Draggable({ storageId, children }: React.PropsWithChildren<{ storageId: string }>) {
   const {
@@ -38,10 +39,11 @@ function Draggable({ storageId, children }: React.PropsWithChildren<{ storageId:
 export default function StockPerStorage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [storages, setStorages] = useState<Array<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>>([])
-  const q = useMemo(() => makeQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>('storages', orderBy('order')), [])
-  const { subscribe } = useQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>(q)
-  const { update } = useDoc()
+  const [storages, setStorages] = useState<Array<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string, status?: 'emptying' }>>([])
+  const firestore = useFirestore()
+  const q = useMemo(() => makeQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>(firestore, 'storages', orderBy('order')), [firestore])
+  const { subscribe } = useQuery<{ name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }>(q, { returnDocumentData: true })
+  const { updateDoc } = useDoc()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -56,9 +58,9 @@ export default function StockPerStorage() {
       const overIndex = storages.findIndex(({ id }) => id === over.id)
       const newOrder = arrayMove(storages, activeIndex, overIndex)
       setStorages(newOrder)
-      newOrder.forEach((storage, order) => update(`storages/${storage.id}`, { order }))
+      newOrder.forEach((storage, order) => updateDoc(`storages/${storage.id}`, { order }))
     }
-  }, [storages, update])
+  }, [storages, updateDoc])
 
   return <DndContext onDragEnd={handleDragEnd}>
     <SortableContext items={storages}>

@@ -1,17 +1,19 @@
 import { Stack, Typography, Icon, Chip, useTheme, useMediaQuery, Table, TableRow, TableCell, TableHead, TableBody, Box, IconButton, Button } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { makeCollectionGroupQuery, useSubscribeCollection, useQuery } from '../../hooks/firestore'
+import { useSubscribeCollection } from '../../hooks/firestore'
+import { useQuery, makeCollectionGroupQuery, useFirestore } from 'firestore-react-hooks'
 
 function useFeeds() {
-  const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>('items'), [])
-  const { subscribeSnapshot } = useQuery<{ amount: number }>(q)
+  const firestore = useFirestore()
+  const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>(firestore, 'items'), [firestore])
+  const { subscribe } = useQuery<{ amount: number }>(q)
   const [items, setItems] = useState<Array<{ feedId: string, amount: number, storageId: string }>>([])
   const feeds = useSubscribeCollection<{ id: string, name: string, linkedStorageId: string }>('feeds')
   const storages = useSubscribeCollection<{ id: string, name: string, type: 'shute', color?: string, image?: string }>('storages')
 
   useEffect(() => {
-    const unsubscribe = subscribeSnapshot(async snapshot => {
+    const unsubscribe = subscribe(async snapshot => {
       const items: Array<{ feedId: string, amount: number, storageId: string }> = []
       snapshot.forEach(doc => {
         items.push({ feedId: doc.id, amount: doc.data().amount, storageId: doc.ref.parent.parent?.id! })
@@ -19,7 +21,7 @@ function useFeeds() {
       setItems(items)
     })
     return () => unsubscribe()
-  }, [subscribeSnapshot])
+  }, [subscribe])
 
   return useMemo(() => feeds.map(({ linkedStorageId, ...feed }) => {
     const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))

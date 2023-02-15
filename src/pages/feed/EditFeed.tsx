@@ -1,9 +1,10 @@
 import { useCallback, useRef, useEffect, useState, useMemo, useReducer } from 'react'
 import { Button, DialogActions, DialogContent, LinearProgress, TextField } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { useDoc, useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
+import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
 import CustomAutocomplete from '../../components/CustomAutocomplete'
+import { useDoc } from 'firestore-react-hooks'
 
 const initialState = {
   id: '',
@@ -26,7 +27,7 @@ export default function EditFeed() {
   const inputRef = useRef<HTMLInputElement>()
   const [changes, setChanges] = useReducer(reducerFunc, initialState)
   const isValid = useMemo(() => changes.name !== '' && changes.id !== '', [changes])
-  const { set } = useDoc(`feeds/${changes.id || 'add'}`)
+  const { setDoc } = useDoc(`feeds/${changes.id || 'add'}`)
 
   useEffect(() => {
     setChanges(initialState)
@@ -39,9 +40,9 @@ export default function EditFeed() {
   const handleSave = useCallback(async (e: {}) => {
     setSaving(true)
     const { id, linkedStorageId, ...data } = changes
-    await set({ ...data, ...linkedStorageId && { linkedStorageId } })
+    await setDoc({ ...data, ...linkedStorageId && { linkedStorageId } })
     onClose && onClose(e)
-  }, [onClose, changes, set])
+  }, [onClose, changes, setDoc])
 
   useEffect(() => {
     if (Boolean(match)) {
