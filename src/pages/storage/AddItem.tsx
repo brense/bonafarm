@@ -61,8 +61,9 @@ export default function AddItem() {
       const feed = feeds.find(f => f.id === location.state.movedItem.feedId)
       if (feed?.linkedStorageId) {
         setStorage(storages.find(s => s.id === feed.linkedStorageId) || null)
+      } else {
+        storageInputRef.current?.focus()
       }
-      storageInputRef.current?.focus()
     } else if (match?.params.storageId) {
       setStorage(storages.find(s => s.id === match?.params.storageId) || null)
       const feedMatch = feeds.find(f => f.id === match?.params.storageId)
