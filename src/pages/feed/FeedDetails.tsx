@@ -1,9 +1,11 @@
-import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Grid, Icon } from '@mui/material'
+import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Divider, Grid, Icon, List, ListItem, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material'
 import { useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery, makeCollectionGroupQuery, useFirestore } from 'firestore-react-hooks'
+import { useQuery, makeCollectionGroupQuery, useFirestore, makeQuery } from 'firestore-react-hooks'
+import { Timestamp, where, orderBy } from 'firebase/firestore'
+import moment from 'moment'
 
 type Feed = {
   name: string
@@ -17,10 +19,13 @@ export default function FeedDetails() {
   const firestore = useFirestore()
   const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>(firestore, 'items'), [firestore])
   const { subscribe } = useQuery<{ amount: number }>(q)
+  const qStats = useMemo(() => makeQuery<{ amount: number, timestamp: Timestamp }>(firestore, 'logs', where('feedId', '==', match?.params.feedId), orderBy('timestamp', 'desc')), [firestore, match])
+  const { subscribe: subcribeStats } = useQuery<{ amount: number, timestamp: Timestamp }>(qStats)
   const navigate = useNavigate()
   const [feedStorages, setFeedStorages] = useState<Array<{ amount: number, name: string, id: string, color?: string }>>([])
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const location = useLocation()
+  const [logsPerDay, setLogsPerDay] = useState<Array<{ day: Date, amount: number }>>([])
 
   useEffect(() => {
     const unsubscribe = subscribe(async snapshot => {
@@ -32,6 +37,26 @@ export default function FeedDetails() {
     })
     return () => unsubscribe()
   }, [subscribe, feed, storages])
+
+  useEffect(() => {
+    const unsubscribe = subcribeStats(async snapshot => {
+      const logs: Array<{ amount: number, timestamp: Timestamp }> = []
+      snapshot.forEach(doc => {
+        logs.push(doc.data())
+      })
+      const logsPerDay = logs.reduce((logsPerDay, log) => {
+        const dayTimestamp = moment(log.timestamp.toDate()).startOf('day').unix() + '000'
+        if (logsPerDay[dayTimestamp]) {
+          logsPerDay[dayTimestamp].amount += log.amount
+        } else {
+          logsPerDay[dayTimestamp] = { amount: log.amount }
+        }
+        return logsPerDay
+      }, {} as Record<string, { amount: number }>)
+      setLogsPerDay(Object.keys(logsPerDay).map(k => ({ day: moment(Number(k)).toDate(), amount: logsPerDay[k].amount })).filter(l => l.amount !== 0))
+    })
+    return () => unsubscribe()
+  }, [subcribeStats, match])
 
   const linkedStorage = useMemo(() => storages.find(s => s.id === feed?.linkedStorageId), [feed, storages])
 
@@ -55,6 +80,13 @@ export default function FeedDetails() {
           </Card>
         </Grid>)}
       </Grid>
+      <Divider>Wijzigingen per dag</Divider>
+      <List dense>
+        {logsPerDay.map(({ day, amount }) => <ListItem key={day.getTime()}>
+          <ListItemText primary={moment(day).format('ddd D MMM YYYY')} />
+          <ListItemSecondaryAction><Typography variant="subtitle2" color={amount < 0 ? 'error' : 'primary'}>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</Typography></ListItemSecondaryAction>
+        </ListItem>)}
+      </List>
     </DialogContent>
     <DialogActions>
       <Button onClick={() => navigate(`/feed/${feed?.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Voertype bewerken</Button>

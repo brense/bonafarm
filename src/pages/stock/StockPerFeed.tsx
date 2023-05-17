@@ -52,7 +52,7 @@ export default function StockPerFeed() {
         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{feed.total.toLocaleString()} stuks</TableCell>
         <TableCell>
           <Stack direction={isMobile ? 'column' : 'row'} spacing={1} flexWrap="wrap">
-            {feed.storages.map(storage => <Chip key={storage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name}${storage.type === 'shute' ? '' : ` (${storage.amount.toLocaleString()})`}`} sx={{ bgcolor: storage.color }} />)}
+            {feed.storages.map((storage, k) => <Chip key={k} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${storage.id}`) }} size="small" label={`${storage.name}${storage.type === 'shute' ? '' : ` (${storage.amount.toLocaleString()})`}`} sx={{ bgcolor: storage.color }} />)}
             {feed.linkedStorage && feed.linkedStorage.type === 'shute' && <Chip key={feed.linkedStorage.id} onClick={(e) => { e.stopPropagation(); navigate(`/stock/${feed.linkedStorage?.id}`) }} size="small" label={`${feed.linkedStorage.name}`} sx={{ bgcolor: feed.linkedStorage.color }} />}
           </Stack>
         </TableCell>
