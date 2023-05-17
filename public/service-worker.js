@@ -65,7 +65,7 @@
     self.addEventListener('fetch', event => {
       const url = new URL(event.request.url);
 
-      if (url.pathname.startsWith('/api') || url.hostname === '127.0.0.1'){
+      if (url.pathname.startsWith('/api') || url.hostname === '127.0.0.1' || url.hostname === 'localhost'){
         // just let the browser do the normal thing:
         return;
       }
