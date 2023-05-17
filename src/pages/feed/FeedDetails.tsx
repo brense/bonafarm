@@ -19,8 +19,8 @@ export default function FeedDetails() {
   const firestore = useFirestore()
   const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>(firestore, 'items'), [firestore])
   const { subscribe } = useQuery<{ amount: number }>(q)
-  const qStats = useMemo(() => makeQuery<{ amount: number, timestamp: Timestamp }>(firestore, 'logs', where('feedId', '==', match?.params.feedId), orderBy('timestamp', 'desc')), [firestore, match])
-  const { subscribe: subcribeStats } = useQuery<{ amount: number, timestamp: Timestamp }>(qStats)
+  const qStats = useMemo(() => makeQuery<{ amount: number, timestamp: Timestamp, storageId: string }>(firestore, 'logs', where('feedId', '==', match?.params.feedId), orderBy('timestamp', 'desc')), [firestore, match])
+  const { subscribe: subcribeStats } = useQuery<{ amount: number, timestamp: Timestamp, storageId: string }>(qStats)
   const navigate = useNavigate()
   const [feedStorages, setFeedStorages] = useState<Array<{ amount: number, name: string, id: string, color?: string }>>([])
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
@@ -40,15 +40,16 @@ export default function FeedDetails() {
 
   useEffect(() => {
     const unsubscribe = subcribeStats(async snapshot => {
-      const logs: Array<{ amount: number, timestamp: Timestamp }> = []
+      const logs: Array<{ amount: number, timestamp: Timestamp, storageId: string }> = []
       snapshot.forEach(doc => {
         logs.push(doc.data())
       })
       const logsPerDay = logs.reduce((logsPerDay, log) => {
         const dayTimestamp = moment(log.timestamp.toDate()).startOf('day').unix() + '000'
-        if (logsPerDay[dayTimestamp]) {
+        const isShute = !!storages.find(s => s.id === log.storageId && s.type === 'shute')
+        if (logsPerDay[dayTimestamp] && !isShute) {
           logsPerDay[dayTimestamp].amount += log.amount
-        } else {
+        } else if (!isShute) {
           logsPerDay[dayTimestamp] = { amount: log.amount }
         }
         return logsPerDay
@@ -56,7 +57,7 @@ export default function FeedDetails() {
       setLogsPerDay(Object.keys(logsPerDay).map(k => ({ day: moment(Number(k)).toDate(), amount: logsPerDay[k].amount })).filter(l => l.amount !== 0))
     })
     return () => unsubscribe()
-  }, [subcribeStats, match])
+  }, [subcribeStats, match, storages])
 
   const linkedStorage = useMemo(() => storages.find(s => s.id === feed?.linkedStorageId), [feed, storages])
 
