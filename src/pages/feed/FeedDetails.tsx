@@ -75,7 +75,7 @@ export default function FeedDetails() {
         {feedStorages.map(storage => <Grid key={storage.id} item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })}>
-              <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} subheader={`Voorraad: ${storage.amount} stuks`} />
+              <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} subheader={`Voorraad: ${storage.amount.toLocaleString()} stuks`} />
             </CardActionArea>
           </Card>
         </Grid>)}
