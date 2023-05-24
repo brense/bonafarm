@@ -26,6 +26,7 @@ export default function FeedDetails() {
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
   const location = useLocation()
   const [logsPerDay, setLogsPerDay] = useState<Array<{ day: Date, amount: number }>>([])
+  const [avaragePerWeek, setAvaragePerWeek] = useState<Array<{ week: Date, amount: number, avarage: number }>>([])
 
   useEffect(() => {
     const unsubscribe = subscribe(async snapshot => {
@@ -44,6 +45,24 @@ export default function FeedDetails() {
       snapshot.forEach(doc => {
         logs.push(doc.data())
       })
+      const usagePerWeek = logs.filter(l => l.amount < 0).reduce((perWeek, log) => {
+        const logWeek = moment(log.timestamp.toDate()).startOf('week').unix() + '000'
+        const index = perWeek.findIndex(w => w.week === logWeek)
+        if (index >= 0) {
+          perWeek[index].amount += log.amount
+        } else {
+          perWeek.push({ week: logWeek, amount: log.amount })
+        }
+        return perWeek
+      }, [] as Array<{ week: string, amount: number }>).reverse()
+      const withAvarages = usagePerWeek.map(({ week, amount }, k) => {
+        let previous = 0
+        for (let i = 0; i < k; i++) {
+          previous += usagePerWeek[i].amount
+        }
+        return { week: moment(Number(week)).toDate(), amount, avarage: previous === 0 ? amount : (amount + previous) / (k + 1) }
+      }).reverse()
+      setAvaragePerWeek(withAvarages)
       const logsPerDay = logs.reduce((logsPerDay, log) => {
         const dayTimestamp = moment(log.timestamp.toDate()).startOf('day').unix() + '000'
         const isShute = !!storages.find(s => s.id === log.storageId && s.type === 'shute')
@@ -81,6 +100,13 @@ export default function FeedDetails() {
           </Card>
         </Grid>)}
       </Grid>
+      <Divider>Gemiddeld verbruik per week</Divider>
+      <List dense>
+        {avaragePerWeek.map(({ week, avarage }) => <ListItem key={week.getTime()}>
+          <ListItemText primary={`Week ${moment(week).format('W YYYY')}`} />
+          <ListItemSecondaryAction><Typography variant="subtitle2" color={avarage < 0 ? 'error' : 'primary'}>{`${avarage > 0 ? '+' : ''}${avarage.toLocaleString()}`}</Typography></ListItemSecondaryAction>
+        </ListItem>)}
+      </List>
       <Divider>Wijzigingen per dag</Divider>
       <List dense>
         {logsPerDay.map(({ day, amount }) => <ListItem key={day.getTime()}>
