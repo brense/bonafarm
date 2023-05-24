@@ -52,7 +52,7 @@ export default function FeedDetails() {
         if (index >= 0) {
           perWeek[index].amount += -Math.abs(log.amount)
         } else {
-          perWeek.push({ week: logWeek, amount: log.amount })
+          perWeek.push({ week: logWeek, amount: -Math.abs(log.amount) })
         }
         return perWeek
       }, [] as Array<{ week: string, amount: number }>).reverse()
