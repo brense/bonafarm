@@ -45,11 +45,12 @@ export default function FeedDetails() {
       snapshot.forEach(doc => {
         logs.push(doc.data())
       })
-      const usagePerWeek = logs.filter(l => l.amount < 0).reduce((perWeek, log) => {
+      const linkedStorageType = storages.find(s => s.id === feed?.linkedStorageId)?.type || '' as 'shute'
+      const usagePerWeek = logs.filter(l => (linkedStorageType === 'shute' && l.amount > 0 && l.storageId === feed?.linkedStorageId) || (linkedStorageType !== 'shute' && l.amount < 0 && storages.find(s => s.id === l.storageId)?.type !== 'shute')).reduce((perWeek, log) => {
         const logWeek = moment(log.timestamp.toDate()).startOf('week').unix() + '000'
         const index = perWeek.findIndex(w => w.week === logWeek)
         if (index >= 0) {
-          perWeek[index].amount += log.amount
+          perWeek[index].amount += -Math.abs(log.amount)
         } else {
           perWeek.push({ week: logWeek, amount: log.amount })
         }
@@ -76,7 +77,7 @@ export default function FeedDetails() {
       setLogsPerDay(Object.keys(logsPerDay).map(k => ({ day: moment(Number(k)).toDate(), amount: logsPerDay[k].amount })).filter(l => l.amount !== 0))
     })
     return () => unsubscribe()
-  }, [subcribeStats, match, storages])
+  }, [subcribeStats, match, storages, feed])
 
   const linkedStorage = useMemo(() => storages.find(s => s.id === feed?.linkedStorageId), [feed, storages])
 
