@@ -1,4 +1,4 @@
-import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Divider, Grid, Icon, List, ListItem, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material'
+import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Divider, Grid, Icon, List, ListItem, ListItemSecondaryAction, ListItemText, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
 import { useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
@@ -56,12 +56,19 @@ export default function FeedDetails() {
         }
         return perWeek
       }, [] as Array<{ week: string, amount: number }>).reverse()
-      const withAvarages = usagePerWeek.map(({ week, amount }, k) => {
+      const weeks = moment(new Date()).diff(new Date(Number(usagePerWeek[0].week)), 'week')
+      const perWeek:Array<{week: Date, amount:number}> = []
+      for (let i = 0; i <= weeks; i++) {
+        const lastWeek = moment(new Date(Number(usagePerWeek[0].week))).add(i, 'week')
+        const amount = usagePerWeek.find(w => w.week === lastWeek.toDate().getTime() + '')?.amount || 0
+        perWeek.push({ week: moment(lastWeek).toDate(), amount})
+      }
+      const withAvarages = perWeek.map(({ week, amount }, k) => {
         let previous = 0
         for (let i = 0; i < k; i++) {
-          previous += usagePerWeek[i].amount
+          previous += perWeek[i].amount
         }
-        return { week: moment(Number(week)).toDate(), amount, avarage: previous === 0 ? amount : (amount + previous) / (k + 1) }
+        return { week, amount, avarage: previous === 0 ? amount : (amount + previous) / (k + 1) }
       }).reverse()
       setAvaragePerWeek(withAvarages)
       const logsPerDay = logs.reduce((logsPerDay, log) => {
@@ -102,12 +109,22 @@ export default function FeedDetails() {
         </Grid>)}
       </Grid>
       <Divider>Gemiddeld verbruik per week</Divider>
-      <List dense>
-        {avaragePerWeek.map(({ week, avarage }) => <ListItem key={week.getTime()}>
-          <ListItemText primary={`Week ${moment(week).format('W YYYY')}`} />
-          <ListItemSecondaryAction><Typography variant="subtitle2" color={avarage < 0 ? 'error' : 'primary'}>{`${avarage > 0 ? '+' : ''}${avarage.toLocaleString()}`}</Typography></ListItemSecondaryAction>
-        </ListItem>)}
-      </List>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+          <TableCell>Week</TableCell>
+          <TableCell align="right">Verbruik</TableCell>
+          <TableCell align="right">Gemiddeld</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {avaragePerWeek.map(({week, amount, avarage}) => <TableRow key={week.getTime()}>
+          <TableCell>{`${moment(week).format('W YYYY')}`}</TableCell>
+          <TableCell align="right">{amount.toLocaleString()}</TableCell>
+          <TableCell align="right">{avarage.toLocaleString()}</TableCell>
+          </TableRow>)}
+        </TableBody>
+      </Table>
       <Divider>Wijzigingen per dag</Divider>
       <List dense>
         {logsPerDay.map(({ day, amount }) => <ListItem key={day.getTime()}>
