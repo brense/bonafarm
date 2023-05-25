@@ -1,4 +1,4 @@
-import { Alert, Avatar, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Divider, Grid, Icon, List, ListItem, ListItemSecondaryAction, ListItemText, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, Card, CardActionArea, CardHeader, DialogActions, DialogContent, Divider, Grid, Icon, List, ListItem, ListItemSecondaryAction, ListItemText, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography } from '@mui/material'
 import { useLocation, useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
@@ -27,6 +27,7 @@ export default function FeedDetails() {
   const location = useLocation()
   const [logsPerDay, setLogsPerDay] = useState<Array<{ day: Date, amount: number }>>([])
   const [avaragePerWeek, setAvaragePerWeek] = useState<Array<{ week: Date, amount: number, avarage: number }>>([])
+  const [selectedTab, setSelectedTab] = useState<'avarage' | 'mutations'>('avarage')
 
   useEffect(() => {
     const unsubscribe = subscribe(async snapshot => {
@@ -57,18 +58,18 @@ export default function FeedDetails() {
         return perWeek
       }, [] as Array<{ week: string, amount: number }>).reverse()
       const weeks = moment(new Date()).diff(new Date(Number(usagePerWeek[0].week)), 'week')
-      const perWeek:Array<{week: Date, amount:number}> = []
+      const perWeek: Array<{ week: Date, amount: number }> = []
       for (let i = 0; i <= weeks; i++) {
         const lastWeek = moment(new Date(Number(usagePerWeek[0].week))).add(i, 'week')
         const amount = usagePerWeek.find(w => w.week === lastWeek.toDate().getTime() + '')?.amount || 0
-        perWeek.push({ week: moment(lastWeek).toDate(), amount})
+        perWeek.push({ week: moment(lastWeek).toDate(), amount })
       }
       const withAvarages = perWeek.map(({ week, amount }, k) => {
         let previous = 0
         for (let i = 0; i < k; i++) {
           previous += perWeek[i].amount
         }
-        return { week, amount, avarage: previous === 0 ? amount : (amount + previous) / (k + 1) }
+        return { week, amount, avarage: Math.ceil((previous === 0 ? amount : (amount + previous) / (k + 1)) * 10) / 10 }
       }).reverse()
       setAvaragePerWeek(withAvarages)
       const logsPerDay = logs.reduce((logsPerDay, log) => {
@@ -90,9 +91,9 @@ export default function FeedDetails() {
 
   return <>
     <DialogAppbar onClose={onClose}>{feed?.name}</DialogAppbar>
-    <DialogContent sx={{ p: 0 }}>
+    <DialogContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Alert severity="info" square sx={{ mb: 2 }}>Klik op een van de opslagen om de voorraad {feed?.name} aan te passen.</Alert>
-      <Grid container alignContent="flex-start" spacing={2} sx={{ mb: 2, pl: 2, flex: 1, width: '100%' }}>
+      <Grid container alignContent="flex-start" spacing={2} sx={{ mb: 2, pl: 2, width: '100%' }}>
         {linkedStorage && linkedStorage.type === 'shute' && <Grid item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${linkedStorage.id}`, { state: { goBack: location.pathname } })}>
@@ -108,30 +109,36 @@ export default function FeedDetails() {
           </Card>
         </Grid>)}
       </Grid>
-      <Divider>Gemiddeld verbruik per week</Divider>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-          <TableCell>Week</TableCell>
-          <TableCell align="right">Verbruik</TableCell>
-          <TableCell align="right">Gemiddeld</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {avaragePerWeek.map(({week, amount, avarage}) => <TableRow key={week.getTime()}>
-          <TableCell>{`${moment(week).format('W YYYY')}`}</TableCell>
-          <TableCell align="right">{amount.toLocaleString()}</TableCell>
-          <TableCell align="right">{avarage.toLocaleString()}</TableCell>
-          </TableRow>)}
-        </TableBody>
-      </Table>
-      <Divider>Wijzigingen per dag</Divider>
-      <List dense>
-        {logsPerDay.map(({ day, amount }) => <ListItem key={day.getTime()}>
-          <ListItemText primary={moment(day).format('ddd D MMM YYYY')} />
-          <ListItemSecondaryAction><Typography variant="subtitle2" color={amount < 0 ? 'error' : 'primary'}>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</Typography></ListItemSecondaryAction>
-        </ListItem>)}
-      </List>
+      <Divider />
+      <Tabs value={selectedTab} onChange={(e, v) => setSelectedTab(v)}>
+        <Tab label="Gemiddeld per week" value="avarage" />
+        <Tab label="Wijzigingen per dag" value="mutations" />
+      </Tabs>
+      <Divider />
+      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 300 }}>
+        {selectedTab === 'avarage' && <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Week</TableCell>
+              <TableCell align="right">Verbruik</TableCell>
+              <TableCell align="right">Gemiddeld</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {avaragePerWeek.map(({ week, amount, avarage }) => <TableRow key={week.getTime()}>
+              <TableCell>{`${moment(week).format('W YYYY')}`}</TableCell>
+              <TableCell align="right">{amount.toLocaleString()}</TableCell>
+              <TableCell align="right">{avarage.toLocaleString()}</TableCell>
+            </TableRow>)}
+          </TableBody>
+        </Table>}
+        {selectedTab === 'mutations' && <List dense>
+          {logsPerDay.map(({ day, amount }) => <ListItem key={day.getTime()}>
+            <ListItemText primary={moment(day).format('ddd D MMM YYYY')} />
+            <ListItemSecondaryAction><Typography variant="subtitle2" color={amount < 0 ? 'error' : 'primary'}>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</Typography></ListItemSecondaryAction>
+          </ListItem>)}
+        </List>}
+      </Box>
     </DialogContent>
     <DialogActions>
       <Button onClick={() => navigate(`/feed/${feed?.id}/edit`)} color="primary"><Icon>create</Icon>&nbsp;&nbsp;Voertype bewerken</Button>
