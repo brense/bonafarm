@@ -5,7 +5,7 @@ import StorageCardWithLogs from '../../components/storage/StorageCardWithLogs'
 import StorageCard from '../../components/storage/StorageCard'
 import { orderBy } from '../../hooks/firestore'
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable'
-import { DndContext } from '@dnd-kit/core'
+import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useQuery, makeQuery, useFirestore, useDoc } from 'firestore-react-hooks'
 
@@ -32,7 +32,7 @@ function Draggable({ storageId, children }: React.PropsWithChildren<{ storageId:
 
   return <Grid item xs={12} sm={6} md={4} lg={3} xl={2} ref={setNodeRef} sx={{ position: 'relative' }} style={style}>
     {children}
-    {!isMobile && <IconButton sx={{ position: 'absolute', top: 16, right: 0, cursor: 'move', color: 'text.secondary' }} disableRipple ref={setActivatorNodeRef} {...attributes} {...listeners}><Icon color="inherit">drag_indicator</Icon></IconButton>}
+    {true && <IconButton sx={{ position: 'absolute', top: 16, right: 0, cursor: 'move', color: 'text.secondary' }} disableRipple ref={setActivatorNodeRef} {...attributes} {...listeners}><Icon color="inherit">drag_indicator</Icon></IconButton>}
   </Grid>
 }
 
@@ -46,6 +46,9 @@ export default function StockPerStorage() {
   const { updateDoc } = useDoc()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const mouseSensor = useSensor(MouseSensor)
+  const touchSensor = useSensor(TouchSensor)
+  const sensors = useSensors(mouseSensor, touchSensor)
 
   useEffect(() => {
     const unsubscribe = subscribe(setStorages)
@@ -62,7 +65,7 @@ export default function StockPerStorage() {
     }
   }, [storages, updateDoc])
 
-  return <DndContext onDragEnd={handleDragEnd}>
+  return <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
     <SortableContext items={storages}>
       <Grid container alignContent="flex-start" spacing={2} sx={{ mt: 0, mb: 8, pl: 2, flex: 1, width: '100%' }}>
         {storages.map(storage => <Draggable key={storage.id} storageId={storage.id}>
