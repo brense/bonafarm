@@ -1,19 +1,42 @@
 import { Stack, Typography, Icon, Chip, useTheme, useMediaQuery, Table, TableRow, TableCell, TableHead, TableBody, Box, IconButton, Button, TableRowProps } from '@mui/material'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useSubscribeCollection } from '../../hooks/firestore'
-import { useQuery, makeCollectionGroupQuery, useFirestore } from 'firestore-react-hooks'
+import { useQuery, makeCollectionGroupQuery, useFirestore, makeQuery, useDoc } from 'firestore-react-hooks'
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { orderBy } from 'firebase/firestore'
+
+type Feed = { name: string, id: string, linkedStorageId?: string }
+
+type Storage = { name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }
 
 function useFeeds() {
   const firestore = useFirestore()
   const q = useMemo(() => makeCollectionGroupQuery<{ amount: number }>(firestore, 'items'), [firestore])
   const { subscribe } = useQuery<{ amount: number }>(q)
   const [items, setItems] = useState<Array<{ feedId: string, amount: number, storageId: string }>>([])
-  const feeds = useSubscribeCollection<{ id: string, name: string, linkedStorageId: string }>('feeds')
-  const storages = useSubscribeCollection<{ id: string, name: string, type: 'shute', color?: string, image?: string }>('storages')
+  const [storages, setStorages] = useState<Storage[]>([])
+  const qFeeds = useMemo(() => makeQuery<Feed>(firestore, 'feeds', orderBy('order')), [firestore])
+  const { subscribe: subscribeFeeds } = useQuery<Feed>(qFeeds, { returnDocumentData: true })
+  const qStorages = useMemo(() => makeQuery<Storage>(firestore, 'storages'), [firestore])
+  const { subscribe: subscribeStorages } = useQuery<Storage>(qStorages, { returnDocumentData: true })
+  const [feeds, setFeeds] = useState<Array<Feed & { total: number, storages: Array<Storage & { amount: number }>, linkedStorage?: Storage }>>([])
+
+  useEffect(() => {
+    const unsubscribe = subscribeStorages(setStorages)
+    return () => unsubscribe()
+  }, [subscribeStorages])
+
+  useEffect(() => {
+    const unsubscribe = subscribeFeeds(feeds => {
+      setFeeds(feeds.map(({ linkedStorageId, ...feed }) => {
+        const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))
+        return { ...feed, linkedStorage: storages.find(s => s.id === linkedStorageId), storages: inStorages, total: inStorages.reduce((t, i) => t += i.amount, 0) }
+      }))
+    })
+    return () => unsubscribe()
+  }, [subscribeFeeds, storages, items])
 
   useEffect(() => {
     const unsubscribe = subscribe(async snapshot => {
@@ -26,10 +49,7 @@ function useFeeds() {
     return () => unsubscribe()
   }, [subscribe])
 
-  return useMemo(() => feeds.map(({ linkedStorageId, ...feed }) => {
-    const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))
-    return { ...feed, linkedStorage: storages.find(s => s.id === linkedStorageId), storages: inStorages, total: inStorages.reduce((t, i) => t += i.amount, 0) }
-  }), [feeds, items, storages])
+  return useMemo(() => [feeds, setFeeds] as [typeof feeds, typeof setFeeds], [feeds])
 }
 
 function Draggable({ feedId, children, ...props }: React.PropsWithChildren<{ feedId: string } & TableRowProps>) {
@@ -61,7 +81,7 @@ function Draggable({ feedId, children, ...props }: React.PropsWithChildren<{ fee
 }
 
 export default function StockPerFeed() {
-  const feeds = useFeeds()
+  const [feeds, setFeeds] = useFeeds()
   const location = useLocation()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -69,15 +89,17 @@ export default function StockPerFeed() {
   const mouseSensor = useSensor(MouseSensor)
   const touchSensor = useSensor(TouchSensor)
   const sensors = useSensors(mouseSensor, touchSensor)
+  const { updateDoc } = useDoc()
 
   const handleDragEnd = useCallback(({ over, active }: { over: any, active: any }) => {
     if (over && active.id !== over?.id) {
       const activeIndex = feeds.findIndex(({ id }) => id === active.id)
       const overIndex = feeds.findIndex(({ id }) => id === over.id)
       const newOrder = arrayMove(feeds, activeIndex, overIndex)
-      console.log('order', newOrder)
+      setFeeds(newOrder)
+      newOrder.forEach((feed, order) => updateDoc(`feeds/${feed.id}`, { order }))
     }
-  }, [feeds])
+  }, [feeds, updateDoc, setFeeds])
 
   return <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
     <SortableContext items={feeds}>
