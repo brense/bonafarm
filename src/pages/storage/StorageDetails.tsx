@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { Button, Card, CardActionArea, CardContent, DialogActions, DialogContent, Divider, Grid, Icon, Typography, useMediaQuery, useTheme, Box, Alert, AlertTitle } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
-import { isMutationLog, useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, emptyCollection, Timestamp } from '../../hooks/firestore'
+import { useSubscribeDoc, useSubscribeQuery, where, orderBy, limit, useSubscribeCollection, emptyCollection, Timestamp } from '../../hooks/firestore'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import DialogAppbar from '../../components/DialogAppbar'
 import { Timeline } from '@mui/lab'
@@ -9,6 +9,7 @@ import LogItem from '../../components/LogItem'
 import StorageItem from '../../components/storage/StorageItem'
 import { getAuth } from 'firebase/auth'
 import { useCollection, makeQuery, useFirestore, useDoc } from 'firestore-react-hooks'
+import { isMutationLog } from '../../types'
 
 type Storage = {
   name: string

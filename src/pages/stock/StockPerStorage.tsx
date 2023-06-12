@@ -21,8 +21,6 @@ function Draggable({ storageId, children }: React.PropsWithChildren<{ storageId:
   } = useSortable({
     id: storageId
   })
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const style: CSSProperties = {
     opacity: isDragging ? 0.4 : undefined,

@@ -2,7 +2,7 @@ import { TimelineItem, TimelineOppositeContent, TimelineContent, TimelineSeparat
 import { Icon, List, ListItem, ListItemText, Typography } from '@mui/material'
 import moment from 'moment'
 import 'moment/dist/locale/nl'
-import { isMutationLog, Log, MutationLog } from '../hooks/firestore'
+import { Log, MutationLog, isMutationLog } from '../types'
 moment.locale('nl')
 
 export default function LogItem({ item }: { item: (Log | MutationLog) & { feed?: { name: string } } }) {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { BehaviorSubject } from 'rxjs'
 import { useCollection, useQuery, useDoc as useDocHook } from 'firestore-react-hooks'
+import { Log, MutationLog } from '../../types'
 
 export { where, orderBy, limit, Timestamp } from 'firebase/firestore'
 
@@ -99,29 +100,6 @@ function timestampValuesToDate<T = DocumentData>(obj?: T) {
 
 
 
-
-
-
-
-
-// TODO: remove this old code...
-
-export type Log = {
-  id: string
-  type: 'mutation' | 'emptied' | 'emptying'
-  timestamp: Date,
-  storageId: string
-}
-
-export type MutationLog = Log & {
-  feedId: string
-  amount: number
-}
-
-export function isMutationLog(logItem: Log | MutationLog): logItem is MutationLog {
-  return logItem.type === 'mutation'
-}
-
 type FirestoreLog = {
   type: 'mutation' | 'emptied'
   timestamp: Timestamp
@@ -129,6 +107,8 @@ type FirestoreLog = {
   feedId?: string
   amount?: number
 }
+
+
 
 export function useLastEmptied(storageId: string) {
   const [lastEmptied, setLastEmptied] = useState<Date | null>(null)
