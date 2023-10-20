@@ -49,7 +49,7 @@ export default function AddItem() {
       const current = (await getDoc(`storages/${storage.id}/items/${feedId}`)) || { amount: 0 }
       const currentAmount = (isNaN(current.amount) ? 0 : current.amount)
       storage.type !== 'shute' && setDoc(`storages/${storage.id}/items/${feedId}`, { amount: currentAmount + increment })
-      addDoc({ type: 'mutation', amount: increment, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
+      increment > 0 && addDoc({ type: 'mutation', amount: increment, feedId, timestamp: Timestamp.now(), storageId: storage.id, uid: auth.currentUser?.uid || '' })
     }
     handleClose()
   }, [feed, storage, handleClose, setDoc, preSelectedAmount, addDoc, getDoc])
