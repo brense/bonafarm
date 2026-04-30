@@ -6,7 +6,7 @@ import 'moment/dist/locale/nl'
 import { isMutationLog } from '../../types'
 moment.locale('nl')
 
-export default function StorageCardWithLogs({ storage }: { storage: { id: string, name: string, image?: string, status: 'emptying' } }) {
+export default function StorageCardWithLogs({ storage }: { storage: { id: string, name: string, image?: string, status?: 'emptying' } }) {
   const location = useLocation()
   const navigate = useNavigate()
   const logs = useLatestMutations(storage.id)

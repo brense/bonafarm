@@ -131,7 +131,7 @@ export function useLastEmptied(storageId: string) {
   return lastEmptied
 }
 
-export function useLastEmptiedOrEmptying(storage: { id: string, status: 'emptying' }) {
+export function useLastEmptiedOrEmptying(storage: { id: string, status?: 'emptying' | 'emptied' }) {
   const [lastEmptied, setLastEmptied] = useState<Date | null>(null)
 
   useEffect(() => {
