@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { Box, Button, DialogActions, DialogContent, FormControl, FormLabel, Icon, LinearProgress, Slide, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
@@ -18,7 +18,8 @@ export default function AddItem() {
   const match = useMatch('/stock/:storageId/add')
   const location = useLocation()
   const navigate = useNavigate()
-  const feeds = useSubscribeCollection<{ name: string, id: string, linkedStorageId?: string }>('feeds')
+  const feeds = useSubscribeCollection<{ name: string, id: string, linkedStorageId?: string, hidden?: boolean }>('feeds')
+  const visibleFeeds = useMemo(() => feeds.filter(f => f.hidden !== true), [feeds])
   const storages = useSubscribeCollection<{ name: string, id: string, type: 'shute', inputValue?: string }>('storages')
   const feedInputRef = useRef<HTMLInputElement>()
   const storageInputRef = useRef<HTMLInputElement>()
@@ -79,7 +80,7 @@ export default function AddItem() {
           label="Naam"
           value={feed || { name: '', id: '' }}
           onChange={setFeed}
-          options={feeds}
+          options={visibleFeeds}
           idKey="id"
           labelKey="name"
           newOption={params => ({

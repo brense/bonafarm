@@ -31,7 +31,7 @@ export default function StorageCard({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const feed = useSubscribeCollection<{ name: string; id: string }>("feeds");
+  const feed = useSubscribeCollection<{ name: string; id: string; hidden?: boolean }>("feeds");
   const items = useSubscribeCollection<{ amount: number }>(
     `storages/${storage.id}/items`
   );
@@ -42,7 +42,7 @@ export default function StorageCard({
           feed: feed.find((f) => f.id === item.id),
           amount: item.amount || 0,
         };
-      }, []),
+      }),
     [items, feed]
   );
   const theme = useTheme();

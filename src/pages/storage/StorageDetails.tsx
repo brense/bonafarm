@@ -28,7 +28,7 @@ export default function StorageDetails() {
   const confirmDeleteDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Verwijderen' })
   const confirmEmptyDialog = useConfirmDialog({ cancelText: 'Annuleren', confirmText: 'Leegmaken' })
   const { onClose } = useOutletContext<{ onClose?: (e: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void }>()
-  const feed = useSubscribeCollection<{ name: string, id: string }>('feeds')
+  const feed = useSubscribeCollection<{ name: string, id: string, hidden?: boolean }>('feeds')
   const firestore = useFirestore()
   const q = useMemo(() => makeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(firestore, 'logs', where('storageId', '==', storage?.id || ''), orderBy('timestamp', 'desc'), limit(100)), [storage?.id, firestore])
   const logs = useSubscribeQuery<{ type: 'mutation' | 'emptied', timestamp: Date, storageId: string }>(q, { parseTimestamp: true })
@@ -40,7 +40,7 @@ export default function StorageDetails() {
       feed: feed.find(f => f.id === item.id),
       amount: item.amount || 0
     }
-  }, []), [items, feed])
+  }), [items, feed])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const timeoutRef = useRef<NodeJS.Timeout>()

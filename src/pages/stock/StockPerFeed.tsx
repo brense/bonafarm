@@ -7,7 +7,7 @@ import { SortableContext, arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { orderBy } from 'firebase/firestore'
 
-type Feed = { name: string, id: string, linkedStorageId?: string }
+type Feed = { name: string, id: string, linkedStorageId?: string, hidden?: boolean }
 
 type Storage = { name: string, type: 'storage' | 'shute' | 'stable', id: string, color?: string }
 
@@ -30,7 +30,7 @@ function useFeeds() {
 
   useEffect(() => {
     const unsubscribe = subscribeFeeds(feeds => {
-      setFeeds(feeds.map(({ linkedStorageId, ...feed }) => {
+      setFeeds(feeds.filter(f => f.hidden !== true).map(({ linkedStorageId, ...feed }) => {
         const inStorages = items.filter(i => i.feedId === feed.id).map(({ storageId, amount }) => ({ amount, ...storages.find(s => s.id === storageId)! }))
         return { ...feed, linkedStorage: storages.find(s => s.id === linkedStorageId), storages: inStorages, total: inStorages.reduce((t, i) => t += i.amount, 0) }
       }))
