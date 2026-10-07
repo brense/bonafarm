@@ -138,7 +138,7 @@ export default function EditStorage() {
           <Divider orientation={isMobile ? 'horizontal' : 'vertical'} flexItem><Typography variant="button" color="textSecondary">Of</Typography></Divider>
           <TextField onClick={e => setAnchorEl(e.currentTarget)} label="Kleur" required value={changes.color || ''} onChange={e => setChanges({ color: e.target.value })} variant="filled" fullWidth InputLabelProps={{ shrink: true }} InputProps={{
             startAdornment: <InputAdornment position="start">
-              <Avatar sx={{ bgcolor: changes.color, height: 24, width: 24 }}>{''}</Avatar>
+              <Box sx={{ width: 24, height: 24, borderRadius: '50%', bgcolor: changes.color }} />
             </InputAdornment>
           }} />
           <Popover open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} sx={{ '& .MuiPopover-paper': { overflow: 'hidden', backgroundColor: 'none' } }}><HexColorPicker color={changes.color} onChange={color => setChanges({ color })} /></Popover>

@@ -16,7 +16,7 @@ export default function StorageCardWithLogs({ storage }: { storage: { id: string
 
   return <Card>
     <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })} sx={{ height: !isMobile ? 240 : undefined, overflow: 'hidden' }}>
-      <CardHeader avatar={<Avatar variant="rounded" sx={{ background: 'none' }}>{storage.image ? <img src={storage.image || ''} height={40} alt={storage.name} /> : ''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
+      <CardHeader avatar={storage.image ? <Avatar variant="rounded" sx={{ background: 'none' }}><img src={storage.image || ''} height={40} alt={storage.name} /></Avatar> : <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#666' }} />} title={storage.name} titleTypographyProps={{ variant: 'h6' }} />
       <Divider />
       <List disablePadding dense>
         <ListItem>

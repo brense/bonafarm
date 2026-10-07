@@ -60,17 +60,13 @@ export default function StorageCard({
       >
         <CardHeader
           avatar={
-            <Avatar
-              sx={
-                storage.image
-                  ? { background: "none" }
-                  : { bgcolor: storage.color }
-              }
-            >
-              {storage.image ? (
+            storage.image ? (
+              <Avatar sx={{ background: "none" }}>
                 <img src={storage.image || ""} height={40} alt={storage.name} />
-              ) : null}
-            </Avatar>
+              </Avatar>
+            ) : (
+              <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: storage.color }} />
+            )
           }
           title={storage.name}
           titleTypographyProps={{ variant: "h6" }}
