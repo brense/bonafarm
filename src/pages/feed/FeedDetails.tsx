@@ -97,14 +97,14 @@ export default function FeedDetails() {
         {linkedStorage && linkedStorage.type === 'shute' && <Grid item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${linkedStorage.id}`, { state: { goBack: location.pathname } })}>
-              <CardHeader avatar={<Avatar variant="rounded" sx={{ background: 'none' }}>{linkedStorage.image ? <img src={linkedStorage.image || ''} height={40} alt={linkedStorage.name} /> : ''}</Avatar>} title="Gekoppelde opslag" titleTypographyProps={{ color: 'text.secondary' }} subheader={linkedStorage.name} subheaderTypographyProps={{ variant: 'h6', color: 'text.primary' }} />
+              <CardHeader avatar={linkedStorage.image ? <Avatar variant="rounded" sx={{ background: 'none' }}><img src={linkedStorage.image || ''} height={40} alt={linkedStorage.name} /></Avatar> : <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: storages.find(s => s.id === feed?.linkedStorageId)?.color }} />} title="Gekoppelde opslag" titleTypographyProps={{ color: 'text.secondary' }} subheader={linkedStorage.name} subheaderTypographyProps={{ variant: 'h6', color: 'text.primary' }} />
             </CardActionArea>
           </Card>
         </Grid>}
         {feedStorages.map(storage => <Grid key={storage.id} item xs={12} sm={6}>
           <Card>
             <CardActionArea onClick={() => navigate(`/stock/${storage.id}`, { state: { goBack: location.pathname } })}>
-              <CardHeader avatar={<Avatar sx={{ bgcolor: storage.color }}>{''}</Avatar>} title={storage.name} titleTypographyProps={{ variant: 'h6' }} subheader={`Voorraad: ${storage.amount.toLocaleString()} stuks`} />
+              <CardHeader avatar={<Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: storage.color }} />} title={storage.name} titleTypographyProps={{ variant: 'h6' }} subheader={`Voorraad: ${storage.amount.toLocaleString()} stuks`} />
             </CardActionArea>
           </Card>
         </Grid>)}
