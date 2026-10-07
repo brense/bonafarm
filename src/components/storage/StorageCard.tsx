@@ -69,9 +69,7 @@ export default function StorageCard({
             >
               {storage.image ? (
                 <img src={storage.image || ""} height={40} alt={storage.name} />
-              ) : (
-                ""
-              )}
+              ) : null}
             </Avatar>
           }
           title={storage.name}
