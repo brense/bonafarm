@@ -94,6 +94,7 @@
     },
     "vite-plugin-graphql": {
       "vite": "$vite"
-    }
+    },
+    "buffer-equal-constant-time": "npm:buffer-equal-constant-time@1.0.1"
   }
 }

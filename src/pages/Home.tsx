@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Stack, Typography, Icon, Divider, Box } from '@mui/material'
 import CardButtonWithIcon from '../components/CardButtonWithIcon'
 import { useNavigate } from 'react-router-dom'
@@ -11,7 +11,8 @@ export default function Home() {
   useTitle(null)
   useIcon(null)
   const navigate = useNavigate()
-  const feeds = useSubscribeCollection<{ name: string }>('feeds')
+  const feeds = useSubscribeCollection<{ name: string, hidden?: boolean }>('feeds')
+  const visibleFeeds = useMemo(() => feeds.filter(f => f.hidden !== true), [feeds])
   const qrScanner = useQRScanner()
 
   const handleSelectFeed = useCallback((feed: { id: string } | null) => {
@@ -33,7 +34,7 @@ export default function Home() {
         <CustomAutocomplete
           label="Zoek op voertype"
           onChange={handleSelectFeed}
-          options={feeds}
+          options={visibleFeeds}
           idKey="id"
           labelKey="name"
           noOptionsText="Niets gevonden..."

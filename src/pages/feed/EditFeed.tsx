@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect, useState, useMemo, useReducer } from 'react'
-import { Button, DialogActions, DialogContent, LinearProgress, TextField } from '@mui/material'
+import { Button, DialogActions, DialogContent, LinearProgress, TextField, Checkbox, FormControlLabel } from '@mui/material'
 import { useMatch, useNavigate, useOutletContext } from 'react-router-dom'
 import { useSubscribeCollection, useSubscribeDoc } from '../../hooks/firestore'
 import DialogAppbar from '../../components/DialogAppbar'
@@ -9,7 +9,8 @@ import { useDoc } from 'firestore-react-hooks'
 const initialState = {
   id: '',
   name: '',
-  linkedStorageId: undefined as string | undefined
+  linkedStorageId: undefined as string | undefined,
+  hidden: false
 }
 
 function reducerFunc(prev: typeof initialState, next: Partial<typeof initialState>) {
@@ -64,6 +65,10 @@ export default function EditFeed() {
         labelKey="name"
         noOptionsText="Niets gevonden..."
         helperText="Koppel dit voertype aan een opslag"
+      />
+      <FormControlLabel
+        control={<Checkbox checked={changes.hidden} onChange={e => setChanges({ hidden: e.target.checked })} />}
+        label="Verbergen"
       />
     </DialogContent>
     <DialogActions>
