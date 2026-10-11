@@ -1,6 +1,6 @@
 import SearchIcon from '@mui/icons-material/Search'
-import { Divider, InputAdornment, List, Paper, TextField, Typography } from '@mui/material'
-import { Fragment, useState, type ReactNode, type Ref } from 'react'
+import { Divider, InputAdornment, List, ListItem, Paper, TextField, Typography } from '@mui/material'
+import { useState, type ReactNode, type Ref } from 'react'
 
 interface Props<T> {
   /** Caller sorts: most relevant first. */
@@ -63,7 +63,7 @@ export function SearchList<T>({
     />
   )
   return (
-    <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+    <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: 'background.paper', backgroundImage: 'none' }}>
       {searchPosition === 'top' && (
         <>
           {field}
@@ -72,7 +72,9 @@ export function SearchList<T>({
       )}
       <List aria-label={listAriaLabel} disablePadding sx={{ overflow: 'hidden', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {shown.map((item) => (
-          <Fragment key={getKey(item)}>{renderRow(item)}</Fragment>
+          <ListItem key={getKey(item)} divider sx={{ px: 2 }}>
+            {renderRow(item)}
+          </ListItem>
         ))}
       </List>
       {shown.length === 0 && emptyText && (

@@ -89,6 +89,7 @@ describe('MutationDialog', () => {
     fireEvent.click(within(from).getByRole('button', { name: 'Ton roze min' }))
     expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText('Van: Ton roze 1')).toBeTruthy()
     expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Waar is de zak naartoe?')).toBeNull()
     const to = screen.getByRole('list', { name: 'Waar naartoe?' })
     expect(within(to).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Verbruik', 'Koker geit'])
     expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
@@ -191,6 +192,26 @@ describe('MutationDialog', () => {
   it('disables minus for a feed without stock', () => {
     setup()
     expect((screen.getByRole('button', { name: 'Stro min' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('caps a long swipe at 3 by default and honours swipeMax', () => {
+    setup()
+    const swipe = () => {
+      const row = screen.getByRole('button', { name: 'Hooi min' }).parentElement!.parentElement!
+      fireEvent.pointerDown(row, { pointerId: 1, clientX: 10, clientY: 10 })
+      fireEvent.pointerMove(row, { pointerId: 1, clientX: 300, clientY: 12 })
+      fireEvent.pointerUp(row, { pointerId: 1, clientX: 300, clientY: 12 })
+    }
+    swipe()
+    expect(screen.getByText('−3 balen')).toBeTruthy()
+    cleanup()
+    setup({
+      ...data,
+      feeds: new Map([...data.feeds, ['hooi', { ...data.feeds.get('hooi')!, swipeMax: 30 }]]),
+      items: new Map([item('stal', 'hooi', 50)]),
+    })
+    swipe()
+    expect(screen.getByText('−30 balen')).toBeTruthy()
   })
 
   it('shows "Geen voorraad" when swiping right on a feed without stock', () => {

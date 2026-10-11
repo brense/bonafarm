@@ -103,6 +103,8 @@ const STORAGE_TYPE = { storage: 'bin', shute: 'shute', stable: 'stable' }
 /** Storages that only exist in logs; types decided in docs/stats-mockups/analysis. */
 const DANGLING_STORAGES = { eendenkorrel: 'shute', gemengdgraan: 'shute', schapenkorrel: 'shute', kalveren: 'shute', overig: 'storage' }
 const BALE_FEEDS = new Set(['hooi', 'stro'])
+/** Bales are moved in bigger numbers; one swipe may select up to this many. */
+const SWIPE_MAX = { hooi: 30, stro: 20 }
 
 function titleCase(id) {
   return id.charAt(0).toUpperCase() + id.slice(1)
@@ -148,6 +150,7 @@ function buildPlan(orgId) {
     feeds.set(f.id, {
       name: f.name.trim(),
       unit: BALE_FEEDS.has(f.id) ? 'baal' : 'zak',
+      ...(SWIPE_MAX[f.id] ? { swipeMax: SWIPE_MAX[f.id] } : {}),
       ...(f.linkedStorageId ? { defaultStorageId: f.linkedStorageId } : {}),
       hidden: false,
       order: f.order ?? 0,

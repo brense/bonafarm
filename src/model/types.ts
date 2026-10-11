@@ -79,6 +79,8 @@ export interface Feed {
   unit: Unit
   /** Other names this feed goes by, e.g. on the supplier's delivery list. */
   aliases?: string[]
+  /** Largest amount one swipe can select in the change dialog; default 3 (hooi 30, stro 20). */
+  swipeMax?: number
   /** Default storage this feed lives in, used to prefill forms. */
   defaultStorageId?: string
   hidden: boolean

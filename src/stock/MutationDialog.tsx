@@ -294,6 +294,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             name={r.name}
             active={a > 0}
             gesture={mode}
+            swipeMax={feed?.swipeMax}
             maxMinus={mode === 'minus' ? room : undefined}
             maxPlus={mode === 'plus' ? room : undefined}
             onClear={a > 0 ? () => onChange(r.id, -1e9) : undefined}
@@ -336,6 +337,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
           onQueryChange={setStorageQuery}
           renderRow={(o) => (
             <FeedRow
+              bare
+              surface="background.paper"
               name={o.name}
               badge={o.type}
               active={false}
@@ -362,66 +365,54 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     )
   }
 
-  const chooser = line && feed && (
-    <Box sx={{ mt: 1 }}>
-      {line.direction === 'out' ? (
-        (() => {
-          const fromDone = sumOf(line.sources) === line.amount
-          const toDone = sumOf(line.targets) === line.amount
-          const showFrom = reopen === 'from' || !fromDone
-          const summary = (text: string, which: 'from' | 'to') => (
-            <Box sx={{ ...sectionBox, display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
-              <Typography>{text}</Typography>
-              <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
-                Wijzig
-              </Button>
-            </Box>
-          )
-          return (
-            <>
-              {showFrom ? (
-                <Box sx={sectionBox}>
-                  {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-                  {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
-                  {fromDone && (
-                    <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
-                      Klaar
-                    </Button>
-                  )}
-                </Box>
-              ) : (
-                summary(`Van: ${allocText(line.sources)}`, 'from')
-              )}
-              {!showFrom && (
-                <Box sx={{ mt: 1 }}>
-                  {reopen === 'to' || !toDone
-                    ? targetBox(
-                        `Waar is de ${feed.unit} naartoe?`,
-                        'Waar naartoe?',
-                        [
-                          { id: null, name: 'Verbruik' },
-                          ...(linkedShute(line.feedId) ? [{ id: linkedShute(line.feedId), name: storageName(linkedShute(line.feedId)) }] : []),
-                        ],
-                        toDone,
-                      )
-                    : summary(`Naar: ${allocText(line.targets)}`, 'to')}
-                </Box>
-              )}
-            </>
-          )
-        })()
-      ) : (
+  /** Answered questions collapse into summaries inside the cart; the open question goes below it. */
+  const chooser = ((): { summaries: React.ReactNode; question: React.ReactNode } => {
+    if (!line || !feed) return { summaries: null, question: null }
+    if (line.direction === 'in') {
+      const linked = linkedShute(line.feedId)
+      const base = [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
+      return { summaries: null, question: targetBox('In welke opslag?', 'In welke opslag?', base) }
+    }
+    const fromDone = sumOf(line.sources) === line.amount
+    const toDone = sumOf(line.targets) === line.amount
+    const showFrom = reopen === 'from' || !fromDone
+    const showTo = !showFrom && (reopen === 'to' || !toDone)
+    const summary = (text: string, which: 'from' | 'to') => (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
+        <Typography>{text}</Typography>
+        <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
+          Wijzig
+        </Button>
+      </Box>
+    )
+    const linked = linkedShute(line.feedId)
+    return {
+      summaries: (
+        <>
+          {!showFrom && summary(`Van: ${allocText(line.sources)}`, 'from')}
+          {!showFrom && toDone && reopen !== 'to' && summary(`Naar: ${allocText(line.targets)}`, 'to')}
+        </>
+      ),
+      question: showFrom ? (
+        <Box sx={sectionBox}>
+          {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
+          {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
+          {fromDone && (
+            <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
+              Klaar
+            </Button>
+          )}
+        </Box>
+      ) : showTo ? (
         targetBox(
-          'In welke opslag?',
-          'In welke opslag?',
-          (() => {
-            const linked = linkedShute(line.feedId)
-            return [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
-          })(),
+          `Waar is de ${feed.unit} naartoe?`,
+          'Waar naartoe?',
+          [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])],
+          toDone,
         )
-      )}
-    </Box>
-  )
+      ) : null,
+    }
+  })()
 
   return (
     <Dialog open={open} onClose={close} fullScreen slotProps={{ paper: { sx: { bgcolor: 'background.default', backgroundImage: 'none', display: 'flex', flexDirection: 'column', height: '100dvh' } } }}>
@@ -462,6 +453,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                       <FeedRow
                         name={feed.name}
                         active
+                        swipeMax={feed.swipeMax}
                         maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
                         emptyLabel="Geen voorraad"
                         detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
@@ -479,7 +471,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                       Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
                     </Typography>
                   )}
-                  {chooser}
+                  {chooser.summaries}
                 </ListItem>
               )}
             </List>
@@ -487,7 +479,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         </Box>
       </Box>
 
-      {(!line || error) && (
+      {(!line || chooser.question || error) && (
         <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto', maxHeight: '60dvh', overflowY: 'auto' }}>
           {!line && (
             <>
@@ -504,8 +496,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 inputRef={searchRef}
                 renderRow={(f) => (
                   <FeedRow
+                    bare
+                    surface="background.paper"
                     name={f.name}
                     active={false}
+                    swipeMax={f.swipeMax}
                     minusDisabled={totalOf(f.id) <= 0}
                     maxMinus={totalOf(f.id)}
                     emptyLabel="Geen voorraad"
@@ -517,6 +512,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               />
             </>
           )}
+          {chooser.question}
           {error && (
             <Typography color="error" sx={{ mt: 1 }}>
               {error}

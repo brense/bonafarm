@@ -12,7 +12,7 @@ function setup(props: { searchPosition?: 'bottom' | 'top'; items?: string[] } = 
       items={props.items ?? items}
       getKey={(i) => i}
       getLabel={(i) => i}
-      renderRow={(i) => <li>{i}</li>}
+      renderRow={(i) => <span>{i}</span>}
       searchLabel="Zoeken…"
       listAriaLabel="Lijst"
       emptyText="Niets"
