@@ -6,19 +6,25 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import App from './App.tsx'
-import BrandingProvider from './branding/BrandingProvider.tsx'
+import AuthProvider from './auth/AuthProvider.tsx'
+import OrgBranding from './branding/OrgBranding.tsx'
 import { registerServiceWorker } from './lib/pwa.ts'
+import OrgProvider from './org/OrgProvider.tsx'
 import ThemeProvider from './ThemeProvider.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrandingProvider>
-      <ThemeProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </ThemeProvider>
-    </BrandingProvider>
+    <AuthProvider>
+      <OrgProvider>
+        <OrgBranding>
+          <ThemeProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ThemeProvider>
+        </OrgBranding>
+      </OrgProvider>
+    </AuthProvider>
   </StrictMode>,
 )
 

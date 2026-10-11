@@ -73,6 +73,17 @@ emulator or deploy is needed (uses the Firebase CLI login token):
 python3 scripts/test-rules.py
 ```
 
+The emulators need Java 21 or newer. Debian 12 ships 17, so a user-local
+Temurin JRE works: unpack it under `~/.local/share/java` and put its `bin` on
+`PATH` before `bun run emulators`.
+
+Screenshots of the running app (sign-in, the three tabs, phone and desktop)
+come from a Playwright script that uses the Chromium already in
+`~/.cache/ms-playwright`:
+```bash
+node scripts/screenshots.mjs --url http://localhost:5199 --out shots --email <user> --password <pw>
+```
+
 An organisation with its default storage types, default group and an owner is
 created with the seed script (idempotent, 6 documents):
 ```bash

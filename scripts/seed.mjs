@@ -24,7 +24,7 @@ const OWNER = args.owner
 const LIVE = Boolean(args.live)
 const ORG_NAME = args.name ?? 'Kinderboerderij Tanthof'
 
-if (!ORG || !OWNER) {
+if (typeof ORG !== 'string' || typeof OWNER !== 'string') {
   console.error('usage: node scripts/seed.mjs --org <orgId> --owner <uid> [--name "Org name"] [--live] [--project id]')
   process.exit(1)
 }

@@ -26,6 +26,15 @@ export function getOrgId(): string | null {
   }
 }
 
+/** Remember an organisation found through the user's memberships for the next start. */
+export function rememberOrgId(orgId: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, orgId)
+  } catch {
+    // storage unavailable
+  }
+}
+
 export function useOrgId(): string | null {
   const [orgId] = useState(getOrgId)
   return orgId

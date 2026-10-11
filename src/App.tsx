@@ -1,35 +1,41 @@
-import { AppBar, Box, Container, Toolbar, Typography } from '@mui/material'
 import { Route, Routes } from 'react-router'
-import { useBranding } from './branding/useBranding.ts'
-
-function Home() {
-  const { branding } = useBranding()
-  return (
-    <Container sx={{ py: 3 }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        {branding.appName}
-      </Typography>
-      <Typography color="text.secondary">
-        Nieuwe versie in aanbouw. Voorraad, leveringen en bestellingen per organisatie.
-      </Typography>
-    </Container>
-  )
-}
+import SignInPage from './auth/SignInPage.tsx'
+import { useAuth } from './auth/useAuth.ts'
+import { useOrg } from './org/useOrg.ts'
+import LeveringPage from './pages/LeveringPage.tsx'
+import MuterenPage from './pages/MuterenPage.tsx'
+import VoorraadPage from './pages/VoorraadPage.tsx'
+import AppShell from './shell/AppShell.tsx'
+import Splash from './shell/Splash.tsx'
+import StatusPage from './shell/StatusPage.tsx'
 
 export default function App() {
-  const { branding } = useBranding()
+  const { user, loading } = useAuth()
+  const { status } = useOrg()
+
+  if (loading) return <Splash />
+  if (!user) return <SignInPage />
+  if (status === 'loading') return <Splash />
+  if (status === 'none') {
+    return (
+      <StatusPage
+        title="Geen organisatie"
+        text="Je account is nog aan geen enkele organisatie gekoppeld. Vraag een beheerder om je toe te voegen."
+      />
+    )
+  }
+  if (status === 'denied') {
+    return <StatusPage title="Geen toegang" text="Je bent geen lid van deze organisatie." />
+  }
+
   return (
-    <Box sx={{ minHeight: '100dvh' }}>
-      <AppBar position="sticky" color="default" enableColorOnDark>
-        <Toolbar>
-          <Typography variant="h6" component="div">
-            {branding.appName}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
-    </Box>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route path="/voorraad/*" element={<VoorraadPage />} />
+        <Route path="/levering/*" element={<LeveringPage />} />
+        <Route path="/muteren/*" element={<MuterenPage />} />
+        <Route path="*" element={<VoorraadPage />} />
+      </Route>
+    </Routes>
   )
 }

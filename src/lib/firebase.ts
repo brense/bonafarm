@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import {
+  connectFirestoreEmulator,
+  initializeFirestore,
+  memoryLocalCache,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
 
 const env = import.meta.env
@@ -15,7 +21,19 @@ export const firebaseApp = initializeApp({
 })
 
 export const auth = getAuth(firebaseApp)
-export const db = getFirestore(firebaseApp)
+
+/**
+ * Stock is read and written in sheds with poor signal, so the local cache is
+ * persisted (IndexedDB) and shared between tabs. Listeners then serve from
+ * cache first and only changed documents are billed.
+ */
+export const db = initializeFirestore(firebaseApp, {
+  localCache:
+    typeof indexedDB === 'undefined'
+      ? memoryLocalCache()
+      : persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+})
+
 export const storage = getStorage(firebaseApp)
 
 /**
