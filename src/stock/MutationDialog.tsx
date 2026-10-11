@@ -1,5 +1,7 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import DeleteIcon from '@mui/icons-material/Delete'
+import AddIcon from '@mui/icons-material/Add'
+import CloseIcon from '@mui/icons-material/Close'
+import RemoveIcon from '@mui/icons-material/Remove'
 import SaveIcon from '@mui/icons-material/Save'
 import {
   Alert,
@@ -11,6 +13,7 @@ import {
   IconButton,
   List,
   ListItem,
+  ListItemText,
   Paper,
   Snackbar,
   Stack,
@@ -40,6 +43,8 @@ interface Props {
 interface Alloc {
   storageId: string | null
   amount: number
+  /** Cart sub item that is folding away after reaching zero. */
+  closing?: boolean
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -91,17 +96,8 @@ function pairAllocs(feedId: string, sources: Alloc[], targets: Alloc[]): Change[
 /** Stable ids so a line keeps its DOM node when it moves from "in progress" to the cart. */
 let nextLineId = 0
 
-/** Net stock change of one feed in one storage; `closing` rows are folding away after reaching zero. */
-interface CartRow {
-  id: number
-  feedId: string
-  storageId: string
-  /** Negative = taken out, positive = put in; never 0 on a live row. */
-  delta: number
-  closing?: boolean
-}
-
-type RowDelta = Omit<CartRow, 'id' | 'closing'>
+/** A committed line in the cart; `closing` ones are folding away after being removed. */
+type CartLine = Line & { closing?: boolean }
 
 interface Line {
   id: number
@@ -112,39 +108,6 @@ interface Line {
   sources: Alloc[]
   /** Where it goes (null storage = verbruik). */
   targets: Alloc[]
-}
-
-/** The net row changes a finished line stands for: sources take out, storage targets put in; consumed has no row. */
-function rowsOf(l: Line): RowDelta[] {
-  return [
-    ...l.sources.flatMap((a) => (a.storageId ? [{ feedId: l.feedId, storageId: a.storageId, delta: -a.amount }] : [])),
-    ...l.targets.flatMap((a) => (a.storageId ? [{ feedId: l.feedId, storageId: a.storageId, delta: a.amount }] : [])),
-  ]
-}
-
-/** Adds row changes to the cart, summing per (feed, storage); a sum of 0 closes the row. Pure. */
-function mergeRows(prev: CartRow[], add: RowDelta[], newId: () => number): CartRow[] {
-  const next = [...prev]
-  for (const a of add) {
-    const i = next.findIndex((r) => !r.closing && r.feedId === a.feedId && r.storageId === a.storageId)
-    if (i < 0) {
-      next.push({ id: newId(), ...a })
-      continue
-    }
-    const sum = round2(next[i].delta + a.delta)
-    next[i] = sum === 0 ? { ...next[i], closing: true } : { ...next[i], delta: sum }
-  }
-  return next
-}
-
-/** Pairs a feed's net rows into moves; what is left over is consumed (no target) or put in from outside (no source). */
-function settleRows(feedId: string, rows: CartRow[]): Change[] {
-  const sources: Alloc[] = rows.filter((r) => r.delta < 0).map((r) => ({ storageId: r.storageId, amount: -r.delta }))
-  const targets: Alloc[] = rows.filter((r) => r.delta > 0).map((r) => ({ storageId: r.storageId, amount: r.delta }))
-  const diff = round2(sumOf(sources) - sumOf(targets))
-  if (diff > 0) targets.push({ storageId: null, amount: diff })
-  if (diff < 0) sources.push({ storageId: null, amount: -diff })
-  return pairAllocs(feedId, sources, targets)
 }
 
 /**
@@ -159,7 +122,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const recent = useRecentLogs(orgId, 12, open)
   const [search, setSearch] = useState('')
   const [line, setLine] = useState<Line | null>(null)
-  const [cart, setCart] = useState<CartRow[]>([])
+  const [cart, setCart] = useState<CartLine[]>([])
   const [notice, setNotice] = useState<{ id: number; text: string; severity: 'success' | 'warning'; open: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageQuery, setStorageQuery] = useState('')
@@ -224,37 +187,39 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const commit = (l: Line) => {
     if (committedId.current === l.id) return
     committedId.current = l.id
-    const add = rowsOf(l)
-    const next = mergeRows(cart, add, () => ++nextLineId)
-    setCart(next)
-    const alive = add.some((a) => next.some((r) => !r.closing && r.feedId === a.feedId && r.storageId === a.storageId))
-    if (alive) notify('Wijziging toegevoegd', 'success')
-    else notify('Wijziging weggehaald', 'warning')
+    setCart((prev) => [...prev, l])
+    notify('Wijziging toegevoegd', 'success')
   }
 
   const notify = (text: string, severity: 'success' | 'warning') => setNotice({ id: ++nextLineId, text, severity, open: true })
 
-  const liveRows = cart.filter((r) => !r.closing)
+  const liveLines = cart.filter((c) => !c.closing)
 
-  /** How much more a row may take out of its storage: its stock minus what the line in progress already draws. */
-  const rowAvailable = (row: CartRow) => {
-    const drawn = line && line.feedId === row.feedId ? line.sources.filter((src) => src.storageId === row.storageId).reduce((sum, src) => sum + src.amount, 0) : 0
-    return Math.max(0, round2(stockOf(row.storageId, row.feedId) - drawn))
+  /** The × on a cart item: it folds out, then `onExited` drops it from state. */
+  const weghalen = (id: number) => {
+    setCart((prev) => prev.map((c) => (c.id === id ? { ...c, closing: true } : c)))
+    notify('Wijziging weggehaald', 'warning')
   }
-
-  /** Signed change of a row's delta: reaching or crossing zero removes the row, taking out is capped by stock. */
-  const changeRow = (id: number, change: number) => {
-    const row = cart.find((r) => r.id === id)
-    if (!row || row.closing) return
-    const next = round2(row.delta + change)
-    if (row.delta < 0 ? next >= 0 : next <= 0) {
-      setCart(cart.map((r) => (r.id === id ? { ...r, closing: true } : r)))
-      notify('Wijziging weggehaald', 'warning')
+  /** −/+ on a stock-adding cart line: changes one target and the line total; a target at zero folds out. */
+  const editTarget = (id: number, storageId: string | null, change: number) => {
+    const c = cart.find((x) => x.id === id)
+    const t = c?.targets.find((y) => y.storageId === storageId && !y.closing)
+    if (!c || c.closing || c.direction !== 'in' || !t) return
+    const next = round2(t.amount + change)
+    if (next > 0) {
+      setCart(cart.map((x) => (x.id === id ? { ...x, amount: round2(x.amount - t.amount + next), targets: x.targets.map((y) => (y === t ? { ...y, amount: next } : y)) } : x)))
       return
     }
-    setCart(cart.map((r) => (r.id === id ? { ...r, delta: Math.max(next, -rowAvailable(row)) } : r)))
+    if (c.targets.filter((y) => !y.closing).length === 1) {
+      weghalen(id)
+      return
+    }
+    setCart(cart.map((x) => (x.id === id ? { ...x, amount: round2(x.amount - t.amount), targets: x.targets.map((y) => (y === t ? { ...y, closing: true } : y)) } : x)))
+    notify('Wijziging weggehaald', 'warning')
   }
-  const removeRow = (id: number) => setCart((prev) => prev.filter((r) => r.id !== id))
+  const dropTarget = (id: number, storageId: string | null) =>
+    setCart((prev) => prev.map((x) => (x.id === id ? { ...x, targets: x.targets.filter((y) => !(y.storageId === storageId && y.closing)) } : x)))
+  const dropLine = (id: number) => setCart((prev) => prev.filter((c) => c.id !== id))
 
   const tap = (feedId: string, direction: 'out' | 'in', by = 1) => {
     const cap = direction === 'out' ? totalOf(feedId) : Infinity
@@ -291,9 +256,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const lineComplete =
     line !== null && sumOf(line.targets) === line.amount && (line.direction === 'in' || sumOf(line.sources) === line.amount)
 
-  /** The cart as it will be saved: a finished line that has not folded in yet is merged into a scratch copy. */
-  const effectiveRows = (line && lineComplete ? mergeRows(liveRows, rowsOf(line), () => 0) : liveRows).filter((r) => !r.closing)
-  const count = effectiveRows.length
+  const toChanges = (l: Line): Change[] =>
+    pairAllocs(l.feedId, l.direction === 'in' ? [{ storageId: null, amount: l.amount }] : l.sources, l.targets.filter((t) => !t.closing))
+
+  /** Cart lines plus a finished line that has not folded in yet. */
+  const count = liveLines.length + (line && lineComplete ? 1 : 0)
   const cartCount = count
   const saveDisabled = count === 0 || (line !== null && !lineComplete)
 
@@ -337,9 +304,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const save = () => {
     if (!orgId || !user) return
-    const changes: Change[] = [...new Set(effectiveRows.map((r) => r.feedId))].flatMap((fid) =>
-      settleRows(fid, effectiveRows.filter((r) => r.feedId === fid)),
-    )
+    const changes = [...liveLines, ...(line && lineComplete ? [line] : [])].flatMap(toChanges)
     if (changes.length === 0) return
     const ctx = {
       orgId,
@@ -523,28 +488,75 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         <Box ref={cartRef} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
           {cart.length === 0 && !line ? null : (
             <List dense disablePadding aria-label="Wijzigingen">
-              {cart.map((r) => {
-                const f = feeds.get(r.feedId)
-                const taking = r.delta < 0
-                const room = taking ? Math.max(0, round2(rowAvailable(r) + r.delta)) : r.delta
+              {cart.map((c) => {
+                const f = feeds.get(c.feedId)
+                const unit = f?.unit ?? 'zak'
+                const out = c.direction === 'out'
+                const own = out ? c.sources : c.targets
+                const main = own.length === 1 ? own[0] : null
+                const subs = [...(out ? c.sources : []), ...c.targets].filter((a) => a !== main)
+                const signed = (sign: string, a: Alloc) =>
+                  `${sign}${formatAmount(a.amount)} ${unitLabel(unit, a.amount)} ${a.storageId === null ? 'Verbruik' : storageName(a.storageId)}`
                 return (
-                  <ListItem key={r.id} divider disablePadding sx={{ display: 'block' }}>
-                    <Collapse in={!r.closing} appear unmountOnExit timeout={motion} onExited={() => removeRow(r.id)}>
-                      <FeedRow
-                        bare
-                        surface="background.default"
-                        name={f?.name ?? r.feedId}
-                        secondary={storageName(r.storageId)}
-                        active
-                        swipeMax={f?.swipeMax}
-                        minusDisabled={room <= 0}
-                        maxMinus={room}
-                        maxPlus={taking ? -r.delta : undefined}
-                        detail={{ text: amountText(r.feedId, taking ? 'out' : 'in', Math.abs(r.delta)), color: taking ? 'error.main' : 'success.main' }}
-                        onSwipe={(signed) => changeRow(r.id, signed)}
-                        onMinus={() => changeRow(r.id, -1)}
-                        onPlus={() => changeRow(r.id, 1)}
-                      />
+                  <ListItem key={c.id} divider disablePadding sx={{ display: 'block' }}>
+                    <Collapse in={!c.closing} appear unmountOnExit timeout={motion} onExited={() => dropLine(c.id)}>
+                      {!out && main ? (
+                        <Stack direction="row" sx={{ alignItems: 'center', pr: 0.5 }}>
+                          <FeedRow
+                            bare
+                            surface="background.default"
+                            name={f?.name ?? c.feedId}
+                            secondary={storageName(main.storageId)}
+                            active
+                            swipeMax={f?.swipeMax}
+                            detail={{ text: amountText(c.feedId, 'in', c.amount), color: 'success.main' }}
+                            onSwipe={(signed) => editTarget(c.id, main.storageId, signed)}
+                            onMinus={() => editTarget(c.id, main.storageId, -1)}
+                            onPlus={() => editTarget(c.id, main.storageId, 1)}
+                          />
+                          <IconButton aria-label="Wijziging weghalen" color="secondary" onClick={() => weghalen(c.id)} sx={{ width: 48, height: 48 }}>
+                            <CloseIcon />
+                          </IconButton>
+                        </Stack>
+                      ) : (
+                        <Stack direction="row" sx={{ alignItems: 'center', pl: 2, pr: 0.5, minHeight: 56 }}>
+                          <ListItemText
+                            primary={f?.name ?? c.feedId}
+                            secondary={main ? storageName(main.storageId) : undefined}
+                            slotProps={{ primary: { sx: { fontWeight: 700 } } }}
+                            sx={{ minWidth: 0 }}
+                          />
+                          <Typography sx={{ fontWeight: 700, mr: 1, whiteSpace: 'nowrap', color: out ? 'error.main' : 'success.main' }}>
+                            {amountText(c.feedId, c.direction, c.amount)}
+                          </Typography>
+                          <IconButton aria-label="Wijziging weghalen" color="secondary" onClick={() => weghalen(c.id)} sx={{ width: 48, height: 48 }}>
+                            <CloseIcon />
+                          </IconButton>
+                        </Stack>
+                      )}
+                      {subs.length > 0 && (
+                        <List disablePadding sx={{ pl: 4, pb: 0.5 }}>
+                          {subs.map((a, i) => (
+                            <Collapse key={a.storageId ?? `n${i}`} in={!a.closing} unmountOnExit timeout={motion} onExited={() => dropTarget(c.id, a.storageId)}>
+                              <ListItem disablePadding sx={{ minHeight: 32 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ flex: '1 1 auto' }}>
+                                  {signed(out && c.sources.includes(a) ? '−' : '+', a)}
+                                </Typography>
+                                {!out && (
+                                  <Stack direction="row">
+                                    <IconButton aria-label={`${storageName(a.storageId)} min`} color="secondary" onClick={() => editTarget(c.id, a.storageId, -1)} sx={{ width: 40, height: 40 }}>
+                                      <RemoveIcon />
+                                    </IconButton>
+                                    <IconButton aria-label={`${storageName(a.storageId)} plus`} color="primary" onClick={() => editTarget(c.id, a.storageId, 1)} sx={{ width: 40, height: 40 }}>
+                                      <AddIcon />
+                                    </IconButton>
+                                  </Stack>
+                                )}
+                              </ListItem>
+                            </Collapse>
+                          ))}
+                        </List>
+                      )}
                     </Collapse>
                   </ListItem>
                 )
@@ -567,8 +579,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                             onPlus={() => tap(line.feedId, 'in')}
                           />
                         </List>
-                        <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
-                          <DeleteIcon />
+                        <IconButton aria-label="Regel annuleren" color="secondary" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
+                          <CloseIcon />
                         </IconButton>
                       </Stack>
                       {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
