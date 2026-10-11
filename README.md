@@ -78,9 +78,11 @@ organisations/{orgId}
   logs/{logId}
   storageTypes/{typeId}
   storageGroups/{groupId}
-    storages/{storageId}
-      items/{feedId}
+  storages/{storageId}      groupId and typeId reference the two collections above
+    items/{feedId}
 ```
+
+The path always identifies the organisation, so documents carry no `orgId` field. Storages are flat under the organisation; moving one to another group is a single field update.
 
 Log event types are explicit (replacing sign-and-timing inference from the old app):
 

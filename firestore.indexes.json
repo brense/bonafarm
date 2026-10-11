@@ -18,18 +18,10 @@
     },
     {
       "collectionGroup": "storages",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "orgId", "order": "ASCENDING" },
+        { "fieldPath": "groupId", "order": "ASCENDING" },
         { "fieldPath": "order", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "items",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "orgId", "order": "ASCENDING" },
-        { "fieldPath": "feedId", "order": "ASCENDING" }
       ]
     }
   ],

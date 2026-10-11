@@ -9,11 +9,12 @@ import type { Timestamp } from 'firebase/firestore'
  *   logs/{logId}
  *   storageTypes/{typeId}            seeded: bin, shute, stable
  *   storageGroups/{groupId}          seeded: ungrouped
- *     storages/{storageId}
- *       items/{feedId}
+ *   storages/{storageId}             groupId and typeId reference the two above
+ *     items/{feedId}
  *
- * Every doc below an organisation carries `orgId` so collection-group queries
- * (all storages of an org, all items of a feed) can be secured in rules.
+ * The path always identifies the organisation; documents carry no orgId field.
+ * Storages are flat under the organisation so moving one to another group is a
+ * single field update.
  */
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
@@ -24,7 +25,7 @@ export interface Organisation {
 }
 
 export interface Member {
-  orgId: string
+  /** Same as the doc id; a field too so a user can find their organisations. */
   uid: string
   role: MemberRole
   displayName: string
@@ -35,7 +36,6 @@ export interface Member {
 export type Unit = 'zak' | 'baal'
 
 export interface Feed {
-  orgId: string
   name: string
   unit: Unit
   /** Default storage this feed lives in, used to prefill forms. */
@@ -52,21 +52,20 @@ export type StorageBehaviour =
   | 'consumed'
 
 export interface StorageType {
-  orgId: string
   name: string
   behaviour: StorageBehaviour
   order: number
 }
 
 export interface StorageGroup {
-  orgId: string
   name: string
   order: number
 }
 
 export interface Storage {
-  orgId: string
+  /** References storageGroups/{groupId}. Change it to move the storage. */
   groupId: string
+  /** References storageTypes/{typeId}. */
   typeId: string
   name: string
   status: 'active' | 'archived'
@@ -77,9 +76,7 @@ export interface Storage {
 
 /** Current stock of one feed in one storage. Doc id = feedId. */
 export interface Item {
-  orgId: string
-  groupId: string
-  storageId: string
+  /** Same as the doc id. */
   feedId: string
   amount: number
   updatedAt: Timestamp
@@ -106,10 +103,8 @@ export type LogType =
   | 'correction'
 
 export interface Log {
-  orgId: string
   type: LogType
   feedId: string
-  groupId: string
   storageId: string
   amount: number
   /** For `count`: the stock before the count, so the implied usage is known. */

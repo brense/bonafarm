@@ -5,11 +5,14 @@ rules_version = '2';
 //
 // organisations/{orgId}
 //   members/{uid}            role: owner | admin | member | viewer
-//   feeds, logs, storageTypes
-//   storageGroups/{groupId}/storages/{storageId}/items/{feedId}
+//   feeds/{feedId}
+//   logs/{logId}
+//   storageTypes/{typeId}
+//   storageGroups/{groupId}
+//   storages/{storageId}     groupId -> storageGroups, typeId -> storageTypes
+//     items/{feedId}
 //
-// Documents below an organisation also carry `orgId` so that collection-group
-// queries (all storages, all items of an org) can be checked.
+// The path always identifies the organisation; documents carry no orgId field.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -44,29 +47,20 @@ service cloud.firestore {
       return hasRole(orgId, ['owner']);
     }
 
-    // The orgId field must match the path and may never change.
-    function orgIdMatches(orgId) {
-      return request.resource.data.orgId == orgId;
-    }
-
-    function orgIdUnchanged() {
-      return request.resource.data.orgId == resource.data.orgId;
-    }
-
     match /organisations/{orgId} {
       allow read: if isMember(orgId);
       // Creating an organisation is done through a seed/admin script for now.
       allow create: if false;
-      allow update: if isAdmin(orgId) && orgIdUnchanged()
+      allow update: if isAdmin(orgId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
       allow delete: if false;
 
       match /members/{uid} {
         allow read: if isMember(orgId);
-        allow create: if isAdmin(orgId) && orgIdMatches(orgId)
+        allow create: if isAdmin(orgId)
           && request.resource.data.uid == uid
           && request.resource.data.role in ['admin', 'member', 'viewer'];
-        allow update: if isAdmin(orgId) && orgIdUnchanged()
+        allow update: if isAdmin(orgId)
           && request.resource.data.uid == uid
           && request.resource.data.role in ['owner', 'admin', 'member', 'viewer']
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'displayName', 'email'])
@@ -83,48 +77,53 @@ service cloud.firestore {
 
       match /feeds/{feedId} {
         allow read: if isMember(orgId);
-        allow create: if canEdit(orgId) && orgIdMatches(orgId);
-        allow update: if canEdit(orgId) && orgIdUnchanged();
+        allow create: if canEdit(orgId);
+        allow update: if canEdit(orgId);
         allow delete: if isAdmin(orgId);
       }
 
       match /storageTypes/{typeId} {
         allow read: if isMember(orgId);
-        allow create: if isAdmin(orgId) && orgIdMatches(orgId);
-        allow update: if isAdmin(orgId) && orgIdUnchanged();
+        allow create: if isAdmin(orgId);
+        allow update: if isAdmin(orgId);
         allow delete: if isAdmin(orgId);
       }
 
       match /storageGroups/{groupId} {
         allow read: if isMember(orgId);
-        allow create: if canEdit(orgId) && orgIdMatches(orgId);
-        allow update: if canEdit(orgId) && orgIdUnchanged();
+        allow create: if canEdit(orgId);
+        allow update: if canEdit(orgId);
+        // The default group cannot be removed.
+        allow delete: if isAdmin(orgId) && groupId != 'ungrouped';
+      }
+
+      match /storages/{storageId} {
+        allow read: if isMember(orgId);
+        // groupId and typeId must reference existing documents. Each exists() is
+        // one extra document access, on top of the memberRole get().
+        allow create: if canEdit(orgId)
+          && request.resource.data.groupId is string
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageGroups/$(request.resource.data.groupId))
+          && request.resource.data.typeId is string
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageTypes/$(request.resource.data.typeId));
+        allow update: if canEdit(orgId)
+          && request.resource.data.groupId is string
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageGroups/$(request.resource.data.groupId))
+          && request.resource.data.typeId is string
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageTypes/$(request.resource.data.typeId));
         allow delete: if isAdmin(orgId);
 
-        match /storages/{storageId} {
+        match /items/{feedId} {
           allow read: if isMember(orgId);
-          allow create: if canEdit(orgId) && orgIdMatches(orgId)
-            && request.resource.data.groupId == groupId;
-          allow update: if canEdit(orgId) && orgIdUnchanged()
-            && request.resource.data.groupId == groupId;
-          allow delete: if isAdmin(orgId);
-
-          match /items/{feedId} {
-            allow read: if isMember(orgId);
-            allow create: if canEdit(orgId) && orgIdMatches(orgId)
-              && request.resource.data.groupId == groupId
-              && request.resource.data.storageId == storageId
-              && request.resource.data.feedId == feedId
-              && request.resource.data.amount is number
-              && request.resource.data.updatedAt is timestamp;
-            allow update: if canEdit(orgId) && orgIdUnchanged()
-              && request.resource.data.groupId == groupId
-              && request.resource.data.storageId == storageId
-              && request.resource.data.feedId == feedId
-              && request.resource.data.amount is number
-              && request.resource.data.updatedAt is timestamp;
-            allow delete: if canEdit(orgId);
-          }
+          allow create: if canEdit(orgId)
+            && request.resource.data.feedId == feedId
+            && request.resource.data.amount is number
+            && request.resource.data.updatedAt is timestamp;
+          allow update: if canEdit(orgId)
+            && request.resource.data.feedId == feedId
+            && request.resource.data.amount is number
+            && request.resource.data.updatedAt is timestamp;
+          allow delete: if canEdit(orgId);
         }
       }
 
@@ -132,13 +131,12 @@ service cloud.firestore {
         allow read: if isMember(orgId);
         // Logs are an audit trail: members add them, only admins may change or
         // remove them afterwards.
-        allow create: if canEdit(orgId) && orgIdMatches(orgId)
+        allow create: if canEdit(orgId)
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.amount is number
           && request.resource.data.amount >= 0
           && request.resource.data.type in ['delivery', 'count', 'dispense', 'fill', 'empty', 'move', 'correction']
           && request.resource.data.feedId is string
-          && request.resource.data.groupId is string
           && request.resource.data.storageId is string
           // Backdating is allowed (a Friday delivery logged on Tuesday); the
           // future is not, apart from a little clock skew.
@@ -147,11 +145,11 @@ service cloud.firestore {
           && (!('note' in request.resource.data)
               || (request.resource.data.note is string && request.resource.data.note.size() <= 500))
           && (!('previousAmount' in request.resource.data) || request.resource.data.previousAmount is number)
-          && request.resource.data.keys().hasOnly(['orgId', 'type', 'feedId', 'groupId', 'storageId',
+          && request.resource.data.keys().hasOnly(['type', 'feedId', 'storageId',
                'amount', 'previousAmount', 'moveId', 'note', 'uid', 'timestamp']);
         // Admins may correct amount, note, timestamp and previousAmount only;
-        // uid, type, feedId, storageId and groupId are immutable.
-        allow update: if isAdmin(orgId) && orgIdUnchanged()
+        // uid, type, feedId and storageId are immutable.
+        allow update: if isAdmin(orgId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'note', 'timestamp', 'previousAmount'])
           && request.resource.data.amount is number
           && request.resource.data.amount >= 0
@@ -159,16 +157,6 @@ service cloud.firestore {
           && request.resource.data.timestamp <= request.time + duration.value(5, 'm');
         allow delete: if isAdmin(orgId);
       }
-    }
-
-    // Collection-group reads. The path wildcard cannot tell us the organisation,
-    // so the query must filter on orgId and the caller must be a member of it.
-    match /{path=**}/storages/{storageId} {
-      allow read: if isMember(resource.data.orgId);
-    }
-
-    match /{path=**}/items/{feedId} {
-      allow read: if isMember(resource.data.orgId);
     }
 
     // Lets a user discover their own memberships:

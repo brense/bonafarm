@@ -10,11 +10,11 @@ export const paths = {
   storageTypes: (orgId: string) => `organisations/${orgId}/storageTypes`,
   storageGroups: (orgId: string) => `organisations/${orgId}/storageGroups`,
   storageGroup: (orgId: string, groupId: string) => `organisations/${orgId}/storageGroups/${groupId}`,
-  storages: (orgId: string, groupId: string) => `organisations/${orgId}/storageGroups/${groupId}/storages`,
-  storage: (orgId: string, groupId: string, storageId: string) =>
-    `organisations/${orgId}/storageGroups/${groupId}/storages/${storageId}`,
-  items: (orgId: string, groupId: string, storageId: string) =>
-    `organisations/${orgId}/storageGroups/${groupId}/storages/${storageId}/items`,
+  storages: (orgId: string) => `organisations/${orgId}/storages`,
+  storage: (orgId: string, storageId: string) => `organisations/${orgId}/storages/${storageId}`,
+  items: (orgId: string, storageId: string) => `organisations/${orgId}/storages/${storageId}/items`,
+  item: (orgId: string, storageId: string, feedId: string) =>
+    `organisations/${orgId}/storages/${storageId}/items/${feedId}`,
 } as const
 
 /** Seeded document ids. */
