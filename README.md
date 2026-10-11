@@ -64,7 +64,14 @@ The `bonafarm-next` project has a billing account linked. Keep development withi
 
 Security rules in `firestore.rules` and `storage.rules` are deployed manually:
 ```bash
-firebase deploy --only firestore:rules,storage
+firebase deploy --only firestore,storage
+```
+
+An organisation with its default storage types, default group and an owner is
+created with the seed script (idempotent, 6 documents):
+```bash
+npm run seed -- --org tanthof --owner <auth uid> --owner-name "Name"          # emulator
+npm run seed -- --org tanthof --owner <auth uid> --owner-name "Name" --live   # bonafarm-next
 ```
 
 ## Data Model

@@ -11,7 +11,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "emulators": "firebase emulators:start --only auth,firestore,storage"
+    "emulators": "firebase emulators:start --only auth,firestore,storage",
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
