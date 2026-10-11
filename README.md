@@ -101,6 +101,23 @@ Log event types are explicit (replacing sign-and-timing inference from the old a
 - `move` — feed moved between storages (two logs share moveId)
 - `correction` — manual correction of a mistake
 
+## Branding
+
+Each organisation controls how the app presents itself through the document
+`organisations/{orgId}/branding/public` (edited in the Firestore console for
+now): app name, short name, description, palette mode, primary/secondary
+colours, theme and background colour, and icon URLs. The document is readable
+without signing in because browsers fetch the web app manifest without
+credentials. Missing or invalid values fall back to the defaults in
+`src/branding/defaults.ts`.
+
+The organisation is picked from `?org=<id>` in the URL and remembered in
+localStorage. `BrandingProvider` loads the document, sets the page title,
+the theme-color meta tag and the MUI theme, and points the manifest link at
+`/api/manifest?org=<id>`. That endpoint (`api/manifest.ts`, a Vercel function,
+also served by the Vite dev server) builds the manifest from the same document
+and is cached on the edge for an hour.
+
 ## PWA
 
 The service worker builds from `src/sw.ts` via @serwist/vite in production only and registers in `src/lib/pwa.ts`.

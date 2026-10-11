@@ -1,4 +1,3 @@
-import { doc, getDoc } from 'firebase/firestore'
 import { useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 import type { Branding } from '../model/types.ts'
 import { paths } from '../model/paths.ts'
@@ -36,7 +35,8 @@ export default function BrandingProvider({ children, orgId: orgIdProp, initial }
     let cancelled = false
     ;(async () => {
       try {
-        const { db } = await import('../lib/firebase.ts')
+        // Both the SDK and the app's Firebase init stay out of the initial bundle.
+        const [{ db }, { doc, getDoc }] = await Promise.all([import('../lib/firebase.ts'), import('firebase/firestore')])
         const snap = await getDoc(doc(db, paths.branding(orgId)))
         if (!cancelled && snap.exists()) setFetched(snap.data() as Partial<Branding>)
       } catch (err) {
