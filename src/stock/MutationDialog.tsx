@@ -6,7 +6,6 @@ import RemoveIcon from '@mui/icons-material/Remove'
 import SaveIcon from '@mui/icons-material/Save'
 import {
   AppBar,
-  Divider,
   Box,
   Button,
   Chip,
@@ -274,6 +273,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [lines, setLines] = useState<Line[]>([])
   const [error, setError] = useState<string | null>(null)
   const [picker, setPicker] = useState<'from' | 'to' | null>(null)
+  const [reopen, setReopen] = useState<'from' | 'to' | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const theme = useTheme()
   const wide = useMediaQuery(theme.breakpoints.up('md'))
@@ -324,6 +324,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     } else {
       setLine({ ...newLine(feedId, direction), amount: round2(Math.min(cap, by)) })
       setPicker(null)
+      setReopen(null)
     }
   }
 
@@ -361,17 +362,19 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     const unit = feeds.get(feedId)?.unit ?? 'zak'
     return `${direction === 'out' ? '−' : '+'}${formatAmount(amount)} ${unitLabel(unit, amount)}`
   }
+  const allocText = (list: Alloc[]) =>
+    list.map((a) => `${a.storageId === null ? 'verbruik' : storageName(a.storageId)} ${formatAmount(a.amount)}`).join(', ')
   const describe = (l: Line) => {
     const head = `${feeds.get(l.feedId)?.name ?? l.feedId} ${amountText(l.feedId, l.direction, l.amount)}`
-    const part = (a: Alloc) => `${a.storageId === null ? 'verbruik' : storageName(a.storageId)} ${formatAmount(a.amount)}`
-    const from = l.sources.map(part).join(', ')
-    return `${head} · ${from ? `${from} ` : ''}→ ${l.targets.map(part).join(', ')}`
+    const from = allocText(l.sources)
+    return `${head} · ${from ? `${from} ` : ''}→ ${allocText(l.targets)}`
   }
 
   const reset = () => {
     setSearch('')
     setLine(null)
     setPicker(null)
+    setReopen(null)
     setLines([])
     setError(null)
   }
@@ -386,6 +389,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     setLines((prev) => [...prev, line])
     setLine(null)
     setPicker(null)
+    setReopen(null)
     setSearch('')
   }
 
@@ -454,7 +458,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   )
 
   /** Destination rows plus the "other storage" search. */
-  const targetBox = (title: string, label: string, baseRows: { id: string | null; name: string }[]) => {
+  const targetBox = (title: string, label: string, baseRows: { id: string | null; name: string }[], showDone = false) => {
     if (!line) return null
     const ids = new Set<string | null>(baseRows.map((r) => r.id))
     const extra = line.targets.filter((t) => !ids.has(t.storageId)).map((t) => ({ id: t.storageId, name: storageName(t.storageId) }))
@@ -481,6 +485,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             Selecteer andere opslag
           </Button>
         )}
+        {showDone && (
+          <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5, ml: 1 }}>
+            Klaar
+          </Button>
+        )}
       </Box>
     )
   }
@@ -488,17 +497,51 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const chooser = line && feed && (
     <Box sx={{ mt: 1 }}>
       {line.direction === 'out' ? (
-        <>
-          <Box sx={sectionBox}>
-            {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-            {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource)}
-          </Box>
-          <Divider sx={{ my: 2 }} />
-          {targetBox(`Waar is de ${feed.unit} naartoe?`, 'Waar naartoe?', [
-            { id: null, name: 'Verbruik' },
-            ...(linkedShute(line.feedId) ? [{ id: linkedShute(line.feedId), name: storageName(linkedShute(line.feedId)) }] : []),
-          ])}
-        </>
+        (() => {
+          const fromDone = sumOf(line.sources) === line.amount
+          const toDone = sumOf(line.targets) === line.amount
+          const showFrom = reopen === 'from' || !fromDone
+          const summary = (text: string, which: 'from' | 'to') => (
+            <Box sx={{ ...sectionBox, display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
+              <Typography>{text}</Typography>
+              <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
+                Wijzig
+              </Button>
+            </Box>
+          )
+          return (
+            <>
+              {showFrom ? (
+                <Box sx={sectionBox}>
+                  {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
+                  {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource)}
+                  {fromDone && (
+                    <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
+                      Klaar
+                    </Button>
+                  )}
+                </Box>
+              ) : (
+                summary(`Uit: ${allocText(line.sources)}`, 'from')
+              )}
+              {!showFrom && (
+                <Box sx={{ mt: 1 }}>
+                  {reopen === 'to' || !toDone
+                    ? targetBox(
+                        `Waar is de ${feed.unit} naartoe?`,
+                        'Waar naartoe?',
+                        [
+                          { id: null, name: 'Verbruik' },
+                          ...(linkedShute(line.feedId) ? [{ id: linkedShute(line.feedId), name: storageName(linkedShute(line.feedId)) }] : []),
+                        ],
+                        toDone,
+                      )
+                    : summary(`Naar: ${allocText(line.targets)}`, 'to')}
+                </Box>
+              )}
+            </>
+          )
+        })()
       ) : (
         targetBox(
           'In welke opslag?',
@@ -513,8 +556,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   )
 
   return (
-    <Dialog open={open} onClose={close} fullScreen slotProps={{ paper: { sx: { bgcolor: 'background.default', backgroundImage: 'none' } } }}>
-      <AppBar position="sticky" color="default" enableColorOnDark>
+    <Dialog open={open} onClose={close} fullScreen slotProps={{ paper: { sx: { bgcolor: 'background.default', backgroundImage: 'none', display: 'flex', flexDirection: 'column', height: '100dvh' } } }}>
+      <AppBar position="static" color="default" enableColorOnDark>
         <Toolbar>
           <IconButton edge="start" aria-label="Sluiten" onClick={close}>
             <ArrowBackIcon />
@@ -525,8 +568,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ px: 2, pt: 2, pb: 14 }}>
-        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, minHeight: '35vh', maxHeight: '35vh', overflowY: 'auto', mb: 2 }}>
+      <Box sx={{ px: 2, pt: 2, flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
           {lines.length === 0 ? (
             <Typography color="text.secondary" sx={{ p: 2 }}>
               Nog geen wijzigingen
@@ -550,7 +593,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             </List>
           )}
         </Box>
+      </Box>
 
+      <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto', maxHeight: '60dvh', overflowY: 'auto' }}>
         {line && feed ? (
           <>
             <List aria-label="Gekozen voer" disablePadding>
@@ -609,26 +654,26 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         )}
       </Box>
 
-      <Paper square elevation={8} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
-        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
-          <Button variant="text" size="small" sx={{ minHeight: 48 }} onClick={close}>
+      <Paper square elevation={8} sx={{ flex: '0 0 auto', p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
+        <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Button variant="text" size="medium" color="secondary" sx={{ height: 40 }} onClick={close}>
             Annuleren
           </Button>
           <Button
-            variant="outlined"
-            size="small"
-            sx={{ minHeight: 48 }}
+            variant="text"
+            size="medium"
+            sx={{ height: 40 }}
             disabled={line !== null && !lineComplete}
             onClick={line ? another : () => searchRef.current?.focus()}
           >
             Nog eentje
           </Button>
           {wide ? (
-            <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ minHeight: 48 }} disabled={saveDisabled} onClick={save}>
+            <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ height: 40 }} disabled={saveDisabled} onClick={save}>
               Opslaan
             </Button>
           ) : (
-            <Button variant="contained" aria-label="Opslaan" sx={{ width: 48, height: 48, minWidth: 48, p: 0 }} disabled={saveDisabled} onClick={save}>
+            <Button variant="contained" aria-label="Opslaan" sx={{ width: 40, height: 40, minWidth: 40, p: 0 }} disabled={saveDisabled} onClick={save}>
               <SaveIcon />
             </Button>
           )}
