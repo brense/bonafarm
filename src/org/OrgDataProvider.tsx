@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, type PropsWithChildren } from 'react'
-import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
+import type { Feed, Item, Storage, StorageGroup, StorageType } from '../model/types.ts'
 import { paths } from '../model/paths.ts'
 import { EMPTY_ORG_DATA, OrgDataContext, type DocMap, type OrgDataValue } from './dataContext.ts'
 import { useOrg } from './useOrg.ts'
 
-type Collections = Pick<OrgDataValue, 'feeds' | 'storages' | 'storageTypes' | 'items'>
-const NAMES = ['feeds', 'storages', 'storageTypes', 'items'] as const
+type Collections = Pick<OrgDataValue, 'feeds' | 'storages' | 'storageTypes' | 'storageGroups' | 'items'>
+const NAMES = ['feeds', 'storages', 'storageTypes', 'storageGroups', 'items'] as const
 
 /**
  * Live copies of the small catalogue collections every page needs: feeds,
- * storages, storage types and current stock. Four listeners, about 80
+ * storages, storage types, groups and current stock. Five listeners, about 80
  * documents on first load, only changes afterwards. Mount only once the
  * membership is known, so nothing is read before access is confirmed.
  */
@@ -30,6 +30,7 @@ export default function OrgDataProvider({ children }: PropsWithChildren) {
         feeds: paths.feeds(orgId),
         storages: paths.storages(orgId),
         storageTypes: paths.storageTypes(orgId),
+        storageGroups: paths.storageGroups(orgId),
         items: paths.items(orgId),
       }
       for (const name of NAMES) {
@@ -39,7 +40,7 @@ export default function OrgDataProvider({ children }: PropsWithChildren) {
             (snap) => {
               const map = new Map<string, unknown>()
               for (const d of snap.docs) map.set(d.id, d.data())
-              setData((prev) => ({ ...prev, [name]: map as DocMap<Feed & Storage & StorageType & Item> }))
+              setData((prev) => ({ ...prev, [name]: map as DocMap<Feed & Storage & StorageType & StorageGroup & Item> }))
               setLoaded((prev) => (prev.has(name) ? prev : new Set(prev).add(name)))
             },
             (err) => {

@@ -5,6 +5,7 @@ import OrgDataProvider from './org/OrgDataProvider.tsx'
 import { useOrg } from './org/useOrg.ts'
 import LeveringPage from './pages/LeveringPage.tsx'
 import MuterenPage from './pages/MuterenPage.tsx'
+import StoragePage from './pages/StoragePage.tsx'
 import VoorraadPage from './pages/VoorraadPage.tsx'
 import AppShell from './shell/AppShell.tsx'
 import Splash from './shell/Splash.tsx'
@@ -35,7 +36,8 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/voorraad/*" element={<VoorraadPage />} />
           <Route path="/levering/*" element={<LeveringPage />} />
-          <Route path="/muteren/*" element={<MuterenPage />} />
+          <Route path="/muteren" element={<MuterenPage />} />
+          <Route path="/muteren/:storageId" element={<StoragePage />} />
           <Route path="*" element={<VoorraadPage />} />
         </Route>
       </Routes>

@@ -171,25 +171,30 @@ describe('adviseFeed', () => {
 describe('estimateKokerStock', () => {
   const DAY = 86400000
   const t0 = Date.parse('2026-09-18T10:00:00Z')
+  const now = t0 + 14 * DAY
   const logs = [
-    { type: 'delivery', feedId: 'geit', amount: 2, timestampMs: t0 },
-    { type: 'delivery', feedId: 'geit', amount: 1, timestampMs: t0 + 3600000 }, // same delivery, other storage
-    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 - DAY }, // before the delivery: old bags
-    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 + 5 * DAY },
-    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 + 12 * DAY },
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 - 30 * DAY }, // older fill, ignored
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 },
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 + 3600000 }, // same day: 2 bags went in
     { type: 'fill', feedId: 'ander', amount: 5, timestampMs: t0 + 6 * DAY },
   ]
 
-  it('subtracts fills since the last delivery day from what was delivered', () => {
-    const e = estimateKokerStock(logs, 'geit')
-    expect(e.delivered).toBe(3)
-    expect(e.usedSince).toBe(2)
+  it('treats the last fill day as the delivery and depletes it at the usage rate', () => {
+    // 2 bags in, 0.5 per week, 2 weeks later -> 1 left
+    const e = estimateKokerStock(logs, 'geit', now, 0.5)
+    expect(e.delivered).toBe(2)
     expect(e.onHand).toBe(1)
     expect(e.lastDeliveryMs).toBe(t0 + 3600000)
   })
 
-  it('never goes below zero and assumes empty without a delivery', () => {
-    expect(estimateKokerStock([...logs, { type: 'fill', feedId: 'geit', amount: 4, timestampMs: t0 + 20 * DAY }], 'geit').onHand).toBe(0)
-    expect(estimateKokerStock(logs, 'ander')).toEqual({ onHand: 0, lastDeliveryMs: null, delivered: 0, usedSince: 0 })
+  it('adds bags delivered to a shelf after the last fill', () => {
+    const e = estimateKokerStock([...logs, { type: 'delivery', feedId: 'geit', amount: 3, timestampMs: t0 + 5 * DAY }], 'geit', now, 0.5)
+    expect(e.onHand).toBe(4)
+    expect(e.delivered).toBe(3)
+  })
+
+  it('never goes below zero and assumes empty without any fill or delivery', () => {
+    expect(estimateKokerStock(logs, 'geit', now, 5).onHand).toBe(0)
+    expect(estimateKokerStock(logs, 'niets', now, 1)).toEqual({ onHand: 0, lastDeliveryMs: null, delivered: 0 })
   })
 })

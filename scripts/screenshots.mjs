@@ -70,7 +70,12 @@ for (const [label, ctxOpts] of [['phone', phone], ['desktop', desktop]]) {
       if ((await link.count()) === 0) continue
       await link.click()
       await page.getByRole('heading', { level: 1, name: tab }).waitFor()
-      if (tab === 'Voorraad') await page.waitForSelector('[aria-label="Voorraad per voer"]', { timeout: 15000 }).catch(() => {})
+      if (tab === 'Voorraad') {
+        await page.waitForSelector('[aria-label="Voorraad per voer"]', { timeout: 15000 }).catch(() => {})
+        // status chips appear once the 12-week logs listener has delivered
+        await page.locator('.MuiChip-root').first().waitFor({ timeout: 20000 }).catch(() => {})
+        await page.waitForTimeout(300)
+      }
       await shot(page, `${label}-${tab.toLowerCase()}`)
       if (tab === 'Voorraad') {
         const toggle = page.getByLabel('Besteladvies')
@@ -83,7 +88,28 @@ for (const [label, ctxOpts] of [['phone', phone], ['desktop', desktop]]) {
         }
       }
     }
+    // Muteren flow: storage list -> a bin -> the amount sheet -> a stable (count mode)
+    if ((await page.getByRole('navigation', { name: 'Hoofdmenu' }).getByText('Muteren', { exact: true }).count()) > 0) {
+      const list = () => page.getByRole('list', { name: 'Voer in deze opslag' })
+      await page.goto(`${URL}/muteren/${args.bin ?? 'tonroze'}`)
+      await list().waitFor({ timeout: 15000 })
+      await shot(page, `${label}-muteren-bak`)
+      await list().getByRole('button').first().click()
+      await page.getByRole('dialog').waitFor()
+      await shot(page, `${label}-muteren-sheet`)
+      await page.getByRole('button', { name: 'Annuleren' }).click()
+      await page.goto(`${URL}/muteren/${args.stable ?? 'paardenstal'}`)
+      await list().waitFor({ timeout: 15000 })
+      await list().getByRole('button').first().click()
+      await page.getByRole('dialog').waitFor()
+      await shot(page, `${label}-muteren-stal-tellen`)
+      await page.getByRole('button', { name: 'Annuleren' }).click()
+      await page.goto(`${URL}/muteren/${args.koker ?? 'geitenkorrel'}`)
+      await list().waitFor({ timeout: 15000 })
+      await shot(page, `${label}-muteren-koker`)
+    }
     if (label === 'phone') {
+      await page.goto(`${URL}/voorraad`)
       await page.getByRole('button', { name: 'Account' }).click()
       await shot(page, `${label}-account-menu`)
     }

@@ -153,7 +153,14 @@ export default function AppShell() {
             aria-label="Hoofdmenu"
           >
             {tabs.map((tab) => (
-              <BottomNavigationAction key={tab} value={tab} label={TAB_META[tab].label} icon={TAB_META[tab].icon} />
+              <BottomNavigationAction
+                key={tab}
+                value={tab}
+                label={TAB_META[tab].label}
+                icon={TAB_META[tab].icon}
+                // Tapping the active tab goes back to its root: the tab is the back button.
+                onClick={() => navigate(`/${tab}`)}
+              />
             ))}
           </BottomNavigation>
         </Paper>

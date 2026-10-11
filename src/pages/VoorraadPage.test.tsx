@@ -31,7 +31,7 @@ const items = new Map<string, Item>([
 function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles']) {
   return render(
     <OrgContext.Provider value={{ orgId: 'test', roles, status: 'ready' }}>
-      <OrgDataContext.Provider value={{ feeds, storages, storageTypes, items, loading: false, error: null }}>
+      <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items, loading: false, error: null }}>
         <ThemeProvider>
           <VoorraadPage />
         </ThemeProvider>
@@ -46,7 +46,7 @@ describe('VoorraadPage', () => {
     expect(screen.getByText('Hooi')).toBeInTheDocument()
     expect(screen.getByText('7,5')).toBeInTheDocument()
     expect(screen.getByText('Ton roze 7,5')).toBeInTheDocument()
-    expect(screen.getByText('Gaat direct in de koker')).toBeInTheDocument()
+    expect(screen.getByText('Geitenkorrel')).toBeInTheDocument()
   })
 
   it('offers the advice toggle only to orderers', () => {
