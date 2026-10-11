@@ -91,6 +91,27 @@ bun run seed --org tanthof --owner <auth uid>          # emulator
 bun run seed --org tanthof --owner <auth uid> --live   # bonafarm-next
 ```
 
+### Migrating the old app's data
+
+`scripts/migrate-kibo.mjs` moves the single-tenant production data of
+`kibo-voer-app` into one organisation. Production is only ever read.
+
+```bash
+node scripts/migrate-kibo.mjs fetch                       # read-only dump -> migration-data/kibo/ (gitignored, has uids)
+node scripts/migrate-kibo.mjs plan  --org tanthof         # transform -> migration-data/plan.json + report
+node scripts/migrate-kibo.mjs apply --org tanthof         # write to the emulator
+node scripts/migrate-kibo.mjs apply --org tanthof --live  # write to bonafarm-next
+```
+
+The plan keeps the old log ids and uses deterministic ids elsewhere, so
+`apply` can be rerun and overwrites instead of duplicating. It prints the write
+count first (about 3.9k) and verifies with count aggregations afterwards.
+Transformation rules: `storage` becomes the `bin` type; positive mutations
+into a koker are `fill`, paired bin negatives/positives within 10 minutes are
+a `move` batch, other positives are `delivery`, other negatives `dispense`;
+`emptied` becomes `empty`; `emptying` and zero-amount mutations are dropped.
+Storages and feeds that only exist in logs are created archived or hidden.
+
 ## Data Model
 
 Multi-tenant Firestore structure:

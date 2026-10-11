@@ -21,3 +21,6 @@ emulator-data/
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# Production dump used by scripts/migrate-kibo.mjs (personal data, never commit)
+migration-data/
