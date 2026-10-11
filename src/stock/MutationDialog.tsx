@@ -116,7 +116,7 @@ function swipeAmount(distance: number): number {
  * Horizontal swipe on a row: left = negative, right = positive. Vertical
  * movement before the threshold abandons the gesture so scrolling keeps working.
  */
-function useSwipeAmount(onSwipe: (signedAmount: number) => void) {
+function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = true) {
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const start = useRef<{ id: number; x: number; y: number; locked: boolean } | null>(null)
@@ -147,14 +147,14 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void) {
         setDragging(true)
         e.currentTarget.setPointerCapture?.(e.pointerId)
       }
-      setOffset(Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx)))
+      setOffset(Math.max(allowMinus ? -SWIPE_MAX : 0, Math.min(SWIPE_MAX, dx)))
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
       const s = start.current
       if (!s || s.id !== e.pointerId) return
       const dx = e.clientX - s.x
       if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture?.(e.pointerId)
-      const amount = s.locked ? swipeAmount(dx) : 0
+      const amount = s.locked && (allowMinus || dx > 0) ? swipeAmount(dx) : 0
       finish()
       if (amount > 0) onSwipe(dx < 0 ? -amount : amount)
     },
@@ -178,9 +178,8 @@ function StoragePicker({ options, onPick, onCancel }: { options: { id: string; n
             name={o.name}
             badge={o.type}
             active={false}
-            minusDisabled
+            plusOnly
             onSwipe={(signed) => signed > 0 && onPick(o.id, signed)}
-            onMinus={() => {}}
             onPlus={() => onPick(o.id, 1)}
           />
         ))}
@@ -192,9 +191,11 @@ function StoragePicker({ options, onPick, onCancel }: { options: { id: string; n
   )
 }
 
-function FeedRow({ name, active, detail, badge, minusDisabled, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus: () => void; onPlus: () => void }) {
-  const { offset, dragging, handlers } = useSwipeAmount(onSwipe)
-  const amount = swipeAmount(offset)
+function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, plusOnly, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; plusOnly?: boolean; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus: () => void }) {
+  const { offset, dragging, handlers } = useSwipeAmount(onSwipe, !plusOnly)
+  const raw = swipeAmount(offset)
+  const cap = offset < 0 ? maxMinus : maxPlus
+  const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset < 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
   return (
     <ListItem disableGutters disablePadding divider sx={{ position: 'relative', overflow: 'hidden', display: 'block' }}>
       {offset !== 0 && (
@@ -213,7 +214,7 @@ function FeedRow({ name, active, detail, badge, minusDisabled, onSwipe, onMinus,
             fontSize: '1.4rem',
           }}
         >
-          {amount > 0 ? `${offset < 0 ? '−' : '+'}${formatAmount(amount)}` : ''}
+          {label}
         </Box>
       )}
       <Box
@@ -229,15 +230,17 @@ function FeedRow({ name, active, detail, badge, minusDisabled, onSwipe, onMinus,
           transition: dragging ? 'none' : 'transform 0.2s ease',
         }}
       >
-        <ListItemText primary={name} slotProps={{ primary: { sx: { fontWeight: active ? 700 : 400 } } }} />
-        {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1 }} />}
+        <ListItemText primary={name} sx={{ minWidth: 96 }} slotProps={{ primary: { sx: { fontWeight: active ? 700 : 400 } } }} />
+        {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1, flexShrink: 1, maxWidth: 96 }} />}
         {detail && (
           <Typography sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
         )}
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-          <IconButton aria-label={`${name} min`} disabled={minusDisabled} onClick={onMinus} sx={iconButtonSx}>
-            <RemoveIcon />
-          </IconButton>
+          {!plusOnly && (
+            <IconButton aria-label={`${name} min`} disabled={minusDisabled} onClick={onMinus} sx={iconButtonSx}>
+              <RemoveIcon />
+            </IconButton>
+          )}
           <IconButton aria-label={`${name} plus`} onClick={onPlus} sx={iconButtonSx}>
             <AddIcon />
           </IconButton>
@@ -415,15 +418,18 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     </Typography>
   )
 
-  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], onChange: (id: string | null, delta: number) => void) => (
+  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void) => (
     <List aria-label={label} disablePadding>
       {rows.map((r) => {
         const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
+        const room = Math.max(0, round2(Math.min(capOf(r.id), (line?.amount ?? 0) - sumOf(list) + a) - a))
         return (
           <FeedRow
             key={r.id ?? 'verbruik'}
             name={r.name}
             active={a > 0}
+            maxMinus={a}
+            maxPlus={room}
             detail={a > 0 && feed ? { text: `${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: 'text.primary' } : undefined}
             onSwipe={(signed) => onChange(r.id, signed)}
             onMinus={() => onChange(r.id, -1)}
@@ -447,7 +453,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     return (
       <Box sx={sectionBox}>
         {sectionTitle(title)}
-        {allocRows(label, rows, line.targets, changeTarget)}
+        {allocRows(label, rows, line.targets, () => Infinity, changeTarget)}
         {picker === 'to' ? (
           <StoragePicker
             options={options}
@@ -472,7 +478,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         <>
           <Box sx={sectionBox}>
             {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-            {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, changeSource)}
+            {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource)}
           </Box>
           <Divider sx={{ my: 2 }} />
           {targetBox(`Waar is de ${feed.unit} naartoe?`, 'Waar naartoe?', [
@@ -538,6 +544,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               <FeedRow
                 name={feed.name}
                 active
+                maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
+                emptyLabel="Geen voorraad"
                 detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
                 onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
                 onMinus={() => tap(line.feedId, 'out')}
@@ -560,6 +568,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   name={f.name}
                   active={false}
                   minusDisabled={totalOf(f.id) <= 0}
+                  maxMinus={totalOf(f.id)}
+                  emptyLabel="Geen voorraad"
                   onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
                   onMinus={() => tap(f.id, 'out')}
                   onPlus={() => tap(f.id, 'in')}

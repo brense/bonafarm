@@ -172,6 +172,34 @@ describe('MutationDialog', () => {
     expect((screen.getByRole('button', { name: 'Stro min' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('shows "Geen voorraad" when swiping left on a feed without stock', () => {
+    setup()
+    const row = screen.getByRole('button', { name: 'Stro min' }).parentElement!.parentElement!
+    fireEvent.pointerDown(row, { pointerId: 1, clientX: 100, clientY: 10 })
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    expect(screen.getByText('Geen voorraad')).toBeTruthy()
+    expect(screen.queryByText('−1')).toBeNull()
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    expect(screen.queryByText('Geen voorraad')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull()
+  })
+
+  it('only allows adding in the storage search list', () => {
+    setup()
+    click('Geitenkorrel min')
+    click('Selecteer andere opslag')
+    const picker = screen.getByRole('list', { name: 'Opslagen' })
+    expect(within(picker).queryByRole('button', { name: /min$/ })).toBeNull()
+    expect(within(picker).getByText('Kalverstal')).toBeTruthy()
+    const row = within(picker).getByRole('button', { name: 'Kalverstal plus' }).parentElement!.parentElement!
+    fireEvent.pointerDown(row, { pointerId: 1, clientX: 100, clientY: 10 })
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    expect(within(picker).queryByText('−1')).toBeNull()
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Waar naartoe?' })).queryByText('Kalverstal')).toBeNull()
+  })
+
   it('filters rows while typing', () => {
     setup()
     fireEvent.change(screen.getByLabelText('Zoeken…'), { target: { value: 'st' } })
