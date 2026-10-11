@@ -23,10 +23,9 @@ const ORG = args.org
 const OWNER = args.owner
 const LIVE = Boolean(args.live)
 const ORG_NAME = args.name ?? 'Kinderboerderij Tanthof'
-const OWNER_NAME = args['owner-name'] ?? 'Eigenaar'
 
 if (!ORG || !OWNER) {
-  console.error('usage: node scripts/seed.mjs --org <orgId> --owner <uid> [--name "Org name"] [--owner-name "Name"] [--live] [--project id]')
+  console.error('usage: node scripts/seed.mjs --org <orgId> --owner <uid> [--name "Org name"] [--live] [--project id]')
   process.exit(1)
 }
 
@@ -40,11 +39,11 @@ const now = new Date().toISOString()
 
 const docs = [
   [`organisations/${ORG}`, { name: str(ORG_NAME), createdAt: ts(now) }],
-  [`organisations/${ORG}/members/${OWNER}`, { uid: str(OWNER), role: str('owner'), displayName: str(OWNER_NAME), createdAt: ts(now) }],
+  [`organisations/${ORG}/members/${OWNER}`, { uid: str(OWNER), role: str('owner'), createdAt: ts(now) }],
   [`organisations/${ORG}/storageTypes/bin`, { name: str('Bak'), behaviour: str('counted'), order: int(0) }],
   [`organisations/${ORG}/storageTypes/shute`, { name: str('Koker'), behaviour: str('consumed'), order: int(1) }],
   [`organisations/${ORG}/storageTypes/stable`, { name: str('Stal'), behaviour: str('counted'), order: int(2) }],
-  [`organisations/${ORG}/storageGroups/ungrouped`, { name: str('Ongegroepeerd'), order: int(0) }],
+  [`organisations/${ORG}/storageGroups/ungrouped`, { name: str('Niet gegroepeerd'), order: int(0) }],
 ]
 
 console.log(`${LIVE ? 'LIVE' : 'emulator'} project ${PROJECT}, organisation ${ORG}`)

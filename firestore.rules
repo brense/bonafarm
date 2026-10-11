@@ -4,7 +4,7 @@ rules_version = '2';
 // decided by the caller's member document in that organisation.
 //
 // organisations/{orgId}
-//   members/{uid}            role: owner | admin | member | viewer
+//   members/{uid}            uid, role: owner | admin | member | viewer
 //   feeds/{feedId}
 //   logs/{logId}
 //   storageTypes/{typeId}
@@ -63,7 +63,7 @@ service cloud.firestore {
         allow update: if isAdmin(orgId)
           && request.resource.data.uid == uid
           && request.resource.data.role in ['owner', 'admin', 'member', 'viewer']
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'displayName', 'email'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'email'])
           // Only an owner can hand out or take away the owner role.
           && (resource.data.role != 'owner' || isOwner(orgId))
           && (request.resource.data.role != 'owner' || isOwner(orgId))

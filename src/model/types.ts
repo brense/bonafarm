@@ -28,7 +28,7 @@ export interface Member {
   /** Same as the doc id; a field too so a user can find their organisations. */
   uid: string
   role: MemberRole
-  displayName: string
+  /** Name and avatar come from the auth user token, not from this doc. */
   email?: string
   createdAt: Timestamp
 }
