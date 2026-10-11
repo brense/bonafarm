@@ -69,6 +69,7 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 describe('MutationDialog', () => {
   it('shows at most 5 rows with the most used feed first', () => {
     setup()
+    expect(screen.getByText('Welk voorraad wil je wijzigen?')).toBeTruthy()
     const items = within(screen.getByRole('list', { name: 'Voerlijst' })).getAllByRole('listitem')
     expect(items.length).toBeLessThanOrEqual(5)
     expect(items[0].textContent).toContain('Hooi')
@@ -89,6 +90,11 @@ describe('MutationDialog', () => {
     expect(saveBtn.disabled).toBe(true)
     fireEvent.click(within(from).getByRole('button', { name: 'Ton roze plus' }))
     expect(within(from).getByText('1 zak')).toBeTruthy()
+    expect(another.disabled).toBe(true)
+    expect(within(from).queryByRole('button', { name: /min$/ })).toBeNull()
+    fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))
+    expect(another.disabled).toBe(false)
+    fireEvent.click(within(to).getByRole('button', { name: 'Koker geit wissen' }))
     expect(another.disabled).toBe(true)
     fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))
     expect(another.disabled).toBe(false)
@@ -133,12 +139,12 @@ describe('MutationDialog', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('swipes a row left for minus', () => {
+  it('swipes a row right for minus', () => {
     setup()
     const row = screen.getByRole('button', { name: 'Hooi min' }).parentElement!.parentElement!
-    fireEvent.pointerDown(row, { pointerId: 1, clientX: 100, clientY: 10 })
-    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 12 })
-    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    fireEvent.pointerDown(row, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 100, clientY: 12 })
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(screen.getByText('−1 baal')).toBeTruthy()
   })
 
@@ -172,14 +178,14 @@ describe('MutationDialog', () => {
     expect((screen.getByRole('button', { name: 'Stro min' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('shows "Geen voorraad" when swiping left on a feed without stock', () => {
+  it('shows "Geen voorraad" when swiping right on a feed without stock', () => {
     setup()
     const row = screen.getByRole('button', { name: 'Stro min' }).parentElement!.parentElement!
-    fireEvent.pointerDown(row, { pointerId: 1, clientX: 100, clientY: 10 })
-    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    fireEvent.pointerDown(row, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(screen.getByText('Geen voorraad')).toBeTruthy()
     expect(screen.queryByText('−1')).toBeNull()
-    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(screen.queryByText('Geen voorraad')).toBeNull()
     expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull()
   })
@@ -192,10 +198,10 @@ describe('MutationDialog', () => {
     expect(within(picker).queryByRole('button', { name: /min$/ })).toBeNull()
     expect(within(picker).getByText('Kalverstal')).toBeTruthy()
     const row = within(picker).getByRole('button', { name: 'Kalverstal plus' }).parentElement!.parentElement!
-    fireEvent.pointerDown(row, { pointerId: 1, clientX: 100, clientY: 10 })
-    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    fireEvent.pointerDown(row, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(within(picker).queryByText('−1')).toBeNull()
-    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 12 })
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
     expect(within(screen.getByRole('list', { name: 'Waar naartoe?' })).queryByText('Kalverstal')).toBeNull()
   })

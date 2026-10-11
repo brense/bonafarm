@@ -1,5 +1,6 @@
 import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RemoveIcon from '@mui/icons-material/Remove'
 import {
@@ -113,7 +114,7 @@ function swipeAmount(distance: number): number {
 }
 
 /**
- * Horizontal swipe on a row: left = negative, right = positive. Vertical
+ * Horizontal swipe on a row: right = minus (negative), left = plus (positive). Vertical
  * movement before the threshold abandons the gesture so scrolling keeps working.
  */
 function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = true) {
@@ -147,16 +148,16 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = tr
         setDragging(true)
         e.currentTarget.setPointerCapture?.(e.pointerId)
       }
-      setOffset(Math.max(allowMinus ? -SWIPE_MAX : 0, Math.min(SWIPE_MAX, dx)))
+      setOffset(Math.max(-SWIPE_MAX, Math.min(allowMinus ? SWIPE_MAX : 0, dx)))
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
       const s = start.current
       if (!s || s.id !== e.pointerId) return
       const dx = e.clientX - s.x
       if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture?.(e.pointerId)
-      const amount = s.locked && (allowMinus || dx > 0) ? swipeAmount(dx) : 0
+      const amount = s.locked && (allowMinus || dx < 0) ? swipeAmount(dx) : 0
       finish()
-      if (amount > 0) onSwipe(dx < 0 ? -amount : amount)
+      if (amount > 0) onSwipe(dx < 0 ? amount : -amount)
     },
     onPointerCancel: finish,
   }
@@ -191,11 +192,11 @@ function StoragePicker({ options, onPick, onCancel }: { options: { id: string; n
   )
 }
 
-function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, plusOnly, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; plusOnly?: boolean; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus: () => void }) {
+function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, plusOnly, onClear, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; plusOnly?: boolean; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus: () => void }) {
   const { offset, dragging, handlers } = useSwipeAmount(onSwipe, !plusOnly)
   const raw = swipeAmount(offset)
-  const cap = offset < 0 ? maxMinus : maxPlus
-  const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset < 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
+  const cap = offset > 0 ? maxMinus : maxPlus
+  const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset > 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
   return (
     <ListItem disableGutters disablePadding divider sx={{ position: 'relative', overflow: 'hidden', display: 'block' }}>
       {offset !== 0 && (
@@ -206,9 +207,9 @@ function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infini
             inset: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: offset < 0 ? 'flex-end' : 'flex-start',
+            justifyContent: offset > 0 ? 'flex-start' : 'flex-end',
             px: 2,
-            bgcolor: offset < 0 ? 'error.main' : 'success.main',
+            bgcolor: offset > 0 ? 'error.main' : 'success.main',
             color: 'common.white',
             fontWeight: 700,
             fontSize: '1.4rem',
@@ -234,6 +235,11 @@ function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infini
         {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1, flexShrink: 1, maxWidth: 96 }} />}
         {detail && (
           <Typography sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
+        )}
+        {onClear && (
+          <IconButton aria-label={`${name} wissen`} onClick={onClear} sx={{ width: 40, height: 40, mr: 1 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
         )}
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
           {!plusOnly && (
@@ -428,11 +434,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             key={r.id ?? 'verbruik'}
             name={r.name}
             active={a > 0}
-            maxMinus={a}
+            plusOnly
             maxPlus={room}
+            onClear={a > 0 ? () => onChange(r.id, -1e9) : undefined}
             detail={a > 0 && feed ? { text: `${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: 'text.primary' } : undefined}
             onSwipe={(signed) => onChange(r.id, signed)}
-            onMinus={() => onChange(r.id, -1)}
             onPlus={() => onChange(r.id, 1)}
           />
         )
@@ -561,6 +567,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
           </>
         ) : (
           <>
+            {sectionTitle('Welk voorraad wil je wijzigen?')}
             <List aria-label="Voerlijst" disablePadding>
               {rows.map((f) => (
                 <FeedRow
