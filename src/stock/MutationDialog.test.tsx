@@ -49,13 +49,13 @@ const data: OrgDataValue = {
   error: null,
 }
 
-function setup() {
+function setup(value: OrgDataValue = data) {
   const onDone = vi.fn()
   const onClose = vi.fn()
   render(
     <OrgContext.Provider value={{ orgId: 'test', roles: ['feed'], status: 'ready' }}>
       <AuthContext.Provider value={{ user: { uid: 'u1' } as never, loading: false, signOut: async () => {} }}>
-        <OrgDataContext.Provider value={data}>
+        <OrgDataContext.Provider value={value}>
           <MutationDialog open onClose={onClose} onDone={onDone} />
         </OrgDataContext.Provider>
       </AuthContext.Provider>
@@ -74,14 +74,40 @@ describe('MutationDialog', () => {
     expect(items[0].textContent).toContain('Hooi')
   })
 
-  it('suggests the holding bin and the linked koker', () => {
+  it('asks where from and where to with allocation rows', () => {
     setup()
     click('Geitenkorrel min')
-    const from = screen.getByRole('group', { name: 'Waar vandaan?' })
-    expect(within(from).getByRole('button', { name: 'Ton roze' }).getAttribute('aria-pressed')).toBe('true')
-    const then = screen.getByRole('group', { name: 'En dan?' })
-    expect(within(then).getByRole('button', { name: 'Koker geit' }).getAttribute('aria-pressed')).toBe('true')
-    expect(within(then).getByRole('button', { name: 'Verbruikt' }).getAttribute('aria-pressed')).toBe('false')
+    const from = screen.getByRole('list', { name: 'Uit welke opslag?' })
+    expect(within(from).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Ton roze'])
+    expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
+    const to = screen.getByRole('list', { name: 'Waar naartoe?' })
+    expect(within(to).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Verbruik', 'Koker geit'])
+    expect(screen.getByRole('button', { name: 'Selecteer andere opslag' })).toBeTruthy()
+    const another = screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement
+    const saveBtn = screen.getByRole('button', { name: 'Wijziging(en) opslaan' }) as HTMLButtonElement
+    expect(another.disabled).toBe(true)
+    expect(saveBtn.disabled).toBe(true)
+    fireEvent.click(within(from).getByRole('button', { name: 'Ton roze plus' }))
+    expect(within(from).getByText('1 zak')).toBeTruthy()
+    expect(another.disabled).toBe(true)
+    fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))
+    expect(another.disabled).toBe(false)
+    expect(saveBtn.disabled).toBe(false)
+  })
+
+  it('opens a searchable storage picker', () => {
+    setup()
+    click('Geitenkorrel min')
+    click('Selecteer andere opslag')
+    expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
+    const picker = screen.getByRole('list', { name: 'Opslagen' })
+    expect(within(picker).getAllByRole('listitem').length).toBe(2)
+    fireEvent.change(screen.getByLabelText('Zoek opslag'), { target: { value: 'stal' } })
+    fireEvent.click(within(picker).getByRole('button', { name: 'Kalverstal plus' }))
+    expect(screen.queryByLabelText('Zoek opslag')).toBeNull()
+    const to = screen.getByRole('list', { name: 'Waar naartoe?' })
+    expect(within(to).getByText('Kalverstal')).toBeTruthy()
+    expect(within(to).getByText('1 zak')).toBeTruthy()
   })
 
   it('adds one per tap', () => {
@@ -94,8 +120,12 @@ describe('MutationDialog', () => {
   it('saves several lines as one batch', () => {
     const { onDone, onClose } = setup()
     click('Geitenkorrel min')
+    click('Ton roze plus')
+    click('Koker geit plus')
     click('Nog een wijziging')
     click('Hooi min')
+    click('Kalverstal plus')
+    click('Verbruik plus')
     click('Wijziging(en) opslaan')
     expect(applyMutations).toHaveBeenCalledTimes(1)
     expect(vi.mocked(applyMutations).mock.calls[0][0]).toHaveLength(3)
@@ -112,9 +142,39 @@ describe('MutationDialog', () => {
     expect(screen.getByText('−1 baal')).toBeTruthy()
   })
 
+  it('allocates a minus line over several storages', () => {
+    setup({
+      ...data,
+      storages: new Map([...data.storages, ['ton2', storage('bin', 'Ton oranje', 4)]]),
+      items: new Map([item('ton', 'geit', 1), item('ton2', 'geit', 2)]),
+    })
+    click('Geitenkorrel min')
+    click('Geitenkorrel min')
+    click('Geitenkorrel min')
+    expect(screen.getByText('Er ligt maar 3 zakken')).toBeTruthy()
+    expect(screen.getByText('Uit welke opslagen?')).toBeTruthy()
+    click('Ton roze plus')
+    click('Ton oranje plus')
+    click('Verbruik plus')
+    click('Verbruik plus')
+    click('Verbruik plus')
+    expect((screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement).disabled).toBe(true)
+    click('Ton oranje plus')
+    expect((screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement).disabled).toBe(false)
+    click('Nog een wijziging')
+    expect(screen.getByText(/Ton roze 1, Ton oranje 2 → verbruik 3/)).toBeTruthy()
+    click('Wijziging(en) opslaan')
+    expect(vi.mocked(applyMutations).mock.calls.at(-1)![0]).toHaveLength(2)
+  })
+
+  it('disables minus for a feed without stock', () => {
+    setup()
+    expect((screen.getByRole('button', { name: 'Stro min' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('filters rows while typing', () => {
     setup()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Zoeken…' }), { target: { value: 'st' } })
+    fireEvent.change(screen.getByLabelText('Zoeken…'), { target: { value: 'st' } })
     const items = within(screen.getByRole('list', { name: 'Voerlijst' })).getAllByRole('listitem')
     expect(items).toHaveLength(1)
     expect(items[0].textContent).toContain('Stro')

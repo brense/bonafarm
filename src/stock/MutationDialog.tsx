@@ -4,7 +4,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import RemoveIcon from '@mui/icons-material/Remove'
 import {
   AppBar,
-  Autocomplete,
+  Divider,
   Box,
   Button,
   Chip,
@@ -33,17 +33,69 @@ interface Props {
   onDone: (message: string) => void
 }
 
+/** An amount allocated to a storage; `null` means consumed (verbruik). */
+interface Alloc {
+  storageId: string | null
+  amount: number
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+const sumOf = (list: Alloc[]) => round2(list.reduce((sum, a) => sum + a.amount, 0))
+
+/** Keeps allocations in order, trimming the last ones when the amount shrinks. */
+function fitAllocs(list: Alloc[], amount: number): Alloc[] {
+  let rest = amount
+  const out: Alloc[] = []
+  for (const a of list) {
+    const take = round2(Math.min(a.amount, rest))
+    if (take > 0) out.push({ storageId: a.storageId, amount: take })
+    rest = round2(rest - take)
+  }
+  return out
+}
+
+/** Changes one row's allocation by `delta`, capped by the row's own limit and the line total. */
+function adjustAlloc(list: Alloc[], key: string | null, delta: number, cap: number, total: number): Alloc[] {
+  const current = list.find((a) => a.storageId === key)?.amount ?? 0
+  const others = round2(sumOf(list) - current)
+  const next = round2(Math.max(0, Math.min(current + delta, cap, total - others)))
+  if (next === current) return list
+  if (next <= 0) return list.filter((a) => a.storageId !== key)
+  return current > 0 ? list.map((a) => (a.storageId === key ? { storageId: key, amount: next } : a)) : [...list, { storageId: key, amount: next }]
+}
+
+/** Walks sources and targets in order, splitting amounts, so every pair has one from and one to. */
+function pairAllocs(feedId: string, sources: Alloc[], targets: Alloc[]): Change[] {
+  const out: Change[] = []
+  let j = 0
+  let targetLeft = targets[0]?.amount ?? 0
+  for (const src of sources) {
+    let srcLeft = src.amount
+    while (srcLeft > 0 && j < targets.length) {
+      const take = round2(Math.min(srcLeft, targetLeft))
+      out.push({ feedId, amount: take, fromStorageId: src.storageId, toStorageId: targets[j].storageId })
+      srcLeft = round2(srcLeft - take)
+      targetLeft = round2(targetLeft - take)
+      if (targetLeft <= 0) {
+        j += 1
+        targetLeft = targets[j]?.amount ?? 0
+      }
+    }
+  }
+  return out
+}
+
 interface Line {
   feedId: string
   direction: 'out' | 'in'
   amount: number
-  fromStorageId: string | null
-  toStorageId: string | null
-  consumed: boolean
+  /** Where a minus line takes it from; empty for plus. */
+  sources: Alloc[]
+  /** Where it goes (null storage = verbruik). */
+  targets: Alloc[]
 }
 
 const MAX_ROWS = 5
-const chipSx = { height: 40, fontSize: '1rem' }
 const iconButtonSx = { width: 52, height: 52, border: 1, borderColor: 'divider' }
 
 const SWIPE_STEPS: [number, number][] = [
@@ -111,7 +163,36 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void) {
   return { offset, dragging, handlers }
 }
 
-function FeedRow({ name, active, detail, onSwipe, onMinus, onPlus }: { name: string; active: boolean; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus: () => void; onPlus: () => void }) {
+/** Searchable list of up to 5 storages as allocation rows; the first + or swipe right picks one. */
+function StoragePicker({ options, onPick, onCancel }: { options: { id: string; name: string; type: string }[]; onPick: (id: string, delta: number) => void; onCancel: () => void }) {
+  const [q, setQ] = useState('')
+  const needle = q.trim().toLocaleLowerCase('nl')
+  const shown = options.filter((o) => !needle || o.name.toLocaleLowerCase('nl').includes(needle)).slice(0, MAX_ROWS)
+  return (
+    <Box>
+      <TextField label="Zoek opslag" type="search" variant="filled" fullWidth value={q} onChange={(e) => setQ(e.target.value)} />
+      <List aria-label="Opslagen" disablePadding>
+        {shown.map((o) => (
+          <FeedRow
+            key={o.id}
+            name={o.name}
+            badge={o.type}
+            active={false}
+            minusDisabled
+            onSwipe={(signed) => signed > 0 && onPick(o.id, signed)}
+            onMinus={() => {}}
+            onPlus={() => onPick(o.id, 1)}
+          />
+        ))}
+      </List>
+      <Button onClick={onCancel} sx={{ minHeight: 48 }}>
+        Annuleren
+      </Button>
+    </Box>
+  )
+}
+
+function FeedRow({ name, active, detail, badge, minusDisabled, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus: () => void; onPlus: () => void }) {
   const { offset, dragging, handlers } = useSwipeAmount(onSwipe)
   const amount = swipeAmount(offset)
   return (
@@ -142,18 +223,19 @@ function FeedRow({ name, active, detail, onSwipe, onMinus, onPlus }: { name: str
           display: 'flex',
           alignItems: 'center',
           py: 0.5,
-          bgcolor: 'background.paper',
+          bgcolor: 'background.default',
           touchAction: 'pan-y',
           transform: `translateX(${offset}px)`,
           transition: dragging ? 'none' : 'transform 0.2s ease',
         }}
       >
         <ListItemText primary={name} slotProps={{ primary: { sx: { fontWeight: active ? 700 : 400 } } }} />
+        {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1 }} />}
         {detail && (
           <Typography sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
         )}
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-          <IconButton aria-label={`${name} min`} onClick={onMinus} sx={iconButtonSx}>
+          <IconButton aria-label={`${name} min`} disabled={minusDisabled} onClick={onMinus} sx={iconButtonSx}>
             <RemoveIcon />
           </IconButton>
           <IconButton aria-label={`${name} plus`} onClick={onPlus} sx={iconButtonSx}>
@@ -177,8 +259,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const recent = useRecentLogs(orgId, 12, open)
   const [search, setSearch] = useState('')
   const [line, setLine] = useState<Line | null>(null)
-  const [lines, setLines] = useState<Change[]>([])
+  const [lines, setLines] = useState<Line[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [picker, setPicker] = useState<'from' | 'to' | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   const isCounted = (storageId: string) => {
@@ -193,54 +276,42 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     [...storages.entries()].filter(([, s]) => s.status === 'active').sort((a, b) => a[1].order - b[1].order)
   const stockOf = (storageId: string, feedId: string) => items.get(`${storageId}_${feedId}`)?.amount ?? 0
 
-  /** Counted storages to take a feed out of: where it lies (most first), else all with the default first. */
-  const sourcesFor = (feedId: string): string[] => {
-    const counted = activeStorages().filter(([id]) => isCounted(id))
-    const holding = counted
-      .filter(([id]) => stockOf(id, feedId) > 0)
+  /** Active counted storages that hold the feed, most first. */
+  const holdersOf = (feedId: string): string[] =>
+    activeStorages()
+      .filter(([id]) => isCounted(id) && stockOf(id, feedId) > 0)
       .sort((a, b) => stockOf(b[0], feedId) - stockOf(a[0], feedId) || a[1].order - b[1].order)
-    if (holding.length > 0) return holding.map(([id]) => id)
-    const def = feeds.get(feedId)?.defaultStorageId
-    return counted.map(([id]) => id).sort((a, b) => Number(b === def) - Number(a === def))
-  }
-
-  /** Destinations besides "verbruikt": linked shute, other shutes, then other counted storages. */
-  const destinationsFor = (feedId: string, fromId: string | null): string[] => {
-    const def = feeds.get(feedId)?.defaultStorageId
-    const active = activeStorages().filter(([id]) => id !== fromId)
-    const shutes = active.filter(([id]) => isConsumed(id)).map(([id]) => id)
-    const linked = def !== undefined && shutes.includes(def) ? [def] : []
-    const rest = shutes.filter((id) => !linked.includes(id))
-    const countedOthers = active.filter(([id]) => isCounted(id)).map(([id]) => id)
-    return [...linked, ...rest, ...countedOthers]
-  }
-
-  /** Storages to put a feed into: linked first, then where it already lies, then the rest. */
-  const targetsFor = (feedId: string): string[] => {
-    const def = feeds.get(feedId)?.defaultStorageId
-    const score = (id: string) => (id === def ? 0 : stockOf(id, feedId) > 0 ? 1 : 2)
-    return activeStorages()
       .map(([id]) => id)
-      .sort((a, b) => score(a) - score(b))
-  }
 
-  const newLine = (feedId: string, direction: 'out' | 'in'): Line => {
-    if (direction === 'in') {
-      return { feedId, direction, amount: 1, fromStorageId: null, toStorageId: targetsFor(feedId)[0] ?? null, consumed: false }
-    }
-    const from = sourcesFor(feedId)[0] ?? null
-    const dests = destinationsFor(feedId, from)
+  /** The feed's linked shute, when it has an active one. */
+  const linkedShute = (feedId: string): string | null => {
     const def = feeds.get(feedId)?.defaultStorageId
-    const linked = def !== undefined && dests[0] === def && isConsumed(def) ? def : null
-    return { feedId, direction, amount: 1, fromStorageId: from, toStorageId: linked, consumed: linked === null }
+    return def !== undefined && storages.get(def)?.status === 'active' && isConsumed(def) ? def : null
   }
 
-  const tap = (feedId: string, direction: 'out' | 'in', by = 1) =>
-    setLine((prev) =>
-      prev && prev.feedId === feedId && prev.direction === direction
-        ? { ...prev, amount: prev.amount + by }
-        : { ...newLine(feedId, direction), amount: by },
-    )
+  const newLine = (feedId: string, direction: 'out' | 'in'): Line => ({
+    feedId,
+    direction,
+    amount: 1,
+    sources: [],
+    targets: [],
+  })
+
+  /** Stock of a feed across active counted storages. */
+  const totalOf = (feedId: string) =>
+    round2(activeStorages().reduce((sum, [id]) => sum + (isCounted(id) ? stockOf(id, feedId) : 0), 0))
+
+  const tap = (feedId: string, direction: 'out' | 'in', by = 1) => {
+    const cap = direction === 'out' ? totalOf(feedId) : Infinity
+    if (cap <= 0) return
+    if (line && line.feedId === feedId && line.direction === direction) {
+      const amount = round2(Math.min(cap, line.amount + by))
+      setLine({ ...line, amount, sources: fitAllocs(line.sources, amount), targets: fitAllocs(line.targets, amount) })
+    } else {
+      setLine({ ...newLine(feedId, direction), amount: round2(Math.min(cap, by)) })
+      setPicker(null)
+    }
+  }
 
   const usage = useMemo(() => {
     const sums = new Map<string, number>()
@@ -262,14 +333,10 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }, [visibleFeeds, search, usage])
 
   const lineComplete =
-    line !== null && (line.direction === 'in' ? line.toStorageId !== null : line.fromStorageId !== null && (line.consumed || line.toStorageId !== null))
+    line !== null && sumOf(line.targets) === line.amount && (line.direction === 'in' || sumOf(line.sources) === line.amount)
 
-  const toChange = (l: Line): Change => ({
-    feedId: l.feedId,
-    amount: l.amount,
-    fromStorageId: l.direction === 'in' ? null : l.fromStorageId,
-    toStorageId: l.consumed ? null : l.toStorageId,
-  })
+  const toChanges = (l: Line): Change[] =>
+    pairAllocs(l.feedId, l.direction === 'in' ? [{ storageId: null, amount: l.amount }] : l.sources, l.targets)
 
   const count = lines.length + (line && lineComplete ? 1 : 0)
 
@@ -278,16 +345,17 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     const unit = feeds.get(feedId)?.unit ?? 'zak'
     return `${direction === 'out' ? '−' : '+'}${formatAmount(amount)} ${unitLabel(unit, amount)}`
   }
-  const describe = (c: Change) => {
-    const direction = c.fromStorageId === null ? 'in' : 'out'
-    const head = `${feeds.get(c.feedId)?.name ?? c.feedId} ${amountText(c.feedId, direction, c.amount)}`
-    const tail = c.toStorageId === null ? 'verbruikt' : storageName(c.toStorageId)
-    return `${head} · ${c.fromStorageId === null ? '' : `${storageName(c.fromStorageId)} `}→ ${tail}`
+  const describe = (l: Line) => {
+    const head = `${feeds.get(l.feedId)?.name ?? l.feedId} ${amountText(l.feedId, l.direction, l.amount)}`
+    const part = (a: Alloc) => `${a.storageId === null ? 'verbruik' : storageName(a.storageId)} ${formatAmount(a.amount)}`
+    const from = l.sources.map(part).join(', ')
+    return `${head} · ${from ? `${from} ` : ''}→ ${l.targets.map(part).join(', ')}`
   }
 
   const reset = () => {
     setSearch('')
     setLine(null)
+    setPicker(null)
     setLines([])
     setError(null)
   }
@@ -299,15 +367,17 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const another = () => {
     if (!line || !lineComplete) return
-    setLines((prev) => [...prev, toChange(line)])
+    setLines((prev) => [...prev, line])
     setLine(null)
+    setPicker(null)
     setSearch('')
   }
 
   const save = () => {
     if (!orgId || !user) return
-    const changes = line && lineComplete ? [...lines, toChange(line)] : lines
-    if (changes.length === 0) return
+    const all = line && lineComplete ? [...lines, line] : lines
+    if (all.length === 0) return
+    const changes = all.flatMap(toChanges)
     const ctx = {
       orgId,
       uid: user.uid,
@@ -318,7 +388,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     try {
       const plans = changes.flatMap((c) => planChangeLine(c, ctx))
       applyMutations(plans).catch((err: { code?: string }) => onDone(`Niet opgeslagen (${err.code ?? 'fout'})`))
-      onDone(`${changes.length} ${changes.length === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
+      onDone(`${all.length} ${all.length === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
       close()
     } catch (err) {
       setError((err as Error).message)
@@ -326,94 +396,105 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }
 
   const feed = line ? feeds.get(line.feedId) : undefined
-  const sources = line?.direction === 'out' ? sourcesFor(line.feedId) : []
-  const destinations = line?.direction === 'out' ? destinationsFor(line.feedId, line.fromStorageId) : []
-  const targets = line?.direction === 'in' ? targetsFor(line.feedId) : []
 
-  const pickSource = (id: string) =>
-    setLine((prev) => {
-      if (!prev) return prev
-      const clash = prev.toStorageId === id
-      return { ...prev, fromStorageId: id, toStorageId: clash ? null : prev.toStorageId, consumed: clash ? true : prev.consumed }
-    })
+  const changeSource = (id: string | null, delta: number) => {
+    if (!line || id === null) return
+    const sources = adjustAlloc(line.sources, id, delta, stockOf(id, line.feedId), line.amount)
+    const targets = delta > 0 ? line.targets.filter((t) => t.storageId !== id) : line.targets
+    setLine({ ...line, sources, targets })
+  }
+  const changeTarget = (id: string | null, delta: number) => {
+    if (!line) return
+    setLine({ ...line, targets: adjustAlloc(line.targets, id, delta, Infinity, line.amount) })
+  }
 
+  const sectionBox = { border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }
   const sectionTitle = (text: string) => (
-    <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1.5, mb: 0.5 }}>
+    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
       {text}
     </Typography>
   )
 
+  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], onChange: (id: string | null, delta: number) => void) => (
+    <List aria-label={label} disablePadding>
+      {rows.map((r) => {
+        const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
+        return (
+          <FeedRow
+            key={r.id ?? 'verbruik'}
+            name={r.name}
+            active={a > 0}
+            detail={a > 0 && feed ? { text: `${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: 'text.primary' } : undefined}
+            onSwipe={(signed) => onChange(r.id, signed)}
+            onMinus={() => onChange(r.id, -1)}
+            onPlus={() => onChange(r.id, 1)}
+          />
+        )
+      })}
+    </List>
+  )
+
+  /** Destination rows plus the "other storage" search. */
+  const targetBox = (title: string, label: string, baseRows: { id: string | null; name: string }[]) => {
+    if (!line) return null
+    const ids = new Set<string | null>(baseRows.map((r) => r.id))
+    const extra = line.targets.filter((t) => !ids.has(t.storageId)).map((t) => ({ id: t.storageId, name: storageName(t.storageId) }))
+    const rows = [...baseRows, ...extra]
+    const shown = new Set(rows.map((r) => r.id))
+    const options = activeStorages()
+      .filter(([id]) => !shown.has(id) && !line.sources.some((src) => src.storageId === id))
+      .map(([id, st]) => ({ id, name: st.name, type: storageTypes.get(st.typeId)?.name ?? '' }))
+    return (
+      <Box sx={sectionBox}>
+        {sectionTitle(title)}
+        {allocRows(label, rows, line.targets, changeTarget)}
+        {picker === 'to' ? (
+          <StoragePicker
+            options={options}
+            onPick={(id, delta) => {
+              changeTarget(id, delta)
+              setPicker(null)
+            }}
+            onCancel={() => setPicker(null)}
+          />
+        ) : (
+          <Button onClick={() => setPicker('to')} sx={{ minHeight: 48, mt: 0.5 }}>
+            Selecteer andere opslag
+          </Button>
+        )}
+      </Box>
+    )
+  }
+
   const chooser = line && feed && (
-    <Paper variant="outlined" sx={{ p: 1.5, mt: 1 }}>
+    <Box sx={{ mt: 1 }}>
       {line.direction === 'out' ? (
         <>
-          {sectionTitle('Waar vandaan?')}
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar vandaan?">
-            {sources.map((id) => (
-              <Chip
-                key={id}
-                label={storageName(id)}
-                clickable
-                aria-pressed={line.fromStorageId === id}
-                color={line.fromStorageId === id ? 'primary' : 'default'}
-                variant={line.fromStorageId === id ? 'filled' : 'outlined'}
-                onClick={() => pickSource(id)}
-                sx={chipSx}
-              />
-            ))}
-          </Stack>
-          {sectionTitle('En dan?')}
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="En dan?">
-            <Chip
-              label="Verbruikt"
-              clickable
-              aria-pressed={line.consumed}
-              color={line.consumed ? 'primary' : 'default'}
-              variant={line.consumed ? 'filled' : 'outlined'}
-              onClick={() => setLine({ ...line, consumed: true, toStorageId: null })}
-              sx={chipSx}
-            />
-            {destinations.map((id) => {
-              const on = !line.consumed && line.toStorageId === id
-              return (
-                <Chip
-                  key={id}
-                  label={storageName(id)}
-                  clickable
-                  aria-pressed={on}
-                  color={on ? 'primary' : 'default'}
-                  variant={on ? 'filled' : 'outlined'}
-                  onClick={() => setLine({ ...line, consumed: false, toStorageId: id })}
-                  sx={chipSx}
-                />
-              )
-            })}
-          </Stack>
+          <Box sx={sectionBox}>
+            {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
+            {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, changeSource)}
+          </Box>
+          <Divider sx={{ my: 2 }} />
+          {targetBox(`Waar is de ${feed.unit} naartoe?`, 'Waar naartoe?', [
+            { id: null, name: 'Verbruik' },
+            ...(linkedShute(line.feedId) ? [{ id: linkedShute(line.feedId), name: storageName(linkedShute(line.feedId)) }] : []),
+          ])}
         </>
       ) : (
-        <>
-          {sectionTitle('Waar in?')}
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar in?">
-            {targets.map((id) => (
-              <Chip
-                key={id}
-                label={storageName(id)}
-                clickable
-                aria-pressed={line.toStorageId === id}
-                color={line.toStorageId === id ? 'primary' : 'default'}
-                variant={line.toStorageId === id ? 'filled' : 'outlined'}
-                onClick={() => setLine({ ...line, toStorageId: id })}
-                sx={chipSx}
-              />
-            ))}
-          </Stack>
-        </>
+        targetBox(
+          'In welke opslag?',
+          'In welke opslag?',
+          (() => {
+            const linked = linkedShute(line.feedId)
+            return [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
+          })(),
+        )
       )}
-    </Paper>
+    </Box>
   )
 
   return (
-    <Dialog open={open} onClose={close} fullScreen>
+    <Dialog open={open} onClose={close} fullScreen slotProps={{ paper: { sx: { bgcolor: 'background.default', backgroundImage: 'none' } } }}>
       <AppBar position="sticky" color="default" enableColorOnDark>
         <Toolbar>
           <IconButton edge="start" aria-label="Sluiten" onClick={close}>
@@ -426,7 +507,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       </AppBar>
 
       <Box sx={{ px: 2, pt: 2, pb: 14 }}>
-        <Paper variant="outlined" sx={{ minHeight: '35vh', maxHeight: '35vh', overflowY: 'auto', mb: 2 }}>
+        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, minHeight: '35vh', maxHeight: '35vh', overflowY: 'auto', mb: 2 }}>
           {lines.length === 0 ? (
             <Typography color="text.secondary" sx={{ p: 2 }}>
               Nog geen wijzigingen
@@ -449,7 +530,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               ))}
             </List>
           )}
-        </Paper>
+        </Box>
 
         {line && feed ? (
           <>
@@ -463,6 +544,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 onPlus={() => tap(line.feedId, 'in')}
               />
             </List>
+            {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
+              <Typography variant="caption" color="text.secondary">
+                Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
+              </Typography>
+            )}
             {chooser}
           </>
         ) : (
@@ -473,24 +559,21 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   key={f.id}
                   name={f.name}
                   active={false}
+                  minusDisabled={totalOf(f.id) <= 0}
                   onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
                   onMinus={() => tap(f.id, 'out')}
                   onPlus={() => tap(f.id, 'in')}
                 />
               ))}
             </List>
-            <Autocomplete
-              autoHighlight
-              openOnFocus={false}
-              options={visibleFeeds}
-              getOptionLabel={(o) => o.name}
-              getOptionKey={(o) => o.id}
-              value={null}
-              inputValue={search}
-              onInputChange={(_, v, reason) => {
-                if (reason === 'input' || reason === 'clear') setSearch(v)
-              }}
-              renderInput={(params) => <TextField {...params} label="Zoeken…" variant="filled" inputRef={searchRef} />}
+            <TextField
+              label="Zoeken…"
+              type="search"
+              variant="filled"
+              fullWidth
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              inputRef={searchRef}
               sx={{ mt: 1 }}
             />
           </>
@@ -504,10 +587,10 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
       <Paper square elevation={8} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="large" fullWidth sx={{ minHeight: 56 }} onClick={line ? another : () => searchRef.current?.focus()}>
+          <Button variant="outlined" size="large" fullWidth sx={{ minHeight: 56 }} disabled={line !== null && !lineComplete} onClick={line ? another : () => searchRef.current?.focus()}>
             Nog een wijziging
           </Button>
-          <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0} onClick={save}>
+          <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0 || (line !== null && !lineComplete)} onClick={save}>
             Wijziging(en) opslaan
           </Button>
         </Stack>
