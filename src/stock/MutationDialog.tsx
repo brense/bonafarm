@@ -517,6 +517,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                                 active={false}
                                 gesture={out ? 'none' : 'both'}
                                 swipeMax={f?.swipeMax}
+                                maxMinus={a.amount}
                                 detail={{ text: `${sign}${formatAmount(a.amount)} ${unitLabel(unit, a.amount)}`, color: sign === '−' ? 'error.main' : 'success.main' }}
                                 onSwipe={(signed) => editTarget(c.id, a.storageId, signed)}
                                 onMinus={() => editTarget(c.id, a.storageId, -1)}

@@ -169,9 +169,12 @@ describe('MutationDialog', () => {
     fireEvent.click(cart.getByRole('button', { name: 'Kalverstal plus' }))
     expect(subRow('Kalverstal').getByText('+4 balen')).toBeTruthy()
     expect(cart.getByText('+6 balen')).toBeTruthy()
-    // A sub item at zero folds out; the line stays with the other target.
-    fireEvent.click(cart.getByRole('button', { name: 'Paardenstal min' }))
-    fireEvent.click(cart.getByRole('button', { name: 'Paardenstal min' }))
+    // A long minus swipe is capped at the sub item's own amount (2, not 3): it folds out, the line stays with the other target.
+    const sub = cart.getByRole('button', { name: 'Paardenstal min' }).parentElement!.parentElement!
+    fireEvent.pointerDown(sub, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(sub, { pointerId: 1, clientX: 300, clientY: 12 })
+    expect(cart.getByText('−2')).toBeTruthy()
+    fireEvent.pointerUp(sub, { pointerId: 1, clientX: 300, clientY: 12 })
     await waitFor(() => expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Paardenstal')).toBeNull())
     expect(screen.getByText('Wijziging weggehaald')).toBeTruthy()
     expect(screen.getAllByText('+4 balen')).toHaveLength(2)
