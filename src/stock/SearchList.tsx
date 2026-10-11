@@ -1,4 +1,5 @@
-import { Box, List, TextField, Typography } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
+import { Divider, InputAdornment, List, Paper, TextField, Typography } from '@mui/material'
 import { Fragment, useState, type ReactNode, type Ref } from 'react'
 
 interface Props<T> {
@@ -40,30 +41,51 @@ export function SearchList<T>({
   const shown = (needle ? items.filter((i) => getLabel(i).toLocaleLowerCase('nl').includes(needle)) : items).slice(0, max)
   const field = (
     <TextField
-      label={searchLabel}
       type="search"
-      variant="filled"
+      variant="standard"
       fullWidth
+      placeholder={searchLabel}
       value={value}
       onChange={(e) => (onQueryChange ?? setOwn)(e.target.value)}
       inputRef={inputRef}
-      sx={searchPosition === 'bottom' ? { mt: 1 } : { mb: 1 }}
+      slotProps={{
+        htmlInput: { 'aria-label': searchLabel },
+        input: {
+          disableUnderline: true,
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+        },
+      }}
+      sx={{ '& .MuiInputBase-root': { height: 56, px: 2 } }}
     />
   )
   return (
-    <Box>
-      {searchPosition === 'top' && field}
-      <List aria-label={listAriaLabel} disablePadding>
+    <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+      {searchPosition === 'top' && (
+        <>
+          {field}
+          <Divider />
+        </>
+      )}
+      <List aria-label={listAriaLabel} disablePadding sx={{ overflow: 'hidden', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {shown.map((item) => (
           <Fragment key={getKey(item)}>{renderRow(item)}</Fragment>
         ))}
       </List>
       {shown.length === 0 && emptyText && (
-        <Typography color="text.secondary" sx={{ py: 1 }}>
+        <Typography color="text.secondary" sx={{ px: 2, py: 1 }}>
           {emptyText}
         </Typography>
       )}
-      {searchPosition === 'bottom' && field}
-    </Box>
+      {searchPosition === 'bottom' && (
+        <>
+          <Divider />
+          {field}
+        </>
+      )}
+    </Paper>
   )
 }
