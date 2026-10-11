@@ -4,6 +4,7 @@ import {
   consumptionPerWeek,
   deliverySchedule,
   DELIVERY_ANCHOR,
+  estimateKokerStock,
   STATUS_LABEL,
   STATUS_ORDER,
   type AdviceInput,
@@ -110,9 +111,9 @@ describe('adviseFeed', () => {
     expect(a.coverDays).toBeNull()
   })
 
-  it('unknown when in use but stock 0', () => {
+  it('critical when in use but nothing left', () => {
     const a = advise({ stock: 0, ratePerWeek: 2 })
-    expect(a.status).toBe('unknown')
+    expect(a.status).toBe('critical')
     expect(a.dueInDays).toBe(0)
     expect(a.orderQty).toBe(Math.ceil((2 * 31) / 7))
   })
@@ -159,11 +160,36 @@ describe('adviseFeed', () => {
   it('exposes Dutch labels and ordering for every status', () => {
     expect(STATUS_LABEL.critical).toBe('Bestellen')
     expect(STATUS_LABEL.warning).toBe('Bijna op')
-    expect(STATUS_LABEL.unknown).toBe('Niet geteld')
     expect(STATUS_LABEL.ok).toBe('Op voorraad')
     expect(STATUS_LABEL.overstock).toBe('Te veel')
     expect(STATUS_LABEL.inactive).toBe('Niet in gebruik')
     expect(STATUS_ORDER.critical).toBeLessThan(STATUS_ORDER.warning)
-    expect(STATUS_ORDER.inactive).toBe(5)
+    expect(STATUS_ORDER.inactive).toBe(4)
+  })
+})
+
+describe('estimateKokerStock', () => {
+  const DAY = 86400000
+  const t0 = Date.parse('2026-09-18T10:00:00Z')
+  const logs = [
+    { type: 'delivery', feedId: 'geit', amount: 2, timestampMs: t0 },
+    { type: 'delivery', feedId: 'geit', amount: 1, timestampMs: t0 + 3600000 }, // same delivery, other storage
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 - DAY }, // before the delivery: old bags
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 + 5 * DAY },
+    { type: 'fill', feedId: 'geit', amount: 1, timestampMs: t0 + 12 * DAY },
+    { type: 'fill', feedId: 'ander', amount: 5, timestampMs: t0 + 6 * DAY },
+  ]
+
+  it('subtracts fills since the last delivery day from what was delivered', () => {
+    const e = estimateKokerStock(logs, 'geit')
+    expect(e.delivered).toBe(3)
+    expect(e.usedSince).toBe(2)
+    expect(e.onHand).toBe(1)
+    expect(e.lastDeliveryMs).toBe(t0 + 3600000)
+  })
+
+  it('never goes below zero and assumes empty without a delivery', () => {
+    expect(estimateKokerStock([...logs, { type: 'fill', feedId: 'geit', amount: 4, timestampMs: t0 + 20 * DAY }], 'geit').onHand).toBe(0)
+    expect(estimateKokerStock(logs, 'ander')).toEqual({ onHand: 0, lastDeliveryMs: null, delivered: 0, usedSince: 0 })
   })
 })

@@ -50,7 +50,34 @@ export function consumptionPerWeek(
   return total / weeks
 }
 
-export type AdviceStatus = 'critical' | 'warning' | 'unknown' | 'ok' | 'overstock' | 'inactive'
+export type AdviceStatus = 'critical' | 'warning' | 'ok' | 'overstock' | 'inactive'
+
+export interface KokerEstimate {
+  /** Bags still on the shelf: last delivery minus what went into the koker since. */
+  onHand: number
+  lastDeliveryMs: number | null
+  delivered: number
+  usedSince: number
+}
+
+/**
+ * Koker feeds are never counted: bags are poured straight in. Usage drives the
+ * estimate instead. The last delivery (all delivery logs of that feed on the
+ * same day) is what came in; fills since then are what is gone. Without a
+ * delivery in the window the shelf is assumed empty, which errs towards ordering.
+ */
+export function estimateKokerStock(logs: ConsumptionLog[], feedId: string): KokerEstimate {
+  const deliveries = logs.filter((l) => l.feedId === feedId && l.type === 'delivery').sort((a, b) => a.timestampMs - b.timestampMs)
+  const last = deliveries.at(-1)
+  if (!last) return { onHand: 0, lastDeliveryMs: null, delivered: 0, usedSince: 0 }
+  const sameDay = deliveries.filter((d) => last.timestampMs - d.timestampMs < DAY_MS)
+  const since = sameDay[0].timestampMs
+  const delivered = sameDay.reduce((sum, d) => sum + d.amount, 0)
+  const usedSince = logs
+    .filter((l) => l.feedId === feedId && l.type === 'fill' && l.timestampMs >= since)
+    .reduce((sum, l) => sum + l.amount, 0)
+  return { onHand: Math.max(0, delivered - usedSince), lastDeliveryMs: last.timestampMs, delivered, usedSince }
+}
 
 export interface AdviceInput {
   stock: number
@@ -72,7 +99,6 @@ export interface Advice {
 export const STATUS_LABEL: Record<AdviceStatus, string> = {
   critical: 'Bestellen',
   warning: 'Bijna op',
-  unknown: 'Niet geteld',
   ok: 'Op voorraad',
   overstock: 'Te veel',
   inactive: 'Niet in gebruik',
@@ -81,10 +107,9 @@ export const STATUS_LABEL: Record<AdviceStatus, string> = {
 export const STATUS_ORDER: Record<AdviceStatus, number> = {
   critical: 0,
   warning: 1,
-  unknown: 2,
-  ok: 3,
-  overstock: 4,
-  inactive: 5,
+  ok: 2,
+  overstock: 3,
+  inactive: 4,
 }
 
 export function adviseFeed(input: AdviceInput): Advice {
@@ -95,14 +120,13 @@ export function adviseFeed(input: AdviceInput): Advice {
 
   let status: AdviceStatus
   if (rate === 0 && stock === 0) status = 'inactive'
-  else if (stock === 0 && rate > 0) status = 'unknown'
   else if (rate === 0) status = 'ok'
   else if (dueInDays !== null && dueInDays <= schedule.daysToNext) status = 'critical'
   else if (dueInDays !== null && dueInDays <= schedule.daysToAfter) status = 'warning'
   else if (coverDays !== null && coverDays > 56) status = 'overstock'
   else status = 'ok'
 
-  const needsOrder = status === 'critical' || status === 'warning' || status === 'unknown'
+  const needsOrder = status === 'critical' || status === 'warning'
   const orderQty = needsOrder
     ? Math.max(1, Math.ceil((rate * schedule.targetDays) / 7 - stock))
     : 0
