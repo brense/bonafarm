@@ -1,7 +1,5 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
-import RemoveIcon from '@mui/icons-material/Remove'
 import SaveIcon from '@mui/icons-material/Save'
 import {
   Alert,
@@ -492,71 +490,42 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 const f = feeds.get(c.feedId)
                 const unit = f?.unit ?? 'zak'
                 const out = c.direction === 'out'
-                const own = out ? c.sources : c.targets
-                const main = own.length === 1 ? own[0] : null
-                const subs = [...(out ? c.sources : []), ...c.targets].filter((a) => a !== main)
-                const signed = (sign: string, a: Alloc) =>
-                  `${sign}${formatAmount(a.amount)} ${unitLabel(unit, a.amount)} ${a.storageId === null ? 'Verbruik' : storageName(a.storageId)}`
+                const subs = [...(out ? c.sources.map((a) => ({ a, sign: '−' })) : []), ...c.targets.map((a) => ({ a, sign: '+' }))]
                 return (
                   <ListItem key={c.id} divider disablePadding sx={{ display: 'block' }}>
                     <Collapse in={!c.closing} appear unmountOnExit timeout={motion} onExited={() => dropLine(c.id)}>
-                      {!out && main ? (
-                        <Stack direction="row" sx={{ alignItems: 'center', pr: 0.5 }}>
-                          <FeedRow
-                            bare
-                            surface="background.default"
-                            name={f?.name ?? c.feedId}
-                            secondary={storageName(main.storageId)}
-                            active
-                            swipeMax={f?.swipeMax}
-                            detail={{ text: amountText(c.feedId, 'in', c.amount), color: 'success.main' }}
-                            onSwipe={(signed) => editTarget(c.id, main.storageId, signed)}
-                            onMinus={() => editTarget(c.id, main.storageId, -1)}
-                            onPlus={() => editTarget(c.id, main.storageId, 1)}
-                          />
+                      <Stack direction="row" sx={{ alignItems: 'center', pl: 2, pr: out ? 0.5 : 2, minHeight: 56 }}>
+                        <ListItemText primary={f?.name ?? c.feedId} slotProps={{ primary: { sx: { fontWeight: 700 } } }} sx={{ minWidth: 0 }} />
+                        <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', mr: out ? 1 : 0, color: out ? 'error.main' : 'success.main' }}>
+                          {amountText(c.feedId, c.direction, c.amount)}
+                        </Typography>
+                        {out && (
                           <IconButton aria-label="Wijziging weghalen" color="secondary" onClick={() => weghalen(c.id)} sx={{ width: 48, height: 48 }}>
                             <CloseIcon />
                           </IconButton>
-                        </Stack>
-                      ) : (
-                        <Stack direction="row" sx={{ alignItems: 'center', pl: 2, pr: 0.5, minHeight: 56 }}>
-                          <ListItemText
-                            primary={f?.name ?? c.feedId}
-                            secondary={main ? storageName(main.storageId) : undefined}
-                            slotProps={{ primary: { sx: { fontWeight: 700 } } }}
-                            sx={{ minWidth: 0 }}
-                          />
-                          <Typography sx={{ fontWeight: 700, mr: 1, whiteSpace: 'nowrap', color: out ? 'error.main' : 'success.main' }}>
-                            {amountText(c.feedId, c.direction, c.amount)}
-                          </Typography>
-                          <IconButton aria-label="Wijziging weghalen" color="secondary" onClick={() => weghalen(c.id)} sx={{ width: 48, height: 48 }}>
-                            <CloseIcon />
-                          </IconButton>
-                        </Stack>
-                      )}
-                      {subs.length > 0 && (
-                        <List disablePadding sx={{ pl: 4, pb: 0.5 }}>
-                          {subs.map((a, i) => (
-                            <Collapse key={a.storageId ?? `n${i}`} in={!a.closing} unmountOnExit timeout={motion} onExited={() => dropTarget(c.id, a.storageId)}>
-                              <ListItem disablePadding sx={{ minHeight: 32 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ flex: '1 1 auto' }}>
-                                  {signed(out && c.sources.includes(a) ? '−' : '+', a)}
-                                </Typography>
-                                {!out && (
-                                  <Stack direction="row">
-                                    <IconButton aria-label={`${storageName(a.storageId)} min`} color="secondary" onClick={() => editTarget(c.id, a.storageId, -1)} sx={{ width: 40, height: 40 }}>
-                                      <RemoveIcon />
-                                    </IconButton>
-                                    <IconButton aria-label={`${storageName(a.storageId)} plus`} color="primary" onClick={() => editTarget(c.id, a.storageId, 1)} sx={{ width: 40, height: 40 }}>
-                                      <AddIcon />
-                                    </IconButton>
-                                  </Stack>
-                                )}
-                              </ListItem>
+                        )}
+                      </Stack>
+                      <List disablePadding sx={{ pl: 2, pb: 0.5 }}>
+                        {subs.map(({ a, sign }) => (
+                          <ListItem key={`${sign}${a.storageId ?? 'verbruik'}`} disablePadding sx={{ display: 'block' }}>
+                            <Collapse in={!a.closing} unmountOnExit timeout={motion} onExited={() => dropTarget(c.id, a.storageId)}>
+                              <FeedRow
+                                bare
+                                dense
+                                surface="background.default"
+                                name={a.storageId === null ? 'Verbruik' : storageName(a.storageId)}
+                                active={false}
+                                gesture={out ? 'none' : 'both'}
+                                swipeMax={f?.swipeMax}
+                                detail={{ text: `${sign}${formatAmount(a.amount)} ${unitLabel(unit, a.amount)}`, color: sign === '−' ? 'error.main' : 'success.main' }}
+                                onSwipe={(signed) => editTarget(c.id, a.storageId, signed)}
+                                onMinus={() => editTarget(c.id, a.storageId, -1)}
+                                onPlus={() => editTarget(c.id, a.storageId, 1)}
+                              />
                             </Collapse>
-                          ))}
-                        </List>
-                      )}
+                          </ListItem>
+                        ))}
+                      </List>
                     </Collapse>
                   </ListItem>
                 )
