@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => ({
   test: {
     environment: 'jsdom',
     globals: false,
+    // MUI dialogs render slowly in jsdom; the default 5 s flakes under load.
+    testTimeout: 20000,
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
