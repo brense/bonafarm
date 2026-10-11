@@ -48,11 +48,15 @@ describe('VoorraadPage', () => {
     expect(screen.getByText('Geitenkorrel')).toBeInTheDocument()
   })
 
-  it('offers the advice toggle only to orderers', () => {
+  it('shows no order quantities to viewers', () => {
     renderPage(['view'])
-    expect(screen.queryByLabelText('Besteladvies')).not.toBeInTheDocument()
-    cleanup()
+    expect(screen.getByText('Voorraad')).toBeInTheDocument()
+    expect(screen.queryByText(/^bestel /)).toBeNull()
+  })
+
+  it('shows no order quantities to orderers while there is no advice yet', () => {
     renderPage(['order'])
-    expect(screen.getByLabelText('Besteladvies')).toBeInTheDocument()
+    expect(screen.getByText('Voorraad')).toBeInTheDocument()
+    expect(screen.queryByText(/^bestel /)).toBeNull()
   })
 })

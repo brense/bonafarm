@@ -1,29 +1,17 @@
-import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined'
-import SearchIcon from '@mui/icons-material/Search'
 import {
   Alert,
   Box,
-  Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  InputAdornment,
   List,
   ListItem,
   ListItemText,
-  Snackbar,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -44,12 +32,10 @@ import {
   type KokerEstimate,
   type AdviceStatus,
 } from '../stock/advice.ts'
-import { copyText, stockToTsv } from '../stock/excel.ts'
 import { formatAmount, stockPerFeed, unitLabel, type FeedStock } from '../stock/stock.ts'
 import { useRecentLogs } from '../stock/useRecentLogs.ts'
 import Page from './Page.tsx'
 
-const ADVICE_KEY = 'voorraadAdvice'
 const ADVICE_WEEKS = 12
 
 const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'success' | 'info'> = {
@@ -59,8 +45,6 @@ const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'succes
   overstock: 'info',
   inactive: 'default',
 }
-
-const dateNl = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
 
 interface Row extends FeedStock {
   advice: Advice | null
@@ -75,14 +59,6 @@ interface Row extends FeedStock {
  */
 function shownAmount(row: Row): number {
   return row.koker ? Math.max(row.total, row.koker.onHand) : row.total
-}
-
-function readAdvicePref(): boolean {
-  try {
-    return localStorage.getItem(ADVICE_KEY) === '1'
-  } catch {
-    return false
-  }
 }
 
 function StatusChip({ advice }: { advice: Advice }) {
@@ -160,22 +136,9 @@ export default function VoorraadPage() {
   const { orgId, roles } = useOrg()
   const { feeds, storages, storageTypes, items, loading, error } = useOrgData()
   const mayOrder = can(roles, 'order')
-  const [search, setSearch] = useState('')
-  const [advicePref, setAdvicePref] = useState(readAdvicePref)
-  /** Status and usage always show; the toggle only adds what to order. */
-  const ordering = mayOrder && advicePref
+  /** Status and usage always show; ordering shows what to order. */
+  const ordering = mayOrder
   const logs = useRecentLogs(orgId, ADVICE_WEEKS, true)
-  const [snack, setSnack] = useState<string | null>(null)
-  const [fallbackText, setFallbackText] = useState<string | null>(null)
-
-  const setAdvice = (on: boolean) => {
-    setAdvicePref(on)
-    try {
-      localStorage.setItem(ADVICE_KEY, on ? '1' : '0')
-    } catch {
-      // per-device preference only
-    }
-  }
 
   // Reference moment for the advice, fixed for the life of the page.
   const [nowMs] = useState(() => Date.now())
@@ -206,78 +169,11 @@ export default function VoorraadPage() {
     )
   }, [feeds, storages, storageTypes, items, logs, schedule, nowMs])
 
-  const visible = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase('nl')
-    return q ? rows.filter((r) => r.name.toLocaleLowerCase('nl').includes(q)) : rows
-  }, [rows, search])
-
-  const toOrder = ordering ? rows.filter((r) => r.advice && r.advice.orderQty > 0) : []
-
-  const copy = async () => {
-    const text = stockToTsv(
-      visible.map((r) => ({
-        name: r.name,
-        stock: shownAmount(r),
-        unit: r.unit,
-        ratePerWeek: r.ratePerWeek,
-        status: r.advice ? STATUS_LABEL[r.advice.status] : null,
-        orderQty: ordering && r.advice ? r.advice.orderQty : null,
-      })),
-      ordering,
-    )
-    if (await copyText(text)) setSnack('Gekopieerd, plak het in je Excel-lijst')
-    else setFallbackText(text)
-  }
+  const visible = rows
 
   return (
     <Page title="Voorraad">
       <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-          <TextField
-            size="small"
-            placeholder="Zoek voer"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            slotProps={{
-              htmlInput: { 'aria-label': 'Zoek voer' },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ flexGrow: 1 }}
-          />
-          {mayOrder && (
-            <FormControlLabel
-              control={<Switch checked={advicePref} onChange={(e) => setAdvice(e.target.checked)} />}
-              label="Besteladvies"
-            />
-          )}
-          <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => void copy()} disabled={loading || visible.length === 0}>
-            Kopieer voor Excel
-          </Button>
-        </Stack>
-
-        {ordering && logs === null && (
-          <Alert severity="info" variant="outlined" icon={<CircularProgress size={20} />}>
-            Verbruik van de laatste {ADVICE_WEEKS} weken laden…
-          </Alert>
-        )}
-        {ordering && logs !== null && (
-          <Alert severity={toOrder.length ? 'warning' : 'success'} variant="outlined">
-            <strong>
-              {toOrder.length === 0
-                ? 'Niets te bestellen'
-                : `${toOrder.length} ${toOrder.length === 1 ? 'artikel' : 'artikelen'} bestellen voor ${dateNl.format(schedule.next)}`}
-            </strong>
-            {' · '}dekt tot {dateNl.format(schedule.after)} plus een week. Verbruik is het gemiddelde van de laatste {ADVICE_WEEKS} weken;
-            dit is een hulpmiddel, de bestellijst blijft leidend.
-          </Alert>
-        )}
-
         {error && <Alert severity="error">Kon de voorraad niet laden ({error}).</Alert>}
         {loading ? (
           <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}>
@@ -355,20 +251,6 @@ export default function VoorraadPage() {
           </List>
         )}
       </Stack>
-
-      <Snackbar open={snack !== null} autoHideDuration={3000} onClose={() => setSnack(null)} message={snack} />
-      <Dialog open={fallbackText !== null} onClose={() => setFallbackText(null)} fullWidth>
-        <DialogTitle>Kopiëren lukt niet automatisch</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Selecteer de tekst hieronder en kopieer hem zelf.
-          </Typography>
-          <TextField multiline fullWidth value={fallbackText ?? ''} slotProps={{ input: { readOnly: true } }} minRows={6} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFallbackText(null)}>Sluiten</Button>
-        </DialogActions>
-      </Dialog>
     </Page>
   )
 }
