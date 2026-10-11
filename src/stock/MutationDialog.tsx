@@ -5,6 +5,7 @@ import {
   AppBar,
   Box,
   Button,
+  Collapse,
   Dialog,
   IconButton,
   List,
@@ -86,7 +87,11 @@ function pairAllocs(feedId: string, sources: Alloc[], targets: Alloc[]): Change[
   return out
 }
 
+/** Stable ids so a line keeps its DOM node when it moves from "in progress" to the cart. */
+let nextLineId = 0
+
 interface Line {
+  id: number
   feedId: string
   direction: 'out' | 'in'
   amount: number
@@ -120,6 +125,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }, [lines, line, reopen])
   const theme = useTheme()
   const wide = useMediaQuery(theme.breakpoints.up('md'))
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const motion = reduceMotion ? 0 : 300
 
   const isCounted = (storageId: string) => {
     const s = storages.get(storageId)
@@ -147,6 +154,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }
 
   const newLine = (feedId: string, direction: 'out' | 'in'): Line => ({
+    id: ++nextLineId,
     feedId,
     direction,
     amount: 1,
@@ -165,6 +173,14 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     return linkedShute(feedId) ? undefined : 'Geen voorraad'
   }
 
+  /** Moves a line into the cart once; a late `onExited` or a second caller cannot push it twice. */
+  const committedId = useRef<number | null>(null)
+  const commit = (l: Line) => {
+    if (committedId.current === l.id) return
+    committedId.current = l.id
+    setLines((prev) => [...prev, l])
+  }
+
   const tap = (feedId: string, direction: 'out' | 'in', by = 1) => {
     const cap = direction === 'out' ? totalOf(feedId) : Infinity
     if (cap <= 0) return
@@ -172,6 +188,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       const amount = round2(Math.min(cap, line.amount + by))
       setLine({ ...line, amount, sources: fitAllocs(line.sources, amount), targets: fitAllocs(line.targets, amount) })
     } else {
+      if (line && lineComplete) commit(line)
       setLine({ ...newLine(feedId, direction), amount: round2(Math.min(cap, by)) })
       setStorageQuery('')
       setReopen(null)
@@ -240,9 +257,10 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     setReopen(null)
   }
 
-  const another = () => {
+  /** Called when the editable block has folded away after the last answer: the line joins the cart. */
+  const finishLine = () => {
     if (!line || !lineComplete) return
-    setLines((prev) => [...prev, line])
+    commit(line)
     setLine(null)
     setStorageQuery('')
     setReopen(null)
@@ -251,7 +269,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const save = () => {
     if (!orgId || !user) return
-    const all = line && lineComplete ? [...lines, line] : lines
+    const all = line && lineComplete && !lines.some((l) => l.id === line.id) ? [...lines, line] : lines
     if (all.length === 0) return
     const changes = all.flatMap(toChanges)
     const ctx = {
@@ -336,7 +354,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   )
 
   /** One card: allocated rows first (always visible), then the suggestions, then the other storages. */
-  const targetBox = (title: string, baseRows: Row[], showDone = false) => {
+  const targetBox = (title: string, baseRows: Row[]) => {
     if (!line) return null
     const badgeOf = (id: string | null): Row => {
       const st = id ? storages.get(id) : undefined
@@ -369,11 +387,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
           onQueryChange={setStorageQuery}
           renderRow={(o) => allocRow(o, line.targets, () => Infinity, change, 'plus', true)}
         />
-        {showDone && (
-          <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
-            Klaar
-          </Button>
-        )}
       </Box>
     )
   }
@@ -387,10 +400,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       return { summaries: null, question: targetBox('In welke opslag?', base) }
     }
     const fromDone = sumOf(line.sources) === line.amount
-    const toDone = sumOf(line.targets) === line.amount
     const showFrom = reopen === 'from' || !fromDone
-    const showTo = !showFrom && (reopen === 'to' || !toDone)
-    const summary = (text: string, which: 'from' | 'to') => (
+    const showTo = !showFrom
+    const summary = (text: string, which: 'from') => (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
         <Typography>{text}</Typography>
         <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
@@ -403,7 +415,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       summaries: (
         <>
           {!showFrom && summary(`Van: ${allocText(line.sources)}`, 'from')}
-          {!showFrom && toDone && reopen !== 'to' && summary(`Naar: ${allocText(line.targets)}`, 'to')}
         </>
       ),
       question: showFrom ? (
@@ -420,7 +431,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         targetBox(
           `Waar is de ${feed.unit} naartoe?`,
           [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])],
-          toDone,
         )
       ) : null,
     }
@@ -444,95 +454,102 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         <Box ref={cartRef} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
           {lines.length === 0 && !line ? null : (
             <List dense disablePadding aria-label="Wijzigingen">
-              {lines.map((c, i) => (
-                <ListItem
-                  key={i}
-                  divider
-                  secondaryAction={
-                    <IconButton edge="end" aria-label="Verwijder regel" onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))} sx={{ width: 48, height: 48 }}>
-                      <DeleteIcon />
-                    </IconButton>
-                  }
-                  sx={{ minHeight: 48 }}
-                >
-                  <ListItemText primary={describe(c)} />
-                </ListItem>
-              ))}
-              {line && feed && (
-                <ListItem sx={{ display: 'block', p: 1 }}>
-                  <Stack direction="row" sx={{ alignItems: 'center' }}>
-                    <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
-                      <FeedRow
-                        name={feed.name}
-                        active
-                        swipeMax={feed.swipeMax}
-                        maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
-                        emptyLabel="Geen voorraad"
-                        detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
-                        onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                        onMinus={() => tap(line.feedId, 'out')}
-                        onPlus={() => tap(line.feedId, 'in')}
-                      />
-                    </List>
-                    <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </Stack>
-                  {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
-                    <Typography variant="caption" color="text.secondary">
-                      Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
-                    </Typography>
-                  )}
-                  {chooser.summaries}
-                </ListItem>
-              )}
+              {[...lines, ...(line ? [line] : [])].map((c) => {
+                const current = line !== null && c.id === line.id
+                return (
+                  <ListItem key={c.id} divider disablePadding sx={{ display: 'block' }}>
+                    {current && feed ? (
+                      <Collapse in={!lineComplete} unmountOnExit timeout={motion} onExited={finishLine}>
+                        <Box sx={{ p: 1 }}>
+                          <Stack direction="row" sx={{ alignItems: 'center' }}>
+                            <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                              <FeedRow
+                                name={feed.name}
+                                active
+                                swipeMax={feed.swipeMax}
+                                maxMinus={c.direction === 'out' ? Math.max(0, round2(totalOf(c.feedId) - c.amount)) : totalOf(c.feedId)}
+                                emptyLabel="Geen voorraad"
+                                detail={{ text: amountText(c.feedId, c.direction, c.amount), color: c.direction === 'out' ? 'error.main' : 'success.main' }}
+                                onSwipe={(signed) => tap(c.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                                onMinus={() => tap(c.feedId, 'out')}
+                                onPlus={() => tap(c.feedId, 'in')}
+                              />
+                            </List>
+                            <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
+                              <DeleteIcon />
+                            </IconButton>
+                          </Stack>
+                          {c.direction === 'out' && c.amount >= totalOf(c.feedId) && (
+                            <Typography variant="caption" color="text.secondary">
+                              Er ligt maar {formatAmount(totalOf(c.feedId))} {unitLabel(feed.unit, totalOf(c.feedId))}
+                            </Typography>
+                          )}
+                          {chooser.summaries}
+                        </Box>
+                      </Collapse>
+                    ) : null}
+                    <Collapse in={!current || lineComplete} appear unmountOnExit timeout={motion}>
+                      <Stack direction="row" sx={{ alignItems: 'center', minHeight: 48 }}>
+                        <ListItemText primary={describe(c)} sx={{ pl: 2, my: 0.5 }} />
+                        <IconButton
+                          aria-label="Verwijder regel"
+                          onClick={() => (current ? cancelLine() : setLines((prev) => prev.filter((x) => x.id !== c.id)))}
+                          sx={{ width: 48, height: 48, mr: 0.5 }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </Collapse>
+                  </ListItem>
+                )
+              })}
             </List>
           )}
         </Box>
       </Box>
 
-      {(!line || chooser.question || error) && (
-        <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto' }}>
-          {!line && (
-            <>
-              {sectionTitle('Welk voorraad wil je wijzigen?')}
-              <SearchList
-                items={rows}
-                getKey={(f) => f.id}
-                getLabel={(f) => f.name}
-                searchLabel="Zoeken…"
-                listAriaLabel="Voerlijst"
-                emptyText="Geen voer gevonden"
-                query={search}
-                onQueryChange={setSearch}
-                inputRef={searchRef}
-                renderRow={(f) => (
-                  <FeedRow
-                    bare
-                    surface="var(--row-surface)"
-                    name={f.name}
-                    active={false}
-                    swipeMax={f.swipeMax}
-                    secondary={stockText(f.id, f.unit)}
-                    minusDisabled={totalOf(f.id) <= 0}
-                    maxMinus={totalOf(f.id)}
-                    emptyLabel="Geen voorraad"
-                    onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                    onMinus={() => tap(f.id, 'out')}
-                    onPlus={() => tap(f.id, 'in')}
-                  />
-                )}
-              />
-            </>
-          )}
-          {chooser.question}
-          {error && (
-            <Typography color="error" sx={{ mt: 1 }}>
-              {error}
-            </Typography>
-          )}
-        </Box>
-      )}
+      <Box sx={{ px: 2, flex: '0 0 auto' }}>
+        <Collapse in={!line || lineComplete} unmountOnExit timeout={motion}>
+          <Box sx={{ py: 1 }}>
+            {sectionTitle('Welk voorraad wil je wijzigen?')}
+            <SearchList
+              items={rows}
+              getKey={(f) => f.id}
+              getLabel={(f) => f.name}
+              searchLabel="Zoeken…"
+              listAriaLabel="Voerlijst"
+              emptyText="Geen voer gevonden"
+              query={search}
+              onQueryChange={setSearch}
+              inputRef={searchRef}
+              renderRow={(f) => (
+                <FeedRow
+                  bare
+                  surface="var(--row-surface)"
+                  name={f.name}
+                  active={false}
+                  swipeMax={f.swipeMax}
+                  secondary={stockText(f.id, f.unit)}
+                  minusDisabled={totalOf(f.id) <= 0}
+                  maxMinus={totalOf(f.id)}
+                  emptyLabel="Geen voorraad"
+                  onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                  onMinus={() => tap(f.id, 'out')}
+                  onPlus={() => tap(f.id, 'in')}
+                />
+              )}
+            />
+          </Box>
+        </Collapse>
+        <Collapse in={line !== null && !lineComplete} unmountOnExit timeout={motion}>
+          <Box sx={{ py: 1 }}>{chooser.question}</Box>
+        </Collapse>
+        {error && (
+          <Typography color="error" sx={{ py: 1 }}>
+            {error}
+          </Typography>
+        )}
+      </Box>
 
       <Paper square elevation={8} sx={{ flex: '0 0 auto', p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -544,7 +561,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             size="medium"
             sx={{ height: 40 }}
             disabled={line !== null && !lineComplete}
-            onClick={line ? another : () => searchRef.current?.focus()}
+            onClick={() => searchRef.current?.focus()}
           >
             Nog eentje
           </Button>

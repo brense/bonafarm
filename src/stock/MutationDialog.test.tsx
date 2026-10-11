@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../auth/context.ts'
 import { OrgContext } from '../org/context.ts'
@@ -65,6 +65,9 @@ function setup(value: OrgDataValue = data) {
 }
 
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
+/** The feed row of the line in progress (the search list may still be animating out with a duplicate). */
+const clickInCart = (name: string) => fireEvent.click(within(screen.getByRole('list', { name: 'Gekozen voer' })).getByRole('button', { name }))
+const lineCommitted = () => waitFor(() => expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull())
 
 describe('MutationDialog', () => {
   it('shows at most 5 rows with the most used feed first', () => {
@@ -75,7 +78,7 @@ describe('MutationDialog', () => {
     expect(items[0].textContent).toContain('Hooi')
   })
 
-  it('asks one question at a time', () => {
+  it('asks one question at a time and commits the line when it is complete', async () => {
     setup()
     click('Geitenkorrel min')
     const from = screen.getByRole('list', { name: 'Uit welke opslag?' })
@@ -87,23 +90,28 @@ describe('MutationDialog', () => {
     expect(another.disabled).toBe(true)
     expect(saveBtn.disabled).toBe(true)
     fireEvent.click(within(from).getByRole('button', { name: 'Ton roze min' }))
-    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText('Van: Ton roze 1')).toBeTruthy()
+    const cart = screen.getByRole('list', { name: 'Wijzigingen' })
+    expect(within(cart).getByText('Van: Ton roze 1')).toBeTruthy()
     expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
-    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Waar is de zak naartoe?')).toBeNull()
+    expect(within(cart).queryByText('Waar is de zak naartoe?')).toBeNull()
+    // Reopen the first question and close it again.
+    fireEvent.click(within(cart).getByRole('button', { name: 'Wijzig' }))
+    expect(screen.getByText('Uit welke opslag?')).toBeTruthy()
+    click('Klaar')
     const to = screen.getByRole('list', { name: 'Opslagen' })
-    expect(within(to).getAllByRole('listitem').map((r) => r.textContent?.replace(/Shute|Koker|Stal|Ton/, ''))).toHaveLength(3)
+    expect(within(to).getAllByRole('listitem')).toHaveLength(3)
     expect(within(to).getAllByRole('listitem')[0].textContent).toContain('Verbruik')
-    expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
     expect(another.disabled).toBe(true)
     fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))
-    expect(screen.getByText('Naar: Koker geit 1')).toBeTruthy()
-    expect(another.disabled).toBe(false)
-    expect(saveBtn.disabled).toBe(false)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Wijzig' })[0])
-    expect(screen.getByRole('list', { name: 'Uit welke opslag?' })).toBeTruthy()
+    await lineCommitted()
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText('Geitenkorrel −1 zak · Ton roze 1 → Koker geit 1')).toBeTruthy()
+    expect(screen.getByLabelText('Zoeken…')).toBeTruthy()
+    expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
+    expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('opens a searchable storage picker', () => {
+  it('opens a searchable storage picker', async () => {
     setup()
     click('Geitenkorrel min')
     click('Ton roze min')
@@ -112,8 +120,22 @@ describe('MutationDialog', () => {
     expect(within(picker).getAllByRole('listitem').length).toBe(3)
     fireEvent.change(screen.getByLabelText('Zoek opslag'), { target: { value: 'stal' } })
     fireEvent.click(within(picker).getByRole('button', { name: 'Kalverstal plus' }))
+    await lineCommitted()
     expect(screen.queryByLabelText('Zoek opslag')).toBeNull()
-    expect(screen.getByText('Naar: Kalverstal 1')).toBeTruthy()
+    expect(screen.getByText('Geitenkorrel −1 zak · Ton roze 1 → Kalverstal 1')).toBeTruthy()
+  })
+
+  it('commits a completed plus line into the cart', async () => {
+    setup()
+    click('Hooi plus')
+    click('Kalverstal plus')
+    await lineCommitted()
+    const cart = within(screen.getByRole('list', { name: 'Wijzigingen' }))
+    expect(cart.getByText('Hooi +1 baal · → Kalverstal 1')).toBeTruthy()
+    expect(cart.getByRole('button', { name: 'Verwijder regel' })).toBeTruthy()
+    expect(screen.getByText('1 wijziging')).toBeTruthy()
+    expect(screen.getByLabelText('Zoeken…')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('shows stock under feed names', () => {
@@ -141,7 +163,7 @@ describe('MutationDialog', () => {
   it('adds one per tap', () => {
     setup()
     click('Geitenkorrel min')
-    click('Geitenkorrel min')
+    clickInCart('Geitenkorrel min')
     expect(screen.getByText('−2 zakken')).toBeTruthy()
   })
 
@@ -170,15 +192,15 @@ describe('MutationDialog', () => {
     expect(screen.getByText('−1 baal')).toBeTruthy()
   })
 
-  it('allocates a minus line over several storages', () => {
+  it('allocates a minus line over several storages', async () => {
     setup({
       ...data,
       storages: new Map([...data.storages, ['ton2', storage('bin', 'Ton oranje', 4)]]),
       items: new Map([item('ton', 'geit', 1), item('ton2', 'geit', 2)]),
     })
     click('Geitenkorrel min')
-    click('Geitenkorrel min')
-    click('Geitenkorrel min')
+    clickInCart('Geitenkorrel min')
+    clickInCart('Geitenkorrel min')
     expect(screen.getByText('Er ligt maar 3 zakken')).toBeTruthy()
     expect(screen.getByText('Uit welke opslagen?')).toBeTruthy()
     click('Ton roze min')
@@ -191,7 +213,7 @@ describe('MutationDialog', () => {
     expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(true)
     click('Verbruik plus')
     expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(false)
-    click('Nog eentje')
+    await lineCommitted()
     expect(screen.getByText(/Ton roze 1, Ton oranje 2 → verbruik 3/)).toBeTruthy()
     click('Opslaan')
     expect(vi.mocked(applyMutations).mock.calls.at(-1)![0]).toHaveLength(2)
@@ -247,7 +269,8 @@ describe('MutationDialog', () => {
     expect(within(picker).queryByText('−1')).toBeNull()
     fireEvent.pointerUp(row, { pointerId: 1, clientX: 100, clientY: 12 })
     expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
-    expect(screen.queryByText(/^Naar:/)).toBeNull()
+    expect(within(picker).queryByText(/^\+\d/)).toBeNull()
+    expect(screen.getByRole('list', { name: 'Gekozen voer' })).toBeTruthy()
   })
 
   it('filters rows while typing', () => {
