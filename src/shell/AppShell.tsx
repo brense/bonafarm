@@ -98,7 +98,7 @@ export default function AppShell() {
     <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
       <AppBar
         position="fixed"
-        color="default"
+        color="secondary"
         enableColorOnDark
         sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
       >

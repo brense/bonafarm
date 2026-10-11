@@ -12,6 +12,9 @@ export default function ThemeProvider({ children }: PropsWithChildren) {
           primary: { main: branding.primaryColor },
           secondary: { main: branding.secondaryColor },
         },
+        components: {
+          MuiTextField: { defaultProps: { variant: 'filled' } },
+        },
       }),
     [branding.mode, branding.primaryColor, branding.secondaryColor],
   )
