@@ -60,6 +60,10 @@ cases.append(('feed aliases', case("ALLOW","u1",["deliver"],"create",f"{ORG}/fee
 cases.append(('item updatedAt not ts', case("DENY","u1",["feed"],"create",f"{ORG}/items/bin-a_hooi",{"storageId":"bin-a","feedId":"hooi","amount":3,"updatedAt":"notadate"})))
 cases.append(('log future', case("DENY","u1",["feed"],"create",f"{ORG}/logs/l1",{**log("dispense"),"timestamp":"2026-10-11T11:00:00Z"})))
 cases.append(('log backdated', case("ALLOW","u1",["feed"],"create",f"{ORG}/logs/l1",{**log("dispense"),"timestamp":"2026-10-09T11:00:00Z"})))
+cases.append(('move log by feed with batchId', case("ALLOW","u1",["feed"],"create",f"{ORG}/logs/l1",log("move",batchId="mv-abc"))))
+cases.append(('move batch by feed', case("ALLOW","u1",["feed"],"create",f"{ORG}/batches/mv-abc",{"type":"move","uid":"u1","startedAt":TS,"closedAt":TS})))
+cases.append(('move batch by view denied', case("DENY","u1",["view"],"create",f"{ORG}/batches/mv-abc",{"type":"move","uid":"u1","startedAt":TS,"closedAt":TS})))
+cases.append(('correction by feed with note', case("ALLOW","u1",["feed"],"create",f"{ORG}/logs/l1",log("correction",note="erbij gezet"))))
 # non-member
 c=case("DENY","u1",["feed"],"get",f"{ORG}/feeds/grasbrok"); c["functionMocks"]=[{"function":"get","args":[{"exact_value":f"{ORG}/members/u1"}],"result":{"undefined":{}}}]
 cases.append(('non-member', c))

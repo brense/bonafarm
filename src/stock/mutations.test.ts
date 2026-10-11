@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planChange, planMutation } from './mutations.ts'
+import { planChange, planChangeLine, planMutation } from './mutations.ts'
 
 const base = { orgId: 'tanthof', uid: 'u1', storageId: 'ton-roze', feedId: 'hooi' }
 
@@ -65,5 +65,50 @@ describe('planChange', () => {
 
   it('refuses taking feed out of a koker', () => {
     expect(() => planChange('tanthof', 'u1', { ...line, counted: false, delta: -1 })).toThrow()
+  })
+})
+
+describe('planChangeLine', () => {
+  const ctx = {
+    orgId: 'tanthof',
+    uid: 'u1',
+    counted: (id: string) => id !== 'koker',
+    current: (storageId: string, feedId: string) => (storageId === 'ton' && feedId === 'geit' ? 3 : 0),
+    newId: () => 'X',
+  }
+
+  it('consumed from a bin is a dispense', () => {
+    const plans = planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: 'ton', toStorageId: null }, ctx)
+    expect(plans).toHaveLength(1)
+    expect(plans[0].log).toMatchObject({ type: 'dispense', amount: 1, storageId: 'ton' })
+    expect(plans[0].item?.op).toEqual({ kind: 'increment', by: -1 })
+  })
+
+  it('bin to koker is a move out plus a fill in one batch', () => {
+    const plans = planChangeLine({ feedId: 'geit', amount: 2, fromStorageId: 'ton', toStorageId: 'koker' }, ctx)
+    expect(plans.map((p) => p.log.type)).toEqual(['move', 'fill'])
+    expect(plans[0].log.batchId).toBe('mv-X')
+    expect(plans[1].log.batchId).toBe('mv-X')
+    expect(plans[0].batch).toEqual({ path: 'organisations/tanthof/batches/mv-X', data: { type: 'move', uid: 'u1' } })
+    expect(plans[0].item?.op).toEqual({ kind: 'increment', by: -2 })
+    expect(plans[1].item).toBeUndefined()
+  })
+
+  it('bin to bin moves both items', () => {
+    const plans = planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: 'ton', toStorageId: 'ton2' }, ctx)
+    expect(plans.map((p) => p.log.type)).toEqual(['move', 'move'])
+    expect(plans[1].item?.op).toEqual({ kind: 'increment', by: 1 })
+    expect(plans[1].item?.path).toBe('organisations/tanthof/items/ton2_geit')
+  })
+
+  it('from outside: fill into a koker, correction into a bin', () => {
+    expect(planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: null, toStorageId: 'koker' }, ctx)[0].log.type).toBe('fill')
+    expect(planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: null, toStorageId: 'ton' }, ctx)[0].log.type).toBe('correction')
+  })
+
+  it('rejects nonsense', () => {
+    expect(() => planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: null, toStorageId: null }, ctx)).toThrow()
+    expect(() => planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: 'koker', toStorageId: 'ton' }, ctx)).toThrow()
+    expect(() => planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: 'ton', toStorageId: 'ton' }, ctx)).toThrow()
   })
 })

@@ -23,9 +23,12 @@ export interface MutationPlan {
     storageId: string
     amount: number
     previousAmount?: number
+    batchId?: string
     note?: string
     uid: string
   }
+  /** A batch document to create alongside (moves: both halves share it). */
+  batch?: { path: string; data: { type: 'move' | 'delivery'; uid: string } }
   /** Stock change for counted storages; kokers (fill, empty) have no item. */
   item?: {
     path: string
@@ -112,6 +115,63 @@ export function planChange(orgId: string, uid: string, line: ChangeLine): Mutati
   }
 }
 
+/** A line of the change dialog as the user describes it. */
+export interface Change {
+  feedId: string
+  amount: number
+  /** Taken out of this counted storage (null when the feed was put in from outside). */
+  fromStorageId: string | null
+  /** Put into this storage (null when consumed). Kokers consume, bins and stables count. */
+  toStorageId: string | null
+}
+
+export interface ChangeContext {
+  orgId: string
+  uid: string
+  counted: (storageId: string) => boolean
+  current: (storageId: string, feedId: string) => number
+  /** Id for a new move batch. */
+  newId: () => string
+}
+
+/**
+ * Turns a described change into plans:
+ * - from a bin, consumed → dispense
+ * - from a bin into another storage → move out + (move in | fill into a koker), one batch
+ * - from outside into a koker → fill; into a bin → correction ("erbij gezet")
+ */
+export function planChangeLine(change: Change, ctx: ChangeContext): MutationPlan[] {
+  const { orgId, uid } = ctx
+  const { feedId, amount, fromStorageId, toStorageId } = change
+  if (!(amount > 0)) throw new Error('amount must be positive')
+  if (fromStorageId === null && toStorageId === null) throw new Error('nothing to do')
+  if (fromStorageId !== null && !ctx.counted(fromStorageId)) throw new Error('cannot take feed out of a koker')
+  if (fromStorageId === toStorageId) throw new Error('same storage')
+
+  if (fromStorageId === null) {
+    return [planChange(orgId, uid, { feedId, storageId: toStorageId!, delta: amount, counted: ctx.counted(toStorageId!), current: ctx.current(toStorageId!, feedId) })]
+  }
+  const out = planMutation('dispense', { orgId, uid, storageId: fromStorageId, feedId, amount, current: ctx.current(fromStorageId, feedId) })
+  if (toStorageId === null) return [out]
+
+  const batchId = `mv-${ctx.newId()}`
+  const batch = { path: paths.batch(orgId, batchId), data: { type: 'move' as const, uid } }
+  const outMove: MutationPlan = { ...out, log: { ...out.log, type: 'move', batchId }, batch }
+  if (!ctx.counted(toStorageId)) {
+    const fill = planMutation('fill', { orgId, uid, storageId: toStorageId, feedId, amount, current: 0 })
+    return [outMove, { ...fill, log: { ...fill.log, batchId } }]
+  }
+  const into = planMutation('count', { orgId, uid, storageId: toStorageId, feedId, amount, current: 0 })
+  return [
+    outMove,
+    {
+      logPath: into.logPath,
+      log: { type: 'move', feedId, storageId: toStorageId, amount, uid, batchId },
+      item: { path: into.item!.path, storageId: toStorageId, feedId, op: { kind: 'increment', by: amount } },
+    },
+  ]
+}
+
 /**
  * Writes one or more plans as a single batch: each log and, for counted
  * storages, the item upsert. Resolves when the local cache has it; the server
@@ -124,7 +184,12 @@ export async function applyMutations(plans: MutationPlan[]): Promise<void> {
     import('firebase/firestore'),
   ])
   const batch = writeBatch(db)
+  const batchesDone = new Set<string>()
   for (const plan of plans) {
+    if (plan.batch && !batchesDone.has(plan.batch.path)) {
+      batchesDone.add(plan.batch.path)
+      batch.set(doc(db, plan.batch.path), { ...plan.batch.data, startedAt: serverTimestamp(), closedAt: serverTimestamp() })
+    }
     batch.set(doc(collection(db, plan.logPath)), { ...plan.log, timestamp: serverTimestamp() })
     if (plan.item) {
       const { path, storageId, feedId, op } = plan.item
