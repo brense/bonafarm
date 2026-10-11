@@ -8,6 +8,8 @@ interface Props<T> {
   getKey: (item: T) => string
   /** Text matched against the query (case-insensitive, nl locale). */
   getLabel: (item: T) => string
+  /** Pinned items are always shown first, whatever the query. */
+  isPinned?: (item: T) => boolean
   renderRow: (item: T) => ReactNode
   max?: number
   searchLabel: string
@@ -25,6 +27,7 @@ export function SearchList<T>({
   items,
   getKey,
   getLabel,
+  isPinned,
   renderRow,
   max = 5,
   searchLabel,
@@ -38,7 +41,10 @@ export function SearchList<T>({
   const [own, setOwn] = useState('')
   const value = query ?? own
   const needle = value.trim().toLocaleLowerCase('nl')
-  const shown = (needle ? items.filter((i) => getLabel(i).toLocaleLowerCase('nl').includes(needle)) : items).slice(0, max)
+  const pinned = isPinned ? items.filter(isPinned) : []
+  const others = items.filter((i) => !pinned.includes(i))
+  const matches = needle ? others.filter((i) => getLabel(i).toLocaleLowerCase('nl').includes(needle)) : others
+  const shown = [...pinned, ...matches.slice(0, Math.max(1, max - pinned.length))]
   const field = (
     <TextField
       type="search"
@@ -72,7 +78,7 @@ export function SearchList<T>({
       )}
       <List aria-label={listAriaLabel} disablePadding sx={{ overflow: 'hidden', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {shown.map((item) => (
-          <ListItem key={getKey(item)} divider sx={{ px: 2 }}>
+          <ListItem key={getKey(item)} divider disableGutters disablePadding>
             {renderRow(item)}
           </ListItem>
         ))}

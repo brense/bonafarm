@@ -85,7 +85,7 @@ export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus =
   const cap = offset > 0 ? maxMinus : maxPlus
   const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset > 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
   return (
-    <ListItem component={bare ? 'div' : 'li'} disableGutters disablePadding divider={!bare} sx={{ position: 'relative', overflow: 'hidden', display: 'block', ...(bare && { width: '100%', flex: '1 1 auto' }) }}>
+    <ListItem component={bare ? 'div' : 'li'} disableGutters disablePadding divider={!bare} sx={{ position: 'relative', overflow: 'hidden', display: 'block', ...(bare && { width: '100%', flex: '1 1 auto', px: 0 }) }}>
       {offset !== 0 && (
         <Box
           aria-hidden
@@ -111,7 +111,8 @@ export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus =
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          py: 0.5,
+          py: bare ? 1 : 0.5,
+          px: bare ? 2 : 0,
           bgcolor: surface,
           touchAction: 'pan-y',
           transform: `translateX(${offset}px)`,

@@ -283,81 +283,78 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     </Typography>
   )
 
-  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus') => (
+  type Row = { id: string | null; name: string; badge?: string }
+
+  const allocRow = (r: Row, list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus', bare = false) => {
+    const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
+    const room = Math.max(0, round2(Math.min(capOf(r.id), (line?.amount ?? 0) - sumOf(list) + a) - a))
+    return (
+      <FeedRow
+        key={r.id ?? 'verbruik'}
+        bare={bare}
+        surface={bare ? 'background.paper' : undefined}
+        name={r.name}
+        badge={r.badge}
+        active={a > 0}
+        gesture={mode}
+        swipeMax={feed?.swipeMax}
+        maxMinus={mode === 'minus' ? room : undefined}
+        maxPlus={mode === 'plus' ? room : undefined}
+        onClear={a > 0 ? () => onChange(r.id, -1e9) : undefined}
+        detail={
+          a > 0 && feed
+            ? { text: `${mode === 'minus' ? '−' : '+'}${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: mode === 'minus' ? 'error.main' : 'success.main' }
+            : undefined
+        }
+        onSwipe={(signed) => onChange(r.id, Math.abs(signed))}
+        onMinus={() => onChange(r.id, 1)}
+        onPlus={() => onChange(r.id, 1)}
+      />
+    )
+  }
+
+  const allocRows = (label: string, rows: Row[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus') => (
     <List aria-label={label} disablePadding>
-      {rows.map((r) => {
-        const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
-        const room = Math.max(0, round2(Math.min(capOf(r.id), (line?.amount ?? 0) - sumOf(list) + a) - a))
-        return (
-          <FeedRow
-            key={r.id ?? 'verbruik'}
-            name={r.name}
-            active={a > 0}
-            gesture={mode}
-            swipeMax={feed?.swipeMax}
-            maxMinus={mode === 'minus' ? room : undefined}
-            maxPlus={mode === 'plus' ? room : undefined}
-            onClear={a > 0 ? () => onChange(r.id, -1e9) : undefined}
-            detail={
-              a > 0 && feed
-                ? { text: `${mode === 'minus' ? '−' : '+'}${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: mode === 'minus' ? 'error.main' : 'success.main' }
-                : undefined
-            }
-            onSwipe={(signed) => onChange(r.id, Math.abs(signed))}
-            onMinus={() => onChange(r.id, 1)}
-            onPlus={() => onChange(r.id, 1)}
-          />
-        )
-      })}
+      {rows.map((r) => allocRow(r, list, capOf, onChange, mode))}
     </List>
   )
 
-  /** Destination rows plus the "other storage" search. */
-  const targetBox = (title: string, label: string, baseRows: { id: string | null; name: string }[], showDone = false) => {
+  /** One card: allocated rows first (always visible), then the suggestions, then the other storages. */
+  const targetBox = (title: string, baseRows: Row[], showDone = false) => {
     if (!line) return null
-    const ids = new Set<string | null>(baseRows.map((r) => r.id))
-    const extra = line.targets.filter((t) => !ids.has(t.storageId)).map((t) => ({ id: t.storageId, name: storageName(t.storageId) }))
-    const rows = [...baseRows, ...extra]
-    const shown = new Set(rows.map((r) => r.id))
-    const options = activeStorages()
-      .filter(([id]) => !shown.has(id) && !line.sources.some((src) => src.storageId === id))
-      .map(([id, st]) => ({ id, name: st.name, type: storageTypes.get(st.typeId)?.name ?? '' }))
+    const badgeOf = (id: string | null): Row => {
+      const st = id ? storages.get(id) : undefined
+      return { id, name: id === null ? 'Verbruik' : storageName(id), badge: st ? storageTypes.get(st.typeId)?.name : undefined }
+    }
+    const allocated = line.targets.map((t) => badgeOf(t.storageId))
+    const used = new Set<string | null>(allocated.map((r) => r.id))
+    const base = baseRows.filter((r) => !used.has(r.id))
+    base.forEach((r) => used.add(r.id))
+    const rest = activeStorages()
+      .filter(([id]) => !used.has(id) && !line.sources.some((src) => src.storageId === id))
+      .map(([id]) => badgeOf(id))
+    const items = [...allocated, ...base, ...rest]
+    const change = (id: string | null, delta: number) => {
+      changeTarget(id, delta)
+      if (delta > 0) setStorageQuery('')
+    }
     return (
-      <Box sx={sectionBox}>
+      <Box>
         {sectionTitle(title)}
-        {allocRows(label, rows, line.targets, () => Infinity, changeTarget, 'plus')}
         <SearchList
-          items={options}
-          getKey={(o) => o.id}
+          items={items}
+          getKey={(o) => o.id ?? 'verbruik'}
           getLabel={(o) => o.name}
+          isPinned={(o) => line.targets.some((t) => t.storageId === o.id)}
           searchLabel="Zoek opslag"
           listAriaLabel="Opslagen"
           emptyText="Geen opslagen"
           query={storageQuery}
           onQueryChange={setStorageQuery}
-          renderRow={(o) => (
-            <FeedRow
-              bare
-              surface="background.paper"
-              name={o.name}
-              badge={o.type}
-              active={false}
-              gesture="plus"
-              onSwipe={(signed) => {
-                if (signed > 0) {
-                  changeTarget(o.id, signed)
-                  setStorageQuery('')
-                }
-              }}
-              onPlus={() => {
-                changeTarget(o.id, 1)
-                setStorageQuery('')
-              }}
-            />
-          )}
+          renderRow={(o) => allocRow(o, line.targets, () => Infinity, change, 'plus', true)}
         />
         {showDone && (
-          <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5, ml: 1 }}>
+          <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
             Klaar
           </Button>
         )}
@@ -371,7 +368,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     if (line.direction === 'in') {
       const linked = linkedShute(line.feedId)
       const base = [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
-      return { summaries: null, question: targetBox('In welke opslag?', 'In welke opslag?', base) }
+      return { summaries: null, question: targetBox('In welke opslag?', base) }
     }
     const fromDone = sumOf(line.sources) === line.amount
     const toDone = sumOf(line.targets) === line.amount
@@ -406,7 +403,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       ) : showTo ? (
         targetBox(
           `Waar is de ${feed.unit} naartoe?`,
-          'Waar naartoe?',
           [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])],
           toDone,
         )
@@ -447,7 +443,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 </ListItem>
               ))}
               {line && feed && (
-                <ListItem sx={{ display: 'block', p: 1, border: 1, borderColor: 'primary.main', borderRadius: 1, m: 1, width: 'auto' }}>
+                <ListItem sx={{ display: 'block', p: 1, bgcolor: 'action.hover' }}>
                   <Stack direction="row" sx={{ alignItems: 'center' }}>
                     <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
                       <FeedRow
@@ -480,7 +476,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       </Box>
 
       {(!line || chooser.question || error) && (
-        <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto', maxHeight: '60dvh', overflowY: 'auto' }}>
+        <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto' }}>
           {!line && (
             <>
               {sectionTitle('Welk voorraad wil je wijzigen?')}
