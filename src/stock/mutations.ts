@@ -88,7 +88,7 @@ export interface ChangeLine {
   storageId: string
   /** Negative = taken out, positive = put in. */
   delta: number
-  /** Whether the storage counts stock (bin, stable) or consumes it (koker). */
+  /** Whether the storage counts stock (bin, stable) or consumes it (shute). */
   counted: boolean
   /** Known stock in that storage, for clamping. */
   current: number
@@ -103,7 +103,7 @@ export function planChange(orgId: string, uid: string, line: ChangeLine): Mutati
   const amount = Math.abs(line.delta)
   const input = { orgId, uid, storageId: line.storageId, feedId: line.feedId, amount, current: line.current }
   if (line.delta < 0) {
-    if (!line.counted) throw new Error('cannot take feed out of a koker')
+    if (!line.counted) throw new Error('cannot take feed out of a shute')
     return planMutation('dispense', input)
   }
   if (!line.counted) return planMutation('fill', input)
@@ -137,7 +137,7 @@ export interface ChangeContext {
 /**
  * Turns a described change into plans:
  * - from a bin, consumed → dispense
- * - from a bin into another storage → move out + (move in | fill into a koker), one batch
+ * - from a bin into another storage → move out + (move in | fill into a shute), one batch
  * - from outside into a koker → fill; into a bin → correction ("erbij gezet")
  */
 export function planChangeLine(change: Change, ctx: ChangeContext): MutationPlan[] {
@@ -145,7 +145,7 @@ export function planChangeLine(change: Change, ctx: ChangeContext): MutationPlan
   const { feedId, amount, fromStorageId, toStorageId } = change
   if (!(amount > 0)) throw new Error('amount must be positive')
   if (fromStorageId === null && toStorageId === null) throw new Error('nothing to do')
-  if (fromStorageId !== null && !ctx.counted(fromStorageId)) throw new Error('cannot take feed out of a koker')
+  if (fromStorageId !== null && !ctx.counted(fromStorageId)) throw new Error('cannot take feed out of a shute')
   if (fromStorageId === toStorageId) throw new Error('same storage')
 
   if (fromStorageId === null) {

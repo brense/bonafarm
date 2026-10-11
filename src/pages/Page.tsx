@@ -1,17 +1,14 @@
-import { Container, Typography } from '@mui/material'
+import { Container } from '@mui/material'
 import type { PropsWithChildren } from 'react'
 
 interface Props extends PropsWithChildren {
   title: string
 }
 
-/** Common page frame: title and content width. */
+/** Common page frame: content width; the title is only the accessible name of the section. */
 export default function Page({ title, children }: Props) {
   return (
-    <Container maxWidth="md" sx={{ py: 2 }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        {title}
-      </Typography>
+    <Container maxWidth="md" component="section" aria-label={title} sx={{ py: 2 }}>
       {children}
     </Container>
   )

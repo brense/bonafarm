@@ -5,7 +5,7 @@ import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
 import { OrgContext } from '../org/context.ts'
 import { OrgDataContext } from '../org/dataContext.ts'
 import ThemeProvider from '../ThemeProvider.tsx'
-import VoorraadPage from './VoorraadPage.tsx'
+import StockPage from './StockPage.tsx'
 
 vi.mock('../lib/firebase.ts', () => ({ db: {} }))
 vi.mock('../stock/useRecentLogs.ts', () => ({ useRecentLogs: () => null }))
@@ -33,14 +33,14 @@ function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['r
     <OrgContext.Provider value={{ orgId: 'test', roles, status: 'ready' }}>
       <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items, loading: false, error: null }}>
         <ThemeProvider>
-          <VoorraadPage />
+          <StockPage />
         </ThemeProvider>
       </OrgDataContext.Provider>
     </OrgContext.Provider>,
   )
 }
 
-describe('VoorraadPage', () => {
+describe('StockPage', () => {
   it('lists stock per feed with Dutch amounts', () => {
     renderPage(['view'])
     expect(screen.getByText('Hooi')).toBeInTheDocument()
@@ -50,13 +50,13 @@ describe('VoorraadPage', () => {
 
   it('shows no order quantities to viewers', () => {
     renderPage(['view'])
-    expect(screen.getByText('Voorraad')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Voorraad' })).toBeInTheDocument()
     expect(screen.queryByText(/^bestel /)).toBeNull()
   })
 
   it('shows no order quantities to orderers while there is no advice yet', () => {
     renderPage(['order'])
-    expect(screen.getByText('Voorraad')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Voorraad' })).toBeInTheDocument()
     expect(screen.queryByText(/^bestel /)).toBeNull()
   })
 })

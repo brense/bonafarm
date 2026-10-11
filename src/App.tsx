@@ -3,9 +3,9 @@ import SignInPage from './auth/SignInPage.tsx'
 import { useAuth } from './auth/useAuth.ts'
 import OrgDataProvider from './org/OrgDataProvider.tsx'
 import { useOrg } from './org/useOrg.ts'
-import OpslagenPage from './pages/OpslagenPage.tsx'
+import StoragesPage from './pages/StoragesPage.tsx'
 import StoragePage from './pages/StoragePage.tsx'
-import VoorraadPage from './pages/VoorraadPage.tsx'
+import StockPage from './pages/StockPage.tsx'
 import AppShell from './shell/AppShell.tsx'
 import Splash from './shell/Splash.tsx'
 import StatusPage from './shell/StatusPage.tsx'
@@ -33,10 +33,10 @@ export default function App() {
     <OrgDataProvider>
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/voorraad/*" element={<VoorraadPage />} />
-          <Route path="/opslagen" element={<OpslagenPage />} />
-          <Route path="/opslagen/:storageId" element={<StoragePage />} />
-          <Route path="*" element={<VoorraadPage />} />
+          <Route path="/stock/*" element={<StockPage />} />
+          <Route path="/storages" element={<StoragesPage />} />
+          <Route path="/storages/:storageId" element={<StoragePage />} />
+          <Route path="*" element={<StockPage />} />
         </Route>
       </Routes>
     </OrgDataProvider>

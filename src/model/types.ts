@@ -89,7 +89,7 @@ export interface Feed {
 export type StorageBehaviour =
   /** Counted stock, e.g. a bin of bags. Deliveries add, dispensing removes. */
   | 'counted'
-  /** Consumed on fill, e.g. a koker. Whatever goes in is used; no stock count. */
+  /** Consumed on fill, e.g. a shute. Whatever goes in is used; no stock count. */
   | 'consumed'
 
 export interface StorageType {
@@ -158,7 +158,7 @@ export type LogType =
   | 'count'
   /** Feed taken out of a counted storage for use. */
   | 'dispense'
-  /** Feed poured into a consumed storage (koker). */
+  /** Feed poured into a consumed storage (shute). */
   | 'fill'
   /** A consumed storage was emptied. */
   | 'empty'

@@ -10,6 +10,8 @@ import type { MemberRole } from './model/types.ts'
 import type { OrgStatus } from './org/context.ts'
 
 vi.mock('./lib/firebase.ts', () => ({ auth: {}, db: {} }))
+vi.mock('./stock/useRecentLogs.ts', () => ({ useRecentLogs: () => null }))
+vi.mock('./stock/useStorageLogs.ts', () => ({ useStorageLogs: () => null }))
 vi.mock('./org/OrgDataProvider.tsx', () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }))
@@ -44,8 +46,8 @@ describe('App', () => {
   })
 
   it('renders the shell with the two tabs', () => {
-    renderApp({ status: 'ready', roles: ['feed'], path: '/opslagen' })
-    expect(screen.getByRole('heading', { level: 1, name: 'Opslagen' })).toBeInTheDocument()
+    renderApp({ status: 'ready', roles: ['feed'], path: '/storages' })
+    expect(screen.getByRole('region', { name: 'Opslagen' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Hoofdmenu' })
     expect(nav).toHaveTextContent('Voorraad')
     expect(nav).toHaveTextContent('Opslagen')
@@ -53,6 +55,6 @@ describe('App', () => {
 
   it('redirects an unknown route to the first tab', () => {
     renderApp({ status: 'ready', roles: ['view'], path: '/levering' })
-    expect(screen.getByRole('heading', { level: 1, name: 'Voorraad' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Voorraad' })).toBeInTheDocument()
   })
 })

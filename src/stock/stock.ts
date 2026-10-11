@@ -16,8 +16,8 @@ export interface FeedStock {
   /** Sum over active, counted storages. Kokers never hold stock. */
   total: number
   perStorage: StorageStock[]
-  /** The feed's default storage is a koker: bags go straight in, stock is rarely counted. */
-  isKoker: boolean
+  /** The feed's default storage is a shute: bags go straight in, stock is rarely counted. */
+  isShute: boolean
   /** Lives in a stable (hooi, stro): counts are rough, so advice stays tentative. */
   inStable: boolean
 }
@@ -55,7 +55,7 @@ export function stockPerFeed(
       order: feed.order,
       total: perStorage.reduce((sum, s) => sum + s.amount, 0),
       perStorage,
-      isKoker: defaultType !== undefined && storageTypes.get(defaultType)?.behaviour === 'consumed',
+      isShute: defaultType !== undefined && storageTypes.get(defaultType)?.behaviour === 'consumed',
       inStable,
     })
   }

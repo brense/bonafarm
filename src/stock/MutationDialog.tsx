@@ -200,13 +200,13 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     return counted.map(([id]) => id).sort((a, b) => Number(b === def) - Number(a === def))
   }
 
-  /** Destinations besides "verbruikt": linked koker, other kokers, then other counted storages. */
+  /** Destinations besides "verbruikt": linked shute, other shutes, then other counted storages. */
   const destinationsFor = (feedId: string, fromId: string | null): string[] => {
     const def = feeds.get(feedId)?.defaultStorageId
     const active = activeStorages().filter(([id]) => id !== fromId)
-    const kokers = active.filter(([id]) => isConsumed(id)).map(([id]) => id)
-    const linked = def !== undefined && kokers.includes(def) ? [def] : []
-    const rest = kokers.filter((id) => !linked.includes(id))
+    const shutes = active.filter(([id]) => isConsumed(id)).map(([id]) => id)
+    const linked = def !== undefined && shutes.includes(def) ? [def] : []
+    const rest = shutes.filter((id) => !linked.includes(id))
     const countedOthers = active.filter(([id]) => isCounted(id)).map(([id]) => id)
     return [...linked, ...rest, ...countedOthers]
   }

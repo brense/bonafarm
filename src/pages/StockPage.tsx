@@ -27,9 +27,9 @@ import {
   adviseFeed,
   consumptionPerWeek,
   deliverySchedule,
-  estimateKokerStock,
+  estimateShuteStock,
   type Advice,
-  type KokerEstimate,
+  type ShuteEstimate,
   type AdviceStatus,
 } from '../stock/advice.ts'
 import { formatAmount, stockPerFeed, unitLabel, type FeedStock } from '../stock/stock.ts'
@@ -50,7 +50,7 @@ interface Row extends FeedStock {
   advice: Advice | null
   ratePerWeek: number | null
   /** Usage-based estimate for koker feeds; the shown amount when advice is on. */
-  koker: KokerEstimate | null
+  shute: ShuteEstimate | null
 }
 
 /**
@@ -58,7 +58,7 @@ interface Row extends FeedStock {
  * delivery minus fills, unless someone did count bags in a bin and that is higher.
  */
 function shownAmount(row: Row): number {
-  return row.koker ? Math.max(row.total, row.koker.onHand) : row.total
+  return row.shute ? Math.max(row.total, row.shute.onHand) : row.total
 }
 
 function StatusChip({ advice }: { advice: Advice }) {
@@ -100,7 +100,7 @@ function amountColor(row: Row): string | undefined {
   return undefined
 }
 
-function kokerMeta(k: KokerEstimate, unit: Row['unit'], a: Advice): string {
+function shuteMeta(k: ShuteEstimate, unit: Row['unit'], a: Advice): string {
   if (k.lastDeliveryMs === null) return 'geen levering in 12 weken'
   const ago = a.daysSinceDelivery !== null ? ` ${a.daysSinceDelivery} d geleden` : ''
   return `levering ${formatAmount(k.delivered)} ${unitLabel(unit, k.delivered)}${ago}`
@@ -113,7 +113,7 @@ function kokerMeta(k: KokerEstimate, unit: Row['unit'], a: Advice): string {
  */
 function runsOut(row: Row, a: Advice): string {
   if (a.dueInDays === null) return ''
-  const rough = row.isKoker || row.inStable
+  const rough = row.isShute || row.inStable
   if (a.dueInDays <= 0) return rough ? 'mogelijk niet genoeg' : 'op'
   return rough ? `± ${a.dueInDays} dagen` : `nog ${a.dueInDays} dagen`
 }
@@ -123,14 +123,14 @@ function adviceMeta(row: Row): string {
   if (!a) return ''
   const parts: string[] = []
   if (row.ratePerWeek !== null) parts.push(`${formatAmount(row.ratePerWeek)} ${row.unit}/wk`)
-  if (row.koker) parts.push(kokerMeta(row.koker, row.unit, a))
+  if (row.shute) parts.push(shuteMeta(row.shute, row.unit, a))
   else if (a.daysSinceDelivery !== null) parts.push(`levering ${a.daysSinceDelivery} d geleden`)
   const out = runsOut(row, a)
   if (out) parts.push(out)
   return parts.join(' · ')
 }
 
-export default function VoorraadPage() {
+export default function StockPage() {
   const theme = useTheme()
   const wide = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
   const { orgId, roles } = useOrg()
@@ -146,20 +146,20 @@ export default function VoorraadPage() {
 
   const rows = useMemo<Row[]>(() => {
     const base = stockPerFeed(feeds, storages, storageTypes, items)
-    if (logs === null) return base.map((r) => ({ ...r, advice: null, ratePerWeek: null, koker: null }))
+    if (logs === null) return base.map((r) => ({ ...r, advice: null, ratePerWeek: null, shute: null }))
     const withAdvice = base.map((r) => {
       const ratePerWeek = consumptionPerWeek(logs, r.feedId, nowMs, ADVICE_WEEKS)
       const lastDelivery = logs.filter((l) => l.feedId === r.feedId && l.type === 'delivery').at(-1)
-      const koker = r.isKoker ? estimateKokerStock(logs, r.feedId, nowMs, ratePerWeek) : null
+      const shute = r.isShute ? estimateShuteStock(logs, r.feedId, nowMs, ratePerWeek) : null
       const advice = adviseFeed({
-        stock: koker ? Math.max(r.total, koker.onHand) : r.total,
+        stock: shute ? Math.max(r.total, shute.onHand) : r.total,
         ratePerWeek,
-        isKoker: r.isKoker,
-        lastDeliveryMs: koker ? koker.lastDeliveryMs : (lastDelivery?.timestampMs ?? null),
+        isShute: r.isShute,
+        lastDeliveryMs: shute ? shute.lastDeliveryMs : (lastDelivery?.timestampMs ?? null),
         nowMs,
         schedule,
       })
-      return { ...r, advice, ratePerWeek, koker }
+      return { ...r, advice, ratePerWeek, shute }
     })
     return withAdvice.sort(
       (a, b) =>
@@ -197,7 +197,7 @@ export default function VoorraadPage() {
                 <TableRow key={r.feedId} hover sx={rowSx(r, 'table')}>
                   <TableCell sx={{ fontWeight: 500 }}>{r.name}</TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
-                    {r.koker ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
+                    {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
                   </TableCell>
                   <TableCell align="right">{r.ratePerWeek !== null ? formatAmount(r.ratePerWeek) : ''}</TableCell>
                   <TableCell>
@@ -205,7 +205,7 @@ export default function VoorraadPage() {
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <StatusChip advice={r.advice} />
                         <Typography variant="caption" color="text.secondary" noWrap>
-                          {[r.koker ? kokerMeta(r.koker, r.unit, r.advice) : '', runsOut(r, r.advice)].filter(Boolean).join(' · ')}
+                          {[r.shute ? shuteMeta(r.shute, r.unit, r.advice) : '', runsOut(r, r.advice)].filter(Boolean).join(' · ')}
                         </Typography>
                       </Stack>
                     )}
@@ -238,7 +238,7 @@ export default function VoorraadPage() {
                 />
                 <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 72 }}>
                   <Typography variant="h6" component="div" sx={{ lineHeight: 1.2, color: amountColor(r) }}>
-                    {r.koker ? '≈ ' : ''}{formatAmount(shownAmount(r))}
+                    {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))}
                   </Typography>
                   {ordering && r.advice && r.advice.orderQty > 0 && (
                     <Typography variant="body2" sx={{ mt: 0.5, color: 'warning.main', fontWeight: 700 }}>

@@ -52,7 +52,7 @@ export function consumptionPerWeek(
 
 export type AdviceStatus = 'critical' | 'warning' | 'ok' | 'overstock' | 'inactive'
 
-export interface KokerEstimate {
+export interface ShuteEstimate {
   /** Estimated bags left: what is still in the koker plus bags on the shelf. */
   onHand: number
   /** When bags last came in: the last fill (bags poured straight in) or a later delivery. */
@@ -62,13 +62,13 @@ export interface KokerEstimate {
 }
 
 /**
- * Koker feeds are never counted and bags usually go straight into the koker,
+ * Koker feeds are never counted and bags usually go straight into the shute,
  * so the last fill is the last delivery. The koker then empties at the usage
  * rate: left = filled - rate * weeks since. Bags delivered to a shelf after
  * that fill are added on top. Without any fill or delivery in the window the
  * shelf is assumed empty, which errs towards ordering.
  */
-export function estimateKokerStock(logs: ConsumptionLog[], feedId: string, nowMs: number, ratePerWeek: number): KokerEstimate {
+export function estimateShuteStock(logs: ConsumptionLog[], feedId: string, nowMs: number, ratePerWeek: number): ShuteEstimate {
   const mine = logs.filter((l) => l.feedId === feedId).sort((a, b) => a.timestampMs - b.timestampMs)
   const fills = mine.filter((l) => l.type === 'fill')
   const lastFill = fills.at(-1)
@@ -76,14 +76,14 @@ export function estimateKokerStock(logs: ConsumptionLog[], feedId: string, nowMs
   const lastDelivery = deliveries.at(-1)
   if (!lastFill && !lastDelivery) return { onHand: 0, lastDeliveryMs: null, delivered: 0 }
 
-  let inKoker = 0
+  let inShute = 0
   let fillTs = -Infinity
   if (lastFill) {
     const sameDay = fills.filter((f) => lastFill.timestampMs - f.timestampMs < DAY_MS)
     fillTs = sameDay[0].timestampMs
     const filled = sameDay.reduce((sum, f) => sum + f.amount, 0)
     const weeksSince = (nowMs - fillTs) / (7 * DAY_MS)
-    inKoker = Math.max(0, filled - ratePerWeek * weeksSince)
+    inShute = Math.max(0, filled - ratePerWeek * weeksSince)
   }
   // Bags delivered after the last fill are still on the shelf.
   const shelf = deliveries.filter((d) => d.timestampMs > fillTs).reduce((sum, d) => sum + d.amount, 0)
@@ -91,7 +91,7 @@ export function estimateKokerStock(logs: ConsumptionLog[], feedId: string, nowMs
   const last = [lastFill, lastDelivery].filter((l): l is ConsumptionLog => l !== undefined).sort((a, b) => b.timestampMs - a.timestampMs)[0]
   const lastDay = mine.filter((l) => (l.type === 'fill' || l.type === 'delivery') && last.timestampMs - l.timestampMs < DAY_MS && l.timestampMs <= last.timestampMs)
   return {
-    onHand: Math.round((inKoker + shelf) * 10) / 10,
+    onHand: Math.round((inShute + shelf) * 10) / 10,
     lastDeliveryMs: last.timestampMs,
     delivered: lastDay.reduce((sum, l) => sum + l.amount, 0),
   }
@@ -100,7 +100,7 @@ export function estimateKokerStock(logs: ConsumptionLog[], feedId: string, nowMs
 export interface AdviceInput {
   stock: number
   ratePerWeek: number
-  isKoker: boolean
+  isShute: boolean
   lastDeliveryMs: number | null
   nowMs: number
   schedule: DeliverySchedule

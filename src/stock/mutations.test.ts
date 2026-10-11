@@ -101,7 +101,7 @@ describe('planChangeLine', () => {
     expect(plans[1].item?.path).toBe('organisations/tanthof/items/ton2_geit')
   })
 
-  it('from outside: fill into a koker, correction into a bin', () => {
+  it('from outside: fill into a shute, correction into a bin', () => {
     expect(planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: null, toStorageId: 'koker' }, ctx)[0].log.type).toBe('fill')
     expect(planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: null, toStorageId: 'ton' }, ctx)[0].log.type).toBe('correction')
   })

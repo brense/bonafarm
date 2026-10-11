@@ -1,5 +1,4 @@
 import AddIcon from '@mui/icons-material/Add'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import {
   Alert,
   Box,
@@ -9,7 +8,6 @@ import {
   Container,
   Dialog,
   DialogTitle,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -19,7 +17,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router'
+import { Navigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth.ts'
 import { ID_PATTERN, type LogType } from '../model/types.ts'
 import { can } from '../org/roles.ts'
@@ -51,7 +49,6 @@ interface Target {
 /** One storage: its feeds with stock, and the one-hand actions on them. */
 export default function StoragePage() {
   const { storageId = '' } = useParams()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { orgId, roles } = useOrg()
   const { storages, storageTypes, feeds, items, loading } = useOrgData()
@@ -96,7 +93,7 @@ export default function StoragePage() {
       </Box>
     )
   }
-  if (!ID_PATTERN.test(storageId) || !storage) return <Navigate to="/opslagen" replace />
+  if (!ID_PATTERN.test(storageId) || !storage) return <Navigate to="/storages" replace />
 
   const defaultMode: AmountMode = consumed ? 'fill' : storage.typeId === 'stable' ? 'count' : 'dispense'
   const current = (feedId: string) => items.get(`${storageId}_${feedId}`)?.amount ?? 0
@@ -124,7 +121,7 @@ export default function StoragePage() {
     )
   }
 
-  const emptyKoker = (feedId: string) => {
+  const emptyShute = (feedId: string) => {
     if (!orgId || !user) return
     applyMutation(planMutation('empty', { orgId, uid: user.uid, storageId, feedId, amount: 0, current: 0 })).catch(() =>
       setSnack('Niet opgeslagen'),
@@ -137,11 +134,8 @@ export default function StoragePage() {
   return (
     <Container maxWidth="md" sx={{ py: 2 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-        <IconButton aria-label="Terug naar opslag" onClick={() => navigate('/opslagen')} edge="start">
-          <ArrowBackIcon />
-        </IconButton>
         <StorageAvatar storage={storage} size={40} />
-        <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }} noWrap>
+        <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }} noWrap>
           {storage.name}
         </Typography>
         <Chip size="small" label={type?.name ?? storage.typeId} />
@@ -200,7 +194,7 @@ export default function StoragePage() {
             </Button>
           )}
           {consumed && rows.length > 0 && (
-            <Button variant="outlined" size="large" color="warning" onClick={() => emptyKoker(rows[0].feedId)}>
+            <Button variant="outlined" size="large" color="warning" onClick={() => emptyShute(rows[0].feedId)}>
               Koker is leeg
             </Button>
           )}

@@ -35,8 +35,8 @@ import { can, visibleTabs, type Tab } from '../org/roles.ts'
 import MutationDialog from '../stock/MutationDialog.tsx'
 
 const TAB_META: Record<Tab, { label: string; icon: ReactElement }> = {
-  voorraad: { label: 'Voorraad', icon: <InventoryIcon /> },
-  opslagen: { label: 'Opslagen', icon: <WarehouseIcon /> },
+  stock: { label: 'Voorraad', icon: <InventoryIcon /> },
+  storages: { label: 'Opslagen', icon: <WarehouseIcon /> },
 }
 
 const DRAWER_WIDTH = 240

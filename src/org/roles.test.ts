@@ -3,9 +3,9 @@ import { can, canEditCatalogue, visibleTabs } from './roles.ts'
 
 describe('visibleTabs', () => {
   it('shows stock and storages to every member', () => {
-    expect(visibleTabs(['view'])).toEqual(['voorraad', 'opslagen'])
-    expect(visibleTabs([])).toEqual(['voorraad', 'opslagen'])
-    expect(visibleTabs(['owner'])).toEqual(['voorraad', 'opslagen'])
+    expect(visibleTabs(['view'])).toEqual(['stock', 'storages'])
+    expect(visibleTabs([])).toEqual(['stock', 'storages'])
+    expect(visibleTabs(['owner'])).toEqual(['stock', 'storages'])
   })
 })
 

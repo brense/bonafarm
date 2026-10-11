@@ -46,8 +46,8 @@ describe('stockPerFeed', () => {
     const geit = rows[1]
     expect(geit.total).toBe(0)
     expect(geit.perStorage).toEqual([])
-    expect(geit.isKoker).toBe(true)
-    expect(rows[0].isKoker).toBe(false)
+    expect(geit.isShute).toBe(true)
+    expect(rows[0].isShute).toBe(false)
   })
 })
 

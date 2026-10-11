@@ -95,7 +95,7 @@ function Sortable({ id, disabled, children }: { id: string; disabled?: boolean; 
 }
 
 /** Grouped storages with their contents; in edit mode groups and storages can be reordered and regrouped. */
-export default function OpslagenPage() {
+export default function StoragesPage() {
   const { orgId, roles } = useOrg()
   const { storages, storageTypes, storageGroups, feeds, items, loading } = useOrgData()
   const navigate = useNavigate()
@@ -205,7 +205,7 @@ export default function OpslagenPage() {
           </IconButton>
         </Stack>
       ) : (
-        <CardActionArea onClick={() => navigate(`/opslagen/${s.id}`)} sx={{ minHeight: 64 }}>
+        <CardActionArea onClick={() => navigate(`/storages/${s.id}`)} sx={{ minHeight: 64 }}>
           <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
               <StorageAvatar storage={s} />

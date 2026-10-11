@@ -4,7 +4,7 @@ import {
   consumptionPerWeek,
   deliverySchedule,
   DELIVERY_ANCHOR,
-  estimateKokerStock,
+  estimateShuteStock,
   STATUS_LABEL,
   STATUS_ORDER,
   type AdviceInput,
@@ -96,7 +96,7 @@ describe('adviseFeed', () => {
     adviseFeed({
       stock: 5,
       ratePerWeek: 1,
-      isKoker: false,
+      isShute: false,
       lastDeliveryMs: null,
       nowMs: 1_000_000_000_000,
       schedule,
@@ -168,7 +168,7 @@ describe('adviseFeed', () => {
   })
 })
 
-describe('estimateKokerStock', () => {
+describe('estimateShuteStock', () => {
   const DAY = 86400000
   const t0 = Date.parse('2026-09-18T10:00:00Z')
   const now = t0 + 14 * DAY
@@ -181,20 +181,20 @@ describe('estimateKokerStock', () => {
 
   it('treats the last fill day as the delivery and depletes it at the usage rate', () => {
     // 2 bags in, 0.5 per week, 2 weeks later -> 1 left
-    const e = estimateKokerStock(logs, 'geit', now, 0.5)
+    const e = estimateShuteStock(logs, 'geit', now, 0.5)
     expect(e.delivered).toBe(2)
     expect(e.onHand).toBe(1)
     expect(e.lastDeliveryMs).toBe(t0 + 3600000)
   })
 
   it('adds bags delivered to a shelf after the last fill', () => {
-    const e = estimateKokerStock([...logs, { type: 'delivery', feedId: 'geit', amount: 3, timestampMs: t0 + 5 * DAY }], 'geit', now, 0.5)
+    const e = estimateShuteStock([...logs, { type: 'delivery', feedId: 'geit', amount: 3, timestampMs: t0 + 5 * DAY }], 'geit', now, 0.5)
     expect(e.onHand).toBe(4)
     expect(e.delivered).toBe(3)
   })
 
   it('never goes below zero and assumes empty without any fill or delivery', () => {
-    expect(estimateKokerStock(logs, 'geit', now, 5).onHand).toBe(0)
-    expect(estimateKokerStock(logs, 'niets', now, 1)).toEqual({ onHand: 0, lastDeliveryMs: null, delivered: 0 })
+    expect(estimateShuteStock(logs, 'geit', now, 5).onHand).toBe(0)
+    expect(estimateShuteStock(logs, 'niets', now, 1)).toEqual({ onHand: 0, lastDeliveryMs: null, delivered: 0 })
   })
 })
