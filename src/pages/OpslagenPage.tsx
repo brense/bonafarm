@@ -51,6 +51,7 @@ import {
   planReorderStorages,
   type OrderWrite,
 } from '../storage/catalogue.ts'
+import StorageAvatar from '../storage/StorageAvatar.tsx'
 import Page from './Page.tsx'
 
 const UNGROUPED = 'ungrouped'
@@ -184,10 +185,13 @@ export default function OpslagenPage() {
   const groupIds = groups.filter((g) => g.id !== UNGROUPED).map((g) => `group:${g.id}`)
 
   const renderStorage = (s: Storage & { id: string }, handle: ReactNode) => (
-    <Card variant="outlined" sx={{ borderLeft: s.color ? `6px solid ${s.color}` : undefined }}>
+    <Card variant="outlined">
       {editing ? (
         <Stack direction="row" sx={{ alignItems: 'center', pl: 0.5, pr: 0.5, minHeight: 64 }}>
           {handle}
+          <Box sx={{ mr: 1.5 }}>
+            <StorageAvatar storage={s} />
+          </Box>
           <Box sx={{ flexGrow: 1, minWidth: 0, py: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 500 }} noWrap>
               {s.name}
@@ -203,15 +207,20 @@ export default function OpslagenPage() {
       ) : (
         <CardActionArea onClick={() => navigate(`/opslagen/${s.id}`)} sx={{ minHeight: 64 }}>
           <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                {s.name}
-              </Typography>
-              <Chip size="small" label={storageTypes.get(s.typeId)?.name ?? s.typeId} />
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <StorageAvatar storage={s} />
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                    {s.name}
+                  </Typography>
+                  <Chip size="small" label={storageTypes.get(s.typeId)?.name ?? s.typeId} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {summary(s.id, s.typeId)}
+                </Typography>
+              </Box>
             </Stack>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {summary(s.id, s.typeId)}
-            </Typography>
           </CardContent>
         </CardActionArea>
       )}

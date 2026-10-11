@@ -28,6 +28,7 @@ import { useOrgData } from '../org/useOrgData.ts'
 import AmountSheet, { type AmountMode } from '../stock/AmountSheet.tsx'
 import { applyMutation, planMutation } from '../stock/mutations.ts'
 import { formatAmount, unitLabel } from '../stock/stock.ts'
+import StorageAvatar from '../storage/StorageAvatar.tsx'
 import { useStorageLogs } from '../stock/useStorageLogs.ts'
 
 const LOG_LABEL: Record<LogType, string> = {
@@ -139,6 +140,7 @@ export default function StoragePage() {
         <IconButton aria-label="Terug naar opslag" onClick={() => navigate('/opslagen')} edge="start">
           <ArrowBackIcon />
         </IconButton>
+        <StorageAvatar storage={storage} size={40} />
         <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }} noWrap>
           {storage.name}
         </Typography>
