@@ -1,0 +1,120 @@
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Bestellijst</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="base.css">
+<style>
+body{background:var(--bg)}
+.frame{background:var(--bg);position:relative}
+.side{display:none}
+.main{min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font:600 15px inherit;font-family:inherit;cursor:pointer}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.secondary{background:#fff;color:var(--brand);border:1.5px solid var(--brand);padding:8px 14px;font-size:13px}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.chip.muted{background:#ECEEE8;color:var(--ink-2)}.chip.muted::before{content:"?";font-weight:800}
+.chip.serious::before{content:"\2261";font-weight:800}
+.note{font-size:12px;color:var(--ink-2)}
+@media (max-width:600px){
+  .frame{width:100%;min-height:100vh}
+  .scroll{padding:4px 16px 92px;display:flex;flex-direction:column;gap:12px}
+  .appbar{padding-top:20px}
+}
+@media (min-width:601px){
+  .frame{width:1280px;display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+  .bottomnav{display:none}
+  .side{display:flex;flex-direction:column;gap:4px;padding:28px 16px;border-right:1px solid var(--grid);background:var(--card)}
+  .side .brand{font-weight:700;font-size:17px;color:var(--brand);padding:4px 12px 20px}
+  .side a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--ink-2);text-decoration:none;font-size:14px}
+  .side a svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .side a.active{background:var(--brand-tint);color:var(--brand);font-weight:600}
+  .appbar{padding:24px 32px 0}
+  .appbar .icon-btn{display:none}
+}
+.sum{display:flex;flex-direction:column;gap:10px}
+.sum .big{font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.nd{font-size:13px;color:var(--ink)}.nd b{font-weight:650}
+.sum .line{font-size:15px}.sum .line b{font-weight:650}
+.sum .btn{align-self:stretch}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.row{align-items:flex-start}
+.row .title{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.row .meta{margin-top:2px}.row .why{font-size:12px;color:var(--muted);margin-top:1px}
+.row .qty{text-align:right;font-size:13px;color:var(--ink-2);white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
+.row .qty b{font-size:22px;color:var(--ink)}
+.row .qty span{font-size:11px}
+.grp-note{font-size:12px;color:var(--ink-2);background:#F2F3EE;border-radius:12px;padding:10px 12px;margin:0 0 4px}
+details summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600}
+details summary::-webkit-details-marker{display:none}
+details summary .c{font-weight:400;font-size:13px;color:var(--ink-2)}
+.fn{background:var(--brand-tint);box-shadow:none}.fn h2{margin-bottom:4px}.fn p{margin:0;font-size:13px;color:var(--ink-2)}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (max-width:600px){.grid{display:flex;flex-direction:column;gap:12px}.sumcard{order:0}.wrap{display:contents}}
+@media (min-width:601px){.grid{padding:20px 32px 32px;display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start}
+ .sumcard{grid-column:1/-1}.sum{flex-direction:row;align-items:center;justify-content:space-between;gap:32px}.sum .btn{align-self:center}.sum .txt{display:flex;flex-direction:column;gap:6px}}
+</style></head><body>
+<div class="frame"><aside class="side"><div class="brand">Bonafarm voer</div><a href="#"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a><a href="#"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>Voorraad</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiek</a><a href="#" class="active"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>Bestellen</a></aside>
+<div class="main">
+ <header class="appbar"><h1>Bestellen</h1><span class="icon-btn">&#9881;</span></header>
+ <div class="scroll grid">
+  <div class="card sumcard"><div class="sum"><div class="txt">
+   <div class="note nd">Volgende levering: <b>vr 16 okt</b> &middot; bestel v&oacute;&oacute;r <b>wo 14 okt</b></div>
+   <div class="big">4 artikelen bestellen</div>
+   <div class="line">&asymp; <b>6 zakken</b> + <b>20 balen hooi</b></div>
+   <div class="note">Daarnaast 9 artikelen zonder telling (&asymp; 19 zakken, alleen als ze echt op zijn). Controleer die eerst.</div></div>
+   <button class="btn primary"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Bestellijst delen</button></div></div>
+  <div class="col">
+   <div class="card"><div class="ch"><div><h2>Nu bestellen</h2><p class="sub">Raakt op v&oacute;&oacute;r levering vr 30 okt</p></div></div><div class="rows"><div class="row"><div class="main"><div class="title">Scharrelmix <span class="chip critical">Bestellen</span></div>
+ <div class="meta">voorraad 0,5 &middot; 0,42/wk &middot; nog 8 dagen</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 35 d</div></div>
+ <div class="qty"><span>Bestel</span><b>2</b> zakken</div></div><div class="row"><div class="main"><div class="title">Hooi <span class="chip warning">Bijna op</span></div>
+ <div class="meta">voorraad 19,5 &middot; 8,8/wk &middot; nog 16 dagen</div><div class="why">laatste levering vr 2 okt &middot; meestal elke 11 d</div></div>
+ <div class="qty"><span>Bestel</span><b>20</b> balen</div></div><div class="row"><div class="main"><div class="title">Grasbrok <span class="chip warning">Bijna op</span></div>
+ <div class="meta">voorraad 4 &middot; 1,2/wk &middot; nog 24 dagen</div><div class="why">laatste levering vr 2 okt &middot; meestal elke 14 d</div></div>
+ <div class="qty"><span>Bestel</span><b>3</b> zakken</div></div><div class="row"><div class="main"><div class="title">Konijnenkorrel <span class="chip warning">Bijna op</span></div>
+ <div class="meta">voorraad 1 &middot; 0,29/wk &middot; nog 24 dagen</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 41 d</div></div>
+ <div class="qty"><span>Bestel</span><b>1</b> zak</div></div></div></div>
+   <div class="card"><div class="ch"><div><h2>Niet geteld</h2><p class="sub">In gebruik, maar voorraad staat op 0</p></div><button class="btn secondary">Telling bijwerken</button></div><div class="rows"><div class="grp-note">Misschien echt op, misschien niet bijgewerkt (zakken gaan vaak direct in de koker). De hoeveelheid is een voorstel op basis van het 12-weeks gemiddelde.</div><div class="row"><div class="main"><div class="title">Geitenkorrel <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,5/wk</div><div class="why">laatste levering vr 26 jun &middot; meestal elke 15 d</div></div>
+ <div class="qty"><span>Bestel</span><b>3</b> zakken</div></div><div class="row"><div class="main"><div class="title">Eenden drijfvoer <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,08/wk</div><div class="why">laatste levering di 12 mei &middot; meestal elke 70 d</div></div>
+ <div class="qty"><span>Bestel</span><b>1</b> zak</div></div><div class="row"><div class="main"><div class="title">Kalveren opfok-korrel <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,17/wk</div><div class="why">laatste levering vr 26 jun &middot; meestal elke 28 d</div></div>
+ <div class="qty"><span>Bestel</span><b>1</b> zak</div></div><div class="row"><div class="main"><div class="title">Parkiet zaad <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,29/wk</div><div class="why">laatste levering vr 10 jul &middot; meestal elke 28 d</div></div>
+ <div class="qty"><span>Bestel</span><b>2</b> zakken</div></div><div class="row"><div class="main"><div class="title">Tropisch zaad <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,08/wk</div><div class="why">laatste levering vr 10 jul &middot; meestal elke 63 d</div></div>
+ <div class="qty"><span>Bestel</span><b>1</b> zak</div></div><div class="row"><div class="main"><div class="title">Varkensvoer <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,67/wk</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 14 d</div></div>
+ <div class="qty"><span>Bestel</span><b>3</b> zakken</div></div><div class="row"><div class="main"><div class="title">Kalveren JR-brok <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,33/wk</div><div class="why">laatste levering vr 4 sep &middot; meestal elke 28 d</div></div>
+ <div class="qty"><span>Bestel</span><b>2</b> zakken</div></div><div class="row"><div class="main"><div class="title">Legmeel scharrel <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,88/wk</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 53 d</div></div>
+ <div class="qty"><span>Bestel</span><b>4</b> zakken</div></div><div class="row"><div class="main"><div class="title">Kalveren A-brok <span class="chip muted">Niet geteld</span></div>
+ <div class="meta">voorraad niet geteld &middot; 0,25/wk</div><div class="why">laatste levering vr 4 sep &middot; meestal elke 168 d</div></div>
+ <div class="qty"><span>Bestel</span><b>2</b> zakken</div></div></div></div>
+  </div>
+  <div class="col">
+   <div class="card"><div class="ch"><div><h2>Op voorraad</h2><p class="sub">Geen bestelling nodig</p></div></div><div class="rows"><div class="row"><div class="main"><div class="title">Stro <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 6,5 &middot; 1,7/wk &middot; nog 27 dagen</div><div class="why">laatste levering vr 2 okt &middot; meestal elke 11 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Kuikenopfokkruimel <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 1 &middot; 0,21/wk &middot; nog 33 dagen</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 28 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Pavo paardenbrokjes <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 0,5 &middot; 0,08/wk &middot; nog 44 dagen</div><div class="why">laatste levering vr 26 jun &middot; meestal elke 154 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Cavia-korrel <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 2,5 &middot; geen verbruik</div><div class="why">laatste levering wo 8 jul &middot; meestal elke 74 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Katten grit <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 2 &middot; geen verbruik</div><div class="why">laatste levering di 4 aug &middot; meestal elke 286 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Schapenkorrel <span class="chip good">Op voorraad</span></div>
+ <div class="meta">voorraad 2 &middot; geen verbruik</div><div class="why">laatste levering vr 21 aug &middot; meestal elke 42 d</div></div>
+ </div></div></div>
+   <div class="card"><div class="ch"><div><h2>Te veel</h2><p class="sub">Meer dan 8 weken voorraad, even niet bestellen</p></div></div><div class="rows"><div class="row"><div class="main"><div class="title">Eenden korrel <span class="chip serious">Te veel</span></div>
+ <div class="meta">voorraad 0,5 &middot; 0,04/wk &middot; &asymp; 13 weken voorraad</div><div class="why">laatste levering vr 3 apr &middot; meestal elke 70 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Ei krachtvoer <span class="chip serious">Te veel</span></div>
+ <div class="meta">voorraad 1,5 &middot; 0,08/wk &middot; &asymp; 19 weken voorraad</div><div class="why">laatste levering vr 18 sep &middot; meestal elke 75 d</div></div>
+ </div><div class="row"><div class="main"><div class="title">Cavia-muesli <span class="chip serious">Te veel</span></div>
+ <div class="meta">voorraad 3,5 &middot; 0,08/wk &middot; &asymp; 44 weken voorraad</div><div class="why">laatste levering vr 10 jul &middot; meestal elke 36 d</div></div>
+ </div></div></div>
+   <div class="card"><details><summary>Niet in gebruik <span class="c">7 artikelen &#9662;</span></summary></details></div>
+   <div class="card fn"><h2>Hoe berekenen we dit?</h2><p>Leveringen komen elke 2 weken op vrijdag. Verbruik is het 12-weeks gemiddelde; we bestellen genoeg tot de levering daarna (vr 30 okt) plus 1 week extra, minstens een gebruikelijke leveringsgrootte. Dinsdag wordt de voorraad geteld.</p></div>
+  </div>
+ </div>
+</div>
+<nav class="bottomnav"><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Home</a><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg></span>Voorraad</a><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Statistiek</a><a href="#" class="active"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></span>Bestellen</a></nav>
+</div></body></html>

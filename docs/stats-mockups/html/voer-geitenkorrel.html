@@ -1,0 +1,80 @@
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Geitenkorrel</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="base.css"><style>
+.page{padding:0;display:block}
+.frame{background:var(--bg);position:relative;display:flex;flex-direction:column;width:390px;border:1px solid var(--axis);border-radius:36px;overflow:hidden;margin:0 auto}
+.scroll{padding:4px 16px 88px;display:flex;flex-direction:column;gap:12px}
+.icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chip.muted{background:#ECEEE9;color:var(--ink-2)}.chip.muted::before{content:"?"}
+.stat .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.stat .note{font-size:13px;color:var(--ink-2);margin-top:6px}
+.bar-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:10px 0;border-top:1px solid var(--grid)}
+.bar-row:first-of-type{border-top:0}
+.bar-row .n{font-weight:600}.bar-row .v{font-variant-numeric:tabular-nums;font-weight:600}
+.bar-row .track{grid-column:1/3;height:10px;border-radius:5px;background:var(--seq-1);overflow:hidden}
+.bar-row .track i{display:block;height:100%;border-radius:5px;background:var(--brand)}
+.bar-row .m{grid-column:1/3;font-size:12px;color:var(--ink-2)}
+.takeaway{font-size:13px;color:var(--ink);margin:10px 0 0}
+.dl{display:flex;flex-direction:column}
+.dl .it{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--grid)}
+.dl .it:first-child{border-top:0}
+.dl .d{width:84px;font-weight:600;font-size:14px}.dl .a{width:70px;font-variant-numeric:tabular-nums}
+.dl .w{flex:1;font-size:12px;color:var(--ink-2);min-width:0}
+.foot{font-size:13px;color:var(--ink-2);margin:10px 0 0;padding-top:10px;border-top:1px solid var(--grid)}
+.adv .big{font-size:28px;font-weight:650;letter-spacing:-.01em}.adv .big small{font-size:15px;font-weight:500;color:var(--ink-2)}
+.adv p{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
+.adv .hd{display:flex;justify-content:space-between;align-items:center}
+.btn{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 16px;border-radius:12px;border:1.5px solid var(--brand);background:var(--card);color:var(--brand);font:600 14px inherit;font-family:inherit}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.hint{font-size:12px;color:var(--ink-2);margin:6px 0 0;text-align:center}
+.metrics{display:grid;grid-template-columns:1fr;gap:8px;margin-top:4px}
+.metrics div{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;align-items:baseline;gap:10px}.metrics b{flex:0 0 112px}
+.metrics b{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.metrics span{font-size:12px;color:var(--ink-2)}
+.yr{display:grid;grid-template-columns:44px 1fr 36px;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.yr .t{height:10px;background:var(--seq-1);border-radius:5px;overflow:hidden}.yr .t i{display:block;height:100%;background:var(--brand);border-radius:5px}
+.yr .t i.part{background:var(--seq-3)}
+.yr b{text-align:right;font-variant-numeric:tabular-nums}
+@media (min-width:601px){
+ body{background:var(--bg)}
+ .frame{width:1280px;border:0;border-radius:0;flex-direction:row;overflow:visible;margin:0}
+ .bottomnav{position:static;width:220px;height:auto;min-height:100vh;border-top:0;border-right:1px solid var(--grid);display:flex;flex-direction:column;justify-content:flex-start;padding:24px 12px;gap:4px;flex-shrink:0}
+ .bottomnav a{flex-direction:row;justify-content:flex-start;gap:10px;font-size:14px;padding:4px 6px;border-radius:12px}
+ .bottomnav .pill{padding:6px}
+ .bottomnav a.active{background:var(--brand-tint)}
+ .main{flex:1;min-width:0}
+ .appbar{padding:24px 32px 4px}
+ .scroll{padding:12px 32px 32px;display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+ .c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
+ .o1{order:1}.o2{order:2}.o3{order:3}.o4{order:4}.o5{order:5}.o6{order:6}
+ .dl.two{display:grid;grid-template-columns:1fr 1fr;column-gap:40px}
+ .dl.two .it:nth-child(2){border-top:0}
+}
+@media (max-width:600px){ .main{display:contents} .frame{min-height:100vh} }
+</style></head><body>
+<div class="page"><div class="frame"><nav class="bottomnav"><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Home</a><a href="#" class="active"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg></span>Voorraad</a><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Statistiek</a><a href="#"><span class="pill"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></span>Bestellen</a></nav><div class="main">
+<header class="appbar"><span class="icon-btn" aria-label="Terug"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><h1>Geitenkorrel</h1></header>
+<div class="scroll">
+<div class="card stat c4 o1"><div class="top"><span class="label">Verbruik 12 weken</span><span class="chip muted">Telling onbekend</span></div>
+ <span class="value">0,5<small>zak/week</small></span>
+ <span class="delta">≈ 2 zakken per maand · 43 zakken in 12 maanden</span>
+ <div class="note">Voorraad staat op 0: zakken gaan direct in de koker</div></div>
+<div class="card c8 o4"><h2>Zakken in de koker per maand</h2><p class="sub">Zakken geitenkorrel, okt 2025 t/m sep 2026 · okt 2026 loopt nog (0 t/m 6 okt)</p><div id="bar"></div></div>
+<div class="card c4 o3"><h2>Per jaar</h2><p class="sub">Zakken geitenkorrel per kalenderjaar</p>
+ <div class="yr"><span>2023</span><span class="t"><i class="" style="width:100%"></i></span><b>58</b></div><div class="yr"><span>2024</span><span class="t"><i class="" style="width:87.93103448275862%"></i></span><b>51</b></div><div class="yr"><span>2025</span><span class="t"><i class="" style="width:70.6896551724138%"></i></span><b>41</b></div><div class="yr"><span>2026*</span><span class="t"><i class="part" style="width:62.06896551724138%"></i></span><b>36</b></div>
+ <p class="foot">* 2026 is t/m 6 okt; het jaar is nog niet af. Hoe lichter de balk, hoe onvollediger.</p></div>
+<div class="card c4 o5"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><h2>Koker</h2><span class="chip warning">Lang niet leeggemaakt</span></div>
+ <p class="sub">Koker geitenkorrel: bijvullen en leegmaken volgens de logboeken</p>
+ <div class="metrics"><div><b>12 jul 2024</b><span>laatst leeggemaakt (816 dagen geleden)</span></div>
+ <div><b>±592 dgn</b><span>gemiddeld tussen leegmaken</span></div>
+ <div><b>2</b><span>geregistreerde cycli sinds nov 2022</span></div></div>
+ <p class="foot">127 keer bijgevuld, laatst vr 18 sep. Weinig cycli: de koker wordt in de praktijk bijna nooit als leeg geregistreerd.</p></div>
+<div class="card c12 o6"><h2>Leveringen</h2><p class="sub">Laatste 5 leveringen; kleine dinsdagcorrecties van de telling tellen niet mee</p>
+ <div class="dl two"><div class="it"><span class="d">vr 26 jun</span><span class="a"><b>3</b> zakken</span><span class="w">Ton paars</span></div><div class="it"><span class="d">vr 12 jun</span><span class="a"><b>2</b> zakken</span><span class="w">Ton paars<br>1 Ton paars · 1 Ton oranje</span></div><div class="it"><span class="d">vr 22 mei</span><span class="a"><b>1</b> zak</span><span class="w">Ton roze</span></div><div class="it"><span class="d">vr 19 sep 2025</span><span class="a"><b>1</b> zak</span><span class="w">Ton blauw</span></div><div class="it"><span class="d">vr 15 nov 2024</span><span class="a"><b>1</b> zak</span><span class="w">Ton paars</span></div></div>
+ <p class="foot">Meestal 1 zak per levering, onregelmatig. Laatste levering is 102 dagen geleden.</p></div>
+<div class="card adv c4 o2"><div class="hd"><h2>Advies</h2><span class="chip muted">Telling onbekend</span></div>
+ <div class="big">±3 <small>zakken voor levering vr 16 okt</small></div>
+ <p>Voorraad niet geteld (staat op 0, zakken gaan direct in de koker). Verbruik ±0,5 zak/week; de bestelling moet tot vr 30 okt plus 1 week reserve toereiken. Controleer eerst de koker.</p>
+ <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Levering registreren</button>
+ <p class="hint">Nieuw: met geregistreerde leveringen wordt de voorraad wél bekend.</p></div></div></div></div></div>
+<script src="charts.js"></script><script>barChart(document.getElementById('bar'),{labels:["okt","nov","dec","jan","feb","mrt","apr","mei","jun","jul","aug","sep"],values:[2,3,2,5,4,3,4,6,6,3,3,2],highlightLast:true,yLabel:'zakken',height:200});</script></body></html>
