@@ -1,5 +1,6 @@
 import SearchIcon from '@mui/icons-material/Search'
 import { Divider, InputAdornment, List, ListItem, Paper, TextField, Typography } from '@mui/material'
+import { lighten, type Theme } from '@mui/material/styles'
 import { useState, type ReactNode, type Ref } from 'react'
 
 interface Props<T> {
@@ -69,7 +70,14 @@ export function SearchList<T>({
     />
   )
   return (
-    <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: 'background.paper', backgroundImage: 'none' }}>
+    <Paper variant="outlined" sx={{
+        borderRadius: '12px',
+        overflow: 'hidden',
+        // Opaque raised surface; rows use the same colour via var(--row-surface) so swiped rows match the card.
+        '--row-surface': (t: Theme) => (t.palette.mode === 'dark' ? lighten(t.palette.background.default, 0.08) : t.palette.grey[50]),
+        bgcolor: 'var(--row-surface)',
+        backgroundImage: 'none',
+      }}>
       {searchPosition === 'top' && (
         <>
           {field}

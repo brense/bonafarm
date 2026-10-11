@@ -292,7 +292,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <FeedRow
         key={r.id ?? 'verbruik'}
         bare={bare}
-        surface={bare ? 'background.paper' : undefined}
+        surface={bare ? 'var(--row-surface)' : undefined}
         name={r.name}
         badge={r.badge}
         active={a > 0}
@@ -443,7 +443,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 </ListItem>
               ))}
               {line && feed && (
-                <ListItem sx={{ display: 'block', p: 1, bgcolor: 'action.hover' }}>
+                <ListItem sx={{ display: 'block', p: 1 }}>
                   <Stack direction="row" sx={{ alignItems: 'center' }}>
                     <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
                       <FeedRow
@@ -493,7 +493,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 renderRow={(f) => (
                   <FeedRow
                     bare
-                    surface="background.paper"
+                    surface="var(--row-surface)"
                     name={f.name}
                     active={false}
                     swipeMax={f.swipeMax}
