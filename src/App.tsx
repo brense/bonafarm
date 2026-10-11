@@ -5,7 +5,7 @@ function Home() {
   return (
     <Container sx={{ py: 3 }}>
       <Typography variant="h5" component="h1" gutterBottom>
-        Bonafarm
+        Voer app
       </Typography>
       <Typography color="text.secondary">
         Nieuwe versie in aanbouw. Voorraad, leveringen en bestellingen per organisatie.
@@ -20,7 +20,7 @@ export default function App() {
       <AppBar position="sticky" color="default" enableColorOnDark>
         <Toolbar>
           <Typography variant="h6" component="div">
-            Bonafarm
+            Voer app
           </Typography>
         </Toolbar>
       </AppBar>

@@ -13,6 +13,6 @@ describe('App', () => {
         </MemoryRouter>
       </ThemeProvider>,
     )
-    expect(screen.getByRole('heading', { level: 1, name: 'Bonafarm' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Voer app' })).toBeInTheDocument()
   })
 })
