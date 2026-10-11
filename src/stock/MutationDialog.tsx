@@ -8,6 +8,7 @@ import {
   Button,
   Collapse,
   Dialog,
+  Grow,
   IconButton,
   List,
   ListItem,
@@ -20,7 +21,8 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { TransitionGroup } from 'react-transition-group'
 import { useAuth } from '../auth/useAuth.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
@@ -113,6 +115,20 @@ interface Line {
  * pick where it came from / went to on the same screen. "Nog een" keeps the
  * line and starts the next; everything is written as one batch.
  */
+/**
+ * One question of the line in progress. `TransitionGroup` injects `in` and `onExited`: a new key collapses
+ * the old question out (not interactive meanwhile) while the new one grows in.
+ */
+function QuestionCollapse({ in: show, motion, children, onExited }: { in?: boolean; motion: number; children: ReactNode; onExited?: () => void; appear?: boolean; enter?: boolean; exit?: boolean }) {
+  return (
+    <Collapse in={show} appear unmountOnExit timeout={motion} onExited={onExited} sx={{ pointerEvents: show ? undefined : 'none' }}>
+      <Grow in appear timeout={motion}>
+        <Box sx={{ py: 1 }}>{children}</Box>
+      </Grow>
+    </Collapse>
+  )
+}
+
 export default function MutationDialog({ open, onClose, onDone }: Props) {
   const { user } = useAuth()
   const { orgId } = useOrg()
@@ -424,23 +440,25 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }
 
   /** Answered questions collapse into summaries inside the cart; the open question goes below it. */
-  const chooser = ((): { summaries: React.ReactNode; question: React.ReactNode } => {
-    if (!line || !feed) return { summaries: null, question: null }
+  const chooser = ((): { summaries: React.ReactNode; question: React.ReactNode; questionKey: 'from' | 'to' | 'in' } => {
+    if (!line || !feed) return { summaries: null, question: null, questionKey: 'in' }
     if (line.direction === 'in') {
       const linked = linkedShute(line.feedId)
       const base = [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
-      return { summaries: null, question: targetBox('In welke opslag?', base) }
+      return { summaries: null, question: targetBox('In welke opslag?', base), questionKey: 'in' }
     }
     const fromDone = sumOf(line.sources) === line.amount
     const showFrom = reopen === 'from' || !fromDone
     const showTo = !showFrom
     const summary = (text: string, which: 'from') => (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
-        <Typography>{text}</Typography>
-        <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
-          Wijzig
-        </Button>
-      </Box>
+      <Collapse in appear timeout={motion}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
+          <Typography>{text}</Typography>
+          <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
+            Wijzig
+          </Button>
+        </Box>
+      </Collapse>
     )
     const linked = linkedShute(line.feedId)
     return {
@@ -465,6 +483,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
           [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])],
         )
       ) : null,
+      questionKey: showFrom ? 'from' : 'to',
     }
   })()
 
@@ -600,9 +619,13 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             />
           </Box>
         </Collapse>
-        <Collapse in={line !== null && !lineComplete} unmountOnExit timeout={motion}>
-          <Box sx={{ py: 1 }}>{chooser.question}</Box>
-        </Collapse>
+        <TransitionGroup>
+          {line !== null && !lineComplete && chooser.question ? (
+            <QuestionCollapse key={chooser.questionKey} motion={motion}>
+              {chooser.question}
+            </QuestionCollapse>
+          ) : null}
+        </TransitionGroup>
         {error && (
           <Typography color="error" sx={{ py: 1 }}>
             {error}

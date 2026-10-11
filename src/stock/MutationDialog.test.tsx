@@ -22,6 +22,9 @@ vi.mock('./mutations.ts', async () => ({
 
 afterEach(cleanup)
 
+// Collapse transitions run on real timers; keep slow runs from tripping the default timeouts.
+vi.setConfig({ testTimeout: 20000 })
+
 const type = (name: string, behaviour: StorageType['behaviour'], order: number): StorageType => ({ name, behaviour, order })
 const storage = (typeId: string, name: string, order: number): Storage => ({ groupId: 'g', typeId, name, status: 'active', order })
 const feed = (name: string, unit: Feed['unit'], order: number, defaultStorageId?: string): Feed => ({ name, unit, order, hidden: false, defaultStorageId })
@@ -69,7 +72,7 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const clickInCart = (name: string) => fireEvent.click(within(screen.getByRole('list', { name: 'Gekozen voer' })).getByRole('button', { name }))
 /** The compact sub row of a storage in the cart list. */
 const subRow = (name: string) => within(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText(name).parentElement!.parentElement!)
-const lineCommitted = () => waitFor(() => expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull())
+const lineCommitted = () => waitFor(() => expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull(), { timeout: 4000 })
 
 describe('MutationDialog', () => {
   it('shows at most 5 rows with the most used feed first', () => {
@@ -116,6 +119,17 @@ describe('MutationDialog', () => {
     expect(screen.getByText('Nog een voorraad wijzigen?')).toBeTruthy()
     expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
     expect((screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('swaps the first question for the second with a transition', async () => {
+    setup()
+    click('Geitenkorrel min')
+    expect(screen.getByRole('list', { name: 'Uit welke opslag?' })).toBeTruthy()
+    click('Ton roze min')
+    expect(screen.getByRole('list', { name: 'Opslagen' })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Uit welke opslag?' })).toBeNull(), { timeout: 4000 })
+    expect(screen.getByRole('list', { name: 'Opslagen' })).toBeTruthy()
+    expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
   })
 
   it('opens a searchable storage picker', async () => {
@@ -175,7 +189,7 @@ describe('MutationDialog', () => {
     fireEvent.pointerMove(sub, { pointerId: 1, clientX: 300, clientY: 12 })
     expect(cart.getByText('−2')).toBeTruthy()
     fireEvent.pointerUp(sub, { pointerId: 1, clientX: 300, clientY: 12 })
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Paardenstal')).toBeNull())
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Paardenstal')).toBeNull(), { timeout: 4000 })
     expect(screen.getByText('Wijziging weggehaald')).toBeTruthy()
     expect(screen.getAllByText('+4 balen')).toHaveLength(2)
   })
@@ -192,7 +206,7 @@ describe('MutationDialog', () => {
     expect(cart().getAllByText('+2 balen')).toHaveLength(2)
     fireEvent.click(cart().getByRole('button', { name: 'Kalverstal min' }))
     fireEvent.click(cart().getByRole('button', { name: 'Kalverstal min' }))
-    await waitFor(() => expect(screen.queryByRole('list', { name: 'Wijzigingen' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Wijzigingen' })).toBeNull(), { timeout: 4000 })
     expect(screen.getByText('Wijziging weggehaald')).toBeTruthy()
     expect(screen.getByText('Nog geen wijzigingen')).toBeTruthy()
   })
@@ -208,7 +222,7 @@ describe('MutationDialog', () => {
     expect(subRow('Verbruik').getByText('+1 zak')).toBeTruthy()
     expect(cart.queryByRole('button', { name: /(min|plus)$/ })).toBeNull()
     fireEvent.click(cart.getByRole('button', { name: 'Wijziging weghalen' }))
-    await waitFor(() => expect(screen.queryByRole('list', { name: 'Wijzigingen' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Wijzigingen' })).toBeNull(), { timeout: 4000 })
     expect(screen.getByText('Wijziging weggehaald')).toBeTruthy()
     expect(screen.getByText('Nog geen wijzigingen')).toBeTruthy()
   })
