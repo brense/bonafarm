@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupIdFor, planMoveToGroup, planNewGroup, planReorderGroups, planReorderStorages } from './catalogue.ts'
+import { groupIdFor, planMoveToGroup, planMoveToGroupAt, planNewGroup, planReorderGroups, planReorderStorages } from './catalogue.ts'
 
 const items = [
   { id: 'a', order: 1 },
@@ -57,5 +57,32 @@ describe('groups', () => {
       id: 'kokers',
       write: { path: 'organisations/org/storageGroups/kokers', data: { name: 'Kokers', order: 5 } },
     })
+  })
+})
+
+describe('planMoveToGroupAt', () => {
+  const target = [
+    { id: 'x', order: 0 },
+    { id: 'y', order: 1 },
+  ]
+
+  it('inserts at the front and shifts the others', () => {
+    expect(planMoveToGroupAt('org', 's1', 'stal', target, 0)).toEqual([
+      { path: 'organisations/org/storages/s1', data: { groupId: 'stal', order: 0 } },
+      { path: 'organisations/org/storages/x', data: { order: 1 } },
+      { path: 'organisations/org/storages/y', data: { order: 2 } },
+    ])
+  })
+
+  it('writes one doc for an empty group', () => {
+    expect(planMoveToGroupAt('org', 's1', 'leeg', [], 0)).toEqual([
+      { path: 'organisations/org/storages/s1', data: { groupId: 'leeg', order: 0 } },
+    ])
+  })
+
+  it('writes only the moved storage when dropped at the end', () => {
+    expect(planMoveToGroupAt('org', 's1', 'stal', target, 2)).toEqual([
+      { path: 'organisations/org/storages/s1', data: { groupId: 'stal', order: 2 } },
+    ])
   })
 })

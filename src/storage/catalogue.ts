@@ -58,6 +58,28 @@ export function planMoveToGroup(orgId: string, storageId: string, groupId: strin
   return { path: paths.storage(orgId, storageId), data: { groupId, order: last + 1 } }
 }
 
+/**
+ * Drops a storage at `index` in another group: the moved storage gets `index`,
+ * the target's storages at or after it shift up by one. Only changes are written.
+ */
+export function planMoveToGroupAt(
+  orgId: string,
+  storageId: string,
+  groupId: string,
+  groupStorages: readonly Ordered[],
+  index: number,
+): OrderWrite[] {
+  const others = sortedByOrder(groupStorages.filter((s) => s.id !== storageId))
+  const at = Math.max(0, index)
+  const writes: OrderWrite[] = [{ path: paths.storage(orgId, storageId), data: { groupId, order: at } }]
+  others.forEach((s, position) => {
+    if (position < at) return
+    const order = position + 1
+    if (s.order !== order) writes.push({ path: paths.storage(orgId, s.id), data: { order } })
+  })
+  return writes
+}
+
 const GROUP_ID = /^[a-z0-9][a-z0-9-]*$/
 
 /** Slug from a name, unique among the existing groups. */

@@ -3,8 +3,11 @@ import {
   PointerSensor,
   TouchSensor,
   closestCenter,
+  closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -45,6 +48,7 @@ import { formatAmount } from '../stock/stock.ts'
 import {
   applyCatalogue,
   planMoveToGroup,
+  planMoveToGroupAt,
   planNewGroup,
   planRenameGroup,
   planReorderGroups,
@@ -91,6 +95,20 @@ function Sortable({ id, disabled, children }: { id: string; disabled?: boolean; 
     <div ref={setNodeRef} style={style}>
       {children(handle)}
     </div>
+  )
+}
+
+const collisionDetection: CollisionDetection = (args) =>
+  String(args.active.id).startsWith('storage:') ? closestCorners(args) : closestCenter(args)
+
+/** Drop target around a group's storage list, so a storage can land in an empty group. */
+function GroupDrop({ groupId, disabled, children }: { groupId: string; disabled: boolean; children: ReactNode }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id: `drop:${groupId}`, disabled })
+  const highlight = isOver && String(active?.id ?? '').startsWith('storage:')
+  return (
+    <Stack ref={setNodeRef} spacing={1} sx={{ minHeight: 56, ...(highlight && { bgcolor: 'action.hover', borderRadius: 1 }) }}>
+      {children}
+    </Stack>
   )
 }
 
@@ -146,18 +164,32 @@ export default function StoragesPage() {
     if (!orgId || !over || active.id === over.id) return
     const [kind, id] = String(active.id).split(':')
     const [overKind, overId] = String(over.id).split(':')
-    if (kind !== overKind) return
     if (kind === 'group') {
+      if (overKind !== 'group') return
       const draggable = groups.filter((g) => g.id !== UNGROUPED)
       const from = draggable.findIndex((g) => g.id === id)
       const to = draggable.findIndex((g) => g.id === overId)
       run(planReorderGroups(orgId, draggable, from, to))
+      return
+    }
+    const source = groups.find((g) => g.storages.some((s) => s.id === id))
+    if (!source) return
+    let target: Group | undefined
+    let index = 0
+    if (overKind === 'storage') {
+      target = groups.find((g) => g.storages.some((s) => s.id === overId))
+      index = target ? target.storages.findIndex((s) => s.id === overId) : 0
+    } else if (overKind === 'drop') {
+      target = groups.find((g) => g.id === overId)
+      index = target ? target.storages.length : 0
+    }
+    if (!target) return
+    if (target.id === source.id) {
+      if (overKind !== 'storage') return
+      const from = source.storages.findIndex((s) => s.id === id)
+      run(planReorderStorages(orgId, source.storages, from, index))
     } else {
-      const group = groups.find((g) => g.storages.some((s) => s.id === id))
-      if (!group || !group.storages.some((s) => s.id === overId)) return
-      const from = group.storages.findIndex((s) => s.id === id)
-      const to = group.storages.findIndex((s) => s.id === overId)
-      run(planReorderStorages(orgId, group.storages, from, to))
+      run(planMoveToGroupAt(orgId, id, target.id, target.storages, index), [], `${storages.get(id)?.name} naar ${target.name}`)
     }
   }
 
@@ -241,7 +273,7 @@ export default function StoragesPage() {
         )}
       </Stack>
       <SortableContext items={g.storages.map((s) => `storage:${s.id}`)} strategy={verticalListSortingStrategy}>
-        <Stack spacing={1}>
+        <GroupDrop groupId={g.id} disabled={!editing}>
           {g.storages.length === 0 && (
             <Typography variant="body2" color="text.disabled" sx={{ px: 1 }}>
               Geen opslag in deze groep
@@ -252,7 +284,7 @@ export default function StoragesPage() {
               {(h) => renderStorage(s, h)}
             </Sortable>
           ))}
-        </Stack>
+        </GroupDrop>
       </SortableContext>
     </Box>
   )
@@ -281,7 +313,7 @@ export default function StoragesPage() {
       ) : groups.length === 0 ? (
         <Typography color="text.secondary">Nog geen opslag in deze organisatie.</Typography>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           <Stack spacing={3}>
             <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
               {groups
