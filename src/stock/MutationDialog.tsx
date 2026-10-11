@@ -17,7 +17,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
@@ -112,6 +112,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [storageQuery, setStorageQuery] = useState('')
   const [reopen, setReopen] = useState<'from' | 'to' | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
+  const cartRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = cartRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lines, line, reopen])
   const theme = useTheme()
   const wide = useMediaQuery(theme.breakpoints.up('md'))
 
@@ -191,6 +196,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const count = lines.length + (line && lineComplete ? 1 : 0)
 
+  const cartCount = lines.length + (line ? 1 : 0)
   const saveDisabled = count === 0 || (line !== null && !lineComplete)
 
   const storageName = (id: string | null) => (id ? (storages.get(id)?.name ?? id) : '')
@@ -218,6 +224,12 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const close = () => {
     reset()
     onClose()
+  }
+
+  const cancelLine = () => {
+    setLine(null)
+    setStorageQuery('')
+    setReopen(null)
   }
 
   const another = () => {
@@ -271,7 +283,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     </Typography>
   )
 
-  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void) => (
+  const allocRows = (label: string, rows: { id: string | null; name: string }[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus') => (
     <List aria-label={label} disablePadding>
       {rows.map((r) => {
         const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
@@ -281,11 +293,17 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             key={r.id ?? 'verbruik'}
             name={r.name}
             active={a > 0}
-            plusOnly
-            maxPlus={room}
+            gesture={mode}
+            maxMinus={mode === 'minus' ? room : undefined}
+            maxPlus={mode === 'plus' ? room : undefined}
             onClear={a > 0 ? () => onChange(r.id, -1e9) : undefined}
-            detail={a > 0 && feed ? { text: `${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: 'text.primary' } : undefined}
-            onSwipe={(signed) => onChange(r.id, signed)}
+            detail={
+              a > 0 && feed
+                ? { text: `${mode === 'minus' ? '−' : '+'}${formatAmount(a)} ${unitLabel(feed.unit, a)}`, color: mode === 'minus' ? 'error.main' : 'success.main' }
+                : undefined
+            }
+            onSwipe={(signed) => onChange(r.id, Math.abs(signed))}
+            onMinus={() => onChange(r.id, 1)}
             onPlus={() => onChange(r.id, 1)}
           />
         )
@@ -306,7 +324,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     return (
       <Box sx={sectionBox}>
         {sectionTitle(title)}
-        {allocRows(label, rows, line.targets, () => Infinity, changeTarget)}
+        {allocRows(label, rows, line.targets, () => Infinity, changeTarget, 'plus')}
         <SearchList
           items={options}
           getKey={(o) => o.id}
@@ -321,7 +339,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               name={o.name}
               badge={o.type}
               active={false}
-              plusOnly
+              gesture="plus"
               onSwipe={(signed) => {
                 if (signed > 0) {
                   changeTarget(o.id, signed)
@@ -364,7 +382,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               {showFrom ? (
                 <Box sx={sectionBox}>
                   {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-                  {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource)}
+                  {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
                   {fromDone && (
                     <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
                       Klaar
@@ -372,7 +390,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   )}
                 </Box>
               ) : (
-                summary(`Uit: ${allocText(line.sources)}`, 'from')
+                summary(`Van: ${allocText(line.sources)}`, 'from')
               )}
               {!showFrom && (
                 <Box sx={{ mt: 1 }}>
@@ -419,12 +437,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       </AppBar>
 
       <Box sx={{ px: 2, pt: 2, flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
-          {lines.length === 0 ? (
-            <Typography color="text.secondary" sx={{ p: 2 }}>
-              Nog geen wijzigingen
-            </Typography>
-          ) : (
+        {sectionTitle(cartCount === 0 ? 'Nog geen wijzigingen' : `${cartCount} ${cartCount === 1 ? 'wijziging' : 'wijzigingen'}`)}
+        <Box ref={cartRef} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
+          {lines.length === 0 && !line ? null : (
             <List dense disablePadding aria-label="Wijzigingen">
               {lines.map((c, i) => (
                 <ListItem
@@ -440,67 +455,75 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   <ListItemText primary={describe(c)} />
                 </ListItem>
               ))}
+              {line && feed && (
+                <ListItem sx={{ display: 'block', p: 1, border: 1, borderColor: 'primary.main', borderRadius: 1, m: 1, width: 'auto' }}>
+                  <Stack direction="row" sx={{ alignItems: 'center' }}>
+                    <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                      <FeedRow
+                        name={feed.name}
+                        active
+                        maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
+                        emptyLabel="Geen voorraad"
+                        detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
+                        onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                        onMinus={() => tap(line.feedId, 'out')}
+                        onPlus={() => tap(line.feedId, 'in')}
+                      />
+                    </List>
+                    <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </Stack>
+                  {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
+                    <Typography variant="caption" color="text.secondary">
+                      Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
+                    </Typography>
+                  )}
+                  {chooser}
+                </ListItem>
+              )}
             </List>
           )}
         </Box>
       </Box>
 
-      <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto', maxHeight: '60dvh', overflowY: 'auto' }}>
-        {line && feed ? (
-          <>
-            <List aria-label="Gekozen voer" disablePadding>
-              <FeedRow
-                name={feed.name}
-                active
-                maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
-                emptyLabel="Geen voorraad"
-                detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
-                onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                onMinus={() => tap(line.feedId, 'out')}
-                onPlus={() => tap(line.feedId, 'in')}
+      {(!line || error) && (
+        <Box sx={{ px: 2, pt: 1, pb: 1, flex: '0 0 auto', maxHeight: '60dvh', overflowY: 'auto' }}>
+          {!line && (
+            <>
+              {sectionTitle('Welk voorraad wil je wijzigen?')}
+              <SearchList
+                items={rows}
+                getKey={(f) => f.id}
+                getLabel={(f) => f.name}
+                searchLabel="Zoeken…"
+                listAriaLabel="Voerlijst"
+                emptyText="Geen voer gevonden"
+                query={search}
+                onQueryChange={setSearch}
+                inputRef={searchRef}
+                renderRow={(f) => (
+                  <FeedRow
+                    name={f.name}
+                    active={false}
+                    minusDisabled={totalOf(f.id) <= 0}
+                    maxMinus={totalOf(f.id)}
+                    emptyLabel="Geen voorraad"
+                    onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                    onMinus={() => tap(f.id, 'out')}
+                    onPlus={() => tap(f.id, 'in')}
+                  />
+                )}
               />
-            </List>
-            {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
-              <Typography variant="caption" color="text.secondary">
-                Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
-              </Typography>
-            )}
-            {chooser}
-          </>
-        ) : (
-          <>
-            {sectionTitle('Welk voorraad wil je wijzigen?')}
-            <SearchList
-              items={rows}
-              getKey={(f) => f.id}
-              getLabel={(f) => f.name}
-              searchLabel="Zoeken…"
-              listAriaLabel="Voerlijst"
-              emptyText="Geen voer gevonden"
-              query={search}
-              onQueryChange={setSearch}
-              inputRef={searchRef}
-              renderRow={(f) => (
-                <FeedRow
-                  name={f.name}
-                  active={false}
-                  minusDisabled={totalOf(f.id) <= 0}
-                  maxMinus={totalOf(f.id)}
-                  emptyLabel="Geen voorraad"
-                  onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                  onMinus={() => tap(f.id, 'out')}
-                  onPlus={() => tap(f.id, 'in')}
-                />
-              )}
-            />
-          </>
-        )}
-        {error && (
-          <Typography color="error" sx={{ mt: 1 }}>
-            {error}
-          </Typography>
-        )}
-      </Box>
+            </>
+          )}
+          {error && (
+            <Typography color="error" sx={{ mt: 1 }}>
+              {error}
+            </Typography>
+          )}
+        </Box>
+      )}
 
       <Paper square elevation={8} sx={{ flex: '0 0 auto', p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>

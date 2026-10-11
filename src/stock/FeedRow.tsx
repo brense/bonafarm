@@ -25,7 +25,7 @@ function swipeAmount(distance: number): number {
  * Horizontal swipe on a row: right = minus (negative), left = plus (positive). Vertical
  * movement before the threshold abandons the gesture so scrolling keeps working.
  */
-function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = true) {
+function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = true, allowPlus = true) {
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const start = useRef<{ id: number; x: number; y: number; locked: boolean } | null>(null)
@@ -56,14 +56,14 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = tr
         setDragging(true)
         e.currentTarget.setPointerCapture?.(e.pointerId)
       }
-      setOffset(Math.max(-SWIPE_MAX, Math.min(allowMinus ? SWIPE_MAX : 0, dx)))
+      setOffset(Math.max(allowPlus ? -SWIPE_MAX : 0, Math.min(allowMinus ? SWIPE_MAX : 0, dx)))
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
       const s = start.current
       if (!s || s.id !== e.pointerId) return
       const dx = e.clientX - s.x
       if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture?.(e.pointerId)
-      const amount = s.locked && (allowMinus || dx < 0) ? swipeAmount(dx) : 0
+      const amount = s.locked && (dx > 0 ? allowMinus : allowPlus) ? swipeAmount(dx) : 0
       finish()
       if (amount > 0) onSwipe(dx < 0 ? amount : -amount)
     },
@@ -72,8 +72,8 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = tr
   return { offset, dragging, handlers }
 }
 
-export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, plusOnly, onClear, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; plusOnly?: boolean; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus: () => void }) {
-  const { offset, dragging, handlers } = useSwipeAmount(onSwipe, !plusOnly)
+export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, gesture = 'both', onClear, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; /** Which buttons and swipe direction the row reacts to. */ gesture?: 'minus' | 'plus' | 'both'; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus?: () => void }) {
+  const { offset, dragging, handlers } = useSwipeAmount(onSwipe, gesture !== 'plus', gesture !== 'minus')
   const raw = swipeAmount(offset)
   const cap = offset > 0 ? maxMinus : maxPlus
   const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset > 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
@@ -122,14 +122,16 @@ export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus =
           </IconButton>
         )}
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-          {!plusOnly && (
+          {gesture !== 'plus' && (
             <IconButton aria-label={`${name} min`} disabled={minusDisabled} onClick={onMinus} sx={iconButtonSx}>
               <RemoveIcon />
             </IconButton>
           )}
-          <IconButton aria-label={`${name} plus`} onClick={onPlus} sx={iconButtonSx}>
+{gesture !== 'minus' && (
+                      <IconButton aria-label={`${name} plus`} onClick={onPlus} sx={iconButtonSx}>
             <AddIcon />
           </IconButton>
+          )}
         </Stack>
       </Box>
     </ListItem>

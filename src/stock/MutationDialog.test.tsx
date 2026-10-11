@@ -80,14 +80,14 @@ describe('MutationDialog', () => {
     click('Geitenkorrel min')
     const from = screen.getByRole('list', { name: 'Uit welke opslag?' })
     expect(within(from).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Ton roze'])
-    expect(within(from).queryByRole('button', { name: /min$/ })).toBeNull()
+    expect(within(from).queryByRole('button', { name: /plus$/ })).toBeNull()
     expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
     const another = screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement
     const saveBtn = screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement
     expect(another.disabled).toBe(true)
     expect(saveBtn.disabled).toBe(true)
-    fireEvent.click(within(from).getByRole('button', { name: 'Ton roze plus' }))
-    expect(screen.getByText('Uit: Ton roze 1')).toBeTruthy()
+    fireEvent.click(within(from).getByRole('button', { name: 'Ton roze min' }))
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText('Van: Ton roze 1')).toBeTruthy()
     expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
     const to = screen.getByRole('list', { name: 'Waar naartoe?' })
     expect(within(to).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Verbruik', 'Koker geit'])
@@ -104,7 +104,7 @@ describe('MutationDialog', () => {
   it('opens a searchable storage picker', () => {
     setup()
     click('Geitenkorrel min')
-    click('Ton roze plus')
+    click('Ton roze min')
     expect(screen.getByLabelText('Zoek opslag')).toBeTruthy()
     const picker = screen.getByRole('list', { name: 'Opslagen' })
     expect(within(picker).getAllByRole('listitem').length).toBe(1)
@@ -112,6 +112,21 @@ describe('MutationDialog', () => {
     fireEvent.click(within(picker).getByRole('button', { name: 'Kalverstal plus' }))
     expect(screen.queryByLabelText('Zoek opslag')).toBeNull()
     expect(screen.getByText('Naar: Kalverstal 1')).toBeTruthy()
+  })
+
+  it('counts lines in the cart heading', () => {
+    setup()
+    expect(screen.getByText('Nog geen wijzigingen')).toBeTruthy()
+    click('Geitenkorrel min')
+    expect(screen.getByText('1 wijziging')).toBeTruthy()
+  })
+
+  it('cancels the line in progress', () => {
+    setup()
+    click('Geitenkorrel min')
+    click('Regel annuleren')
+    expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull()
+    expect(screen.getByRole('list', { name: 'Voerlijst' })).toBeTruthy()
   })
 
   it('adds one per tap', () => {
@@ -124,11 +139,11 @@ describe('MutationDialog', () => {
   it('saves several lines as one batch', () => {
     const { onDone, onClose } = setup()
     click('Geitenkorrel min')
-    click('Ton roze plus')
+    click('Ton roze min')
     click('Koker geit plus')
     click('Nog eentje')
     click('Hooi min')
-    click('Kalverstal plus')
+    click('Kalverstal min')
     click('Verbruik plus')
     click('Opslaan')
     expect(applyMutations).toHaveBeenCalledTimes(1)
@@ -157,10 +172,10 @@ describe('MutationDialog', () => {
     click('Geitenkorrel min')
     expect(screen.getByText('Er ligt maar 3 zakken')).toBeTruthy()
     expect(screen.getByText('Uit welke opslagen?')).toBeTruthy()
-    click('Ton roze plus')
-    click('Ton oranje plus')
+    click('Ton roze min')
+    click('Ton oranje min')
     expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
-    click('Ton oranje plus')
+    click('Ton oranje min')
     expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
     click('Verbruik plus')
     click('Verbruik plus')
@@ -193,7 +208,7 @@ describe('MutationDialog', () => {
   it('only allows adding in the storage search list', () => {
     setup()
     click('Geitenkorrel min')
-    click('Ton roze plus')
+    click('Ton roze min')
     const picker = screen.getByRole('list', { name: 'Opslagen' })
     expect(within(picker).queryByRole('button', { name: /min$/ })).toBeNull()
     expect(within(picker).getByText('Kalverstal')).toBeTruthy()
