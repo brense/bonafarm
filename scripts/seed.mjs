@@ -11,7 +11,7 @@
  * command first (e.g. `firebase projects:list`) so the cached token is fresh,
  * or pass FIREBASE_ACCESS_TOKEN in the environment.
  *
- * Writes: 1 organisation + 1 member + 3 storage types + 1 storage group = 6 docs.
+ * Writes: 1 organisation + 1 branding + 1 member + 3 storage types + 1 storage group = 7 docs.
  */
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -39,6 +39,14 @@ const now = new Date().toISOString()
 
 const docs = [
   [`organisations/${ORG}`, { name: str(ORG_NAME), createdAt: ts(now) }],
+  [`organisations/${ORG}/branding/public`, {
+    appName: str('Voer app'), shortName: str('Voer app'),
+    description: str('Voorraad en bestellingen van diervoer'),
+    mode: str('dark'), primaryColor: str('#03A9F4'), secondaryColor: str('#E91E63'),
+    themeColor: str('#F61767'), backgroundColor: str('#000000'),
+    icon192: str('/manifest-icon-192.maskable.png'), icon512: str('/manifest-icon-512.maskable.png'),
+    iconMaskable: str('/icon.png'),
+  }],
   [`organisations/${ORG}/members/${OWNER}`, { uid: str(OWNER), role: str('owner'), createdAt: ts(now) }],
   [`organisations/${ORG}/storageTypes/bin`, { name: str('Bak'), behaviour: str('counted'), order: int(0) }],
   [`organisations/${ORG}/storageTypes/shute`, { name: str('Koker'), behaviour: str('consumed'), order: int(1) }],

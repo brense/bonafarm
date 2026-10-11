@@ -4,6 +4,7 @@ import type { Timestamp } from 'firebase/firestore'
  * Firestore data model for the multi-tenant app.
  *
  * organisations/{orgId}
+ *   branding/public                  world-readable, drives title/theme/manifest
  *   members/{uid}
  *   feeds/{feedId}
  *   logs/{logId}
@@ -18,6 +19,32 @@ import type { Timestamp } from 'firebase/firestore'
  */
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
+
+/**
+ * Per-organisation branding. Lives in organisations/{orgId}/branding/public and
+ * is readable without signing in, because the web app manifest is fetched by
+ * the browser without credentials. All fields optional; see DEFAULT_BRANDING.
+ */
+export interface Branding {
+  /** Full name, e.g. "Voer app". Used for the manifest name and the page title. */
+  appName?: string
+  /** Short name for the home screen, 12 characters or fewer. */
+  shortName?: string
+  description?: string
+  /** 'dark' or 'light' MUI palette mode. */
+  mode?: 'dark' | 'light'
+  /** Hex colours. */
+  primaryColor?: string
+  secondaryColor?: string
+  /** Browser chrome / splash colours for the manifest and the theme-color meta tag. */
+  themeColor?: string
+  backgroundColor?: string
+  /** Absolute URLs or site-relative paths to PNG icons. */
+  icon192?: string
+  icon512?: string
+  /** 512x512 PNG with safe-zone padding for maskable icons. */
+  iconMaskable?: string
+}
 
 export interface Organisation {
   name: string

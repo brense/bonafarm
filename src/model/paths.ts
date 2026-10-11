@@ -2,6 +2,7 @@
 export const paths = {
   organisations: () => 'organisations',
   organisation: (orgId: string) => `organisations/${orgId}`,
+  branding: (orgId: string) => `organisations/${orgId}/branding/public`,
   members: (orgId: string) => `organisations/${orgId}/members`,
   member: (orgId: string, uid: string) => `organisations/${orgId}/members/${uid}`,
   feeds: (orgId: string) => `organisations/${orgId}/feeds`,

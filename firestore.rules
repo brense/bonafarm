@@ -4,6 +4,7 @@ rules_version = '2';
 // decided by the caller's member document in that organisation.
 //
 // organisations/{orgId}
+//   branding/public          world-readable (the manifest is fetched without auth)
 //   members/{uid}            uid, role: owner | admin | member | viewer
 //   feeds/{feedId}
 //   logs/{logId}
@@ -54,6 +55,17 @@ service cloud.firestore {
       allow update: if isAdmin(orgId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
       allow delete: if false;
+
+      match /branding/{docId} {
+        // "public" is readable by anyone: the browser fetches the web app
+        // manifest without credentials. Edited by admins (console for now).
+        allow read: if docId == 'public' || isMember(orgId);
+        allow create, update: if isAdmin(orgId)
+          && request.resource.data.keys().hasOnly(['appName', 'shortName', 'description', 'mode',
+               'primaryColor', 'secondaryColor', 'themeColor', 'backgroundColor',
+               'icon192', 'icon512', 'iconMaskable']);
+        allow delete: if isAdmin(orgId);
+      }
 
       match /members/{uid} {
         allow read: if isMember(orgId);
