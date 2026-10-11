@@ -1,25 +1,31 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest/config" />
+import { serwist } from '@serwist/vite'
 import react from '@vitejs/plugin-react'
-import eslint from 'vite-plugin-eslint'
-import apolloServerPlugin from 'vite-plugin-apollo-server'
-import mkcert from 'vite-plugin-mkcert'
-import codegen from 'vite-plugin-graphql-codegen'
-import { schema } from './src/_makeSchema'
+import { defineConfig } from 'vite'
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  server: {
-    port: 3000,
-    open: true
-  },
-  build: {
-    outDir: 'dist',
-  },
+// https://vite.dev/config/
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    eslint(),
-    mkcert(),
-    codegen(),
-    apolloServerPlugin({ schema })
-  ]
-})
+    // The service worker is only built for real builds; Vitest runs without it.
+    ...(mode === 'test'
+      ? []
+      : [
+          serwist({
+            swSrc: 'src/sw.ts',
+            swDest: 'sw.js',
+            globDirectory: 'dist',
+            injectionPoint: 'self.__SW_MANIFEST',
+            rollupFormat: 'iife',
+            devOptions: { bundle: false },
+          }),
+        ]),
+  ],
+  test: {
+    environment: 'jsdom',
+    globals: false,
+    setupFiles: ['src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    css: false,
+  },
+}))

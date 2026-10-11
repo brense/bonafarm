@@ -1,0 +1,180 @@
+rules_version = '2';
+
+// Multi-tenant rules: every document lives under an organisation and access is
+// decided by the caller's member document in that organisation.
+//
+// organisations/{orgId}
+//   members/{uid}            role: owner | admin | member | viewer
+//   feeds, logs, storageTypes
+//   storageGroups/{groupId}/storages/{storageId}/items/{feedId}
+//
+// Documents below an organisation also carry `orgId` so that collection-group
+// queries (all storages, all items of an org) can be checked.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // One document read per rule evaluation. A missing member document makes
+    // get() fail, which denies access.
+    function memberRole(orgId) {
+      return get(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isMember(orgId) {
+      return signedIn() && memberRole(orgId) in ['owner', 'admin', 'member', 'viewer'];
+    }
+
+    function hasRole(orgId, roles) {
+      return signedIn() && memberRole(orgId) in roles;
+    }
+
+    function canEdit(orgId) {
+      return hasRole(orgId, ['owner', 'admin', 'member']);
+    }
+
+    function isAdmin(orgId) {
+      return hasRole(orgId, ['owner', 'admin']);
+    }
+
+    function isOwner(orgId) {
+      return hasRole(orgId, ['owner']);
+    }
+
+    // The orgId field must match the path and may never change.
+    function orgIdMatches(orgId) {
+      return request.resource.data.orgId == orgId;
+    }
+
+    function orgIdUnchanged() {
+      return request.resource.data.orgId == resource.data.orgId;
+    }
+
+    match /organisations/{orgId} {
+      allow read: if isMember(orgId);
+      // Creating an organisation is done through a seed/admin script for now.
+      allow create: if false;
+      allow update: if isAdmin(orgId) && orgIdUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow read: if isMember(orgId);
+        allow create: if isAdmin(orgId) && orgIdMatches(orgId)
+          && request.resource.data.uid == uid
+          && request.resource.data.role in ['admin', 'member', 'viewer'];
+        allow update: if isAdmin(orgId) && orgIdUnchanged()
+          && request.resource.data.uid == uid
+          && request.resource.data.role in ['owner', 'admin', 'member', 'viewer']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'displayName', 'email'])
+          // Only an owner can hand out or take away the owner role.
+          && (resource.data.role != 'owner' || isOwner(orgId))
+          && (request.resource.data.role != 'owner' || isOwner(orgId))
+          // The last owner cannot demote themselves.
+          && !(uid == request.auth.uid && resource.data.role == 'owner' && request.resource.data.role != 'owner')
+          // Only owners may change admins (an admin may edit their own profile, not their role).
+          && (resource.data.role != 'admin' || isOwner(orgId)
+              || (uid == request.auth.uid && request.resource.data.role == 'admin'));
+        allow delete: if isAdmin(orgId) && resource.data.role != 'owner' && uid != request.auth.uid;
+      }
+
+      match /feeds/{feedId} {
+        allow read: if isMember(orgId);
+        allow create: if canEdit(orgId) && orgIdMatches(orgId);
+        allow update: if canEdit(orgId) && orgIdUnchanged();
+        allow delete: if isAdmin(orgId);
+      }
+
+      match /storageTypes/{typeId} {
+        allow read: if isMember(orgId);
+        allow create: if isAdmin(orgId) && orgIdMatches(orgId);
+        allow update: if isAdmin(orgId) && orgIdUnchanged();
+        allow delete: if isAdmin(orgId);
+      }
+
+      match /storageGroups/{groupId} {
+        allow read: if isMember(orgId);
+        allow create: if canEdit(orgId) && orgIdMatches(orgId);
+        allow update: if canEdit(orgId) && orgIdUnchanged();
+        allow delete: if isAdmin(orgId);
+
+        match /storages/{storageId} {
+          allow read: if isMember(orgId);
+          allow create: if canEdit(orgId) && orgIdMatches(orgId)
+            && request.resource.data.groupId == groupId;
+          allow update: if canEdit(orgId) && orgIdUnchanged()
+            && request.resource.data.groupId == groupId;
+          allow delete: if isAdmin(orgId);
+
+          match /items/{feedId} {
+            allow read: if isMember(orgId);
+            allow create: if canEdit(orgId) && orgIdMatches(orgId)
+              && request.resource.data.groupId == groupId
+              && request.resource.data.storageId == storageId
+              && request.resource.data.feedId == feedId
+              && request.resource.data.amount is number
+              && request.resource.data.updatedAt is timestamp;
+            allow update: if canEdit(orgId) && orgIdUnchanged()
+              && request.resource.data.groupId == groupId
+              && request.resource.data.storageId == storageId
+              && request.resource.data.feedId == feedId
+              && request.resource.data.amount is number
+              && request.resource.data.updatedAt is timestamp;
+            allow delete: if canEdit(orgId);
+          }
+        }
+      }
+
+      match /logs/{logId} {
+        allow read: if isMember(orgId);
+        // Logs are an audit trail: members add them, only admins may change or
+        // remove them afterwards.
+        allow create: if canEdit(orgId) && orgIdMatches(orgId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.amount is number
+          && request.resource.data.amount >= 0
+          && request.resource.data.type in ['delivery', 'count', 'dispense', 'fill', 'empty', 'move', 'correction']
+          && request.resource.data.feedId is string
+          && request.resource.data.groupId is string
+          && request.resource.data.storageId is string
+          // Backdating is allowed (a Friday delivery logged on Tuesday); the
+          // future is not, apart from a little clock skew.
+          && request.resource.data.timestamp is timestamp
+          && request.resource.data.timestamp <= request.time + duration.value(5, 'm')
+          && (!('note' in request.resource.data)
+              || (request.resource.data.note is string && request.resource.data.note.size() <= 500))
+          && (!('previousAmount' in request.resource.data) || request.resource.data.previousAmount is number)
+          && request.resource.data.keys().hasOnly(['orgId', 'type', 'feedId', 'groupId', 'storageId',
+               'amount', 'previousAmount', 'moveId', 'note', 'uid', 'timestamp']);
+        // Admins may correct amount, note, timestamp and previousAmount only;
+        // uid, type, feedId, storageId and groupId are immutable.
+        allow update: if isAdmin(orgId) && orgIdUnchanged()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'note', 'timestamp', 'previousAmount'])
+          && request.resource.data.amount is number
+          && request.resource.data.amount >= 0
+          && request.resource.data.timestamp is timestamp
+          && request.resource.data.timestamp <= request.time + duration.value(5, 'm');
+        allow delete: if isAdmin(orgId);
+      }
+    }
+
+    // Collection-group reads. The path wildcard cannot tell us the organisation,
+    // so the query must filter on orgId and the caller must be a member of it.
+    match /{path=**}/storages/{storageId} {
+      allow read: if isMember(resource.data.orgId);
+    }
+
+    match /{path=**}/items/{feedId} {
+      allow read: if isMember(resource.data.orgId);
+    }
+
+    // Lets a user discover their own memberships:
+    // collectionGroup('members').where('uid', '==', auth.uid)
+    match /{path=**}/members/{uid} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}

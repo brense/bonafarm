@@ -1,22 +1,22 @@
-import React from 'react'
+import '@fontsource/roboto/300.css'
+import '@fontsource/roboto/400.css'
+import '@fontsource/roboto/500.css'
+import '@fontsource/roboto/700.css'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, ApolloClientProvider } from './config'
-import App from './App'
-import './index.css'
-import ConfirmDialogProvider from './components/ConfirmDialog'
+import { BrowserRouter } from 'react-router'
+import App from './App.tsx'
+import { registerServiceWorker } from './lib/pwa.ts'
+import ThemeProvider from './ThemeProvider.tsx'
 
-const rootContainer = document.getElementById('root')
-
-const root = createRoot(rootContainer!)
-root.render(<React.StrictMode>
-  <ThemeProvider>
-    <ApolloClientProvider>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ThemeProvider>
       <BrowserRouter>
-        <ConfirmDialogProvider>
-          <App />
-        </ConfirmDialogProvider>
+        <App />
       </BrowserRouter>
-    </ApolloClientProvider>
-  </ThemeProvider>
-</React.StrictMode>)
+    </ThemeProvider>
+  </StrictMode>,
+)
+
+registerServiceWorker()

@@ -1,0 +1,24 @@
+/** Firestore path helpers. Keep collection names in one place. */
+export const paths = {
+  organisations: () => 'organisations',
+  organisation: (orgId: string) => `organisations/${orgId}`,
+  members: (orgId: string) => `organisations/${orgId}/members`,
+  member: (orgId: string, uid: string) => `organisations/${orgId}/members/${uid}`,
+  feeds: (orgId: string) => `organisations/${orgId}/feeds`,
+  feed: (orgId: string, feedId: string) => `organisations/${orgId}/feeds/${feedId}`,
+  logs: (orgId: string) => `organisations/${orgId}/logs`,
+  storageTypes: (orgId: string) => `organisations/${orgId}/storageTypes`,
+  storageGroups: (orgId: string) => `organisations/${orgId}/storageGroups`,
+  storageGroup: (orgId: string, groupId: string) => `organisations/${orgId}/storageGroups/${groupId}`,
+  storages: (orgId: string, groupId: string) => `organisations/${orgId}/storageGroups/${groupId}/storages`,
+  storage: (orgId: string, groupId: string, storageId: string) =>
+    `organisations/${orgId}/storageGroups/${groupId}/storages/${storageId}`,
+  items: (orgId: string, groupId: string, storageId: string) =>
+    `organisations/${orgId}/storageGroups/${groupId}/storages/${storageId}/items`,
+} as const
+
+/** Seeded document ids. */
+export const seeds = {
+  storageTypes: ['bin', 'shute', 'stable'],
+  storageGroups: ['ungrouped'],
+} as const

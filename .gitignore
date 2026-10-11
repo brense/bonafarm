@@ -1,5 +1,23 @@
 node_modules
 dist
+*.local
+*.log
+
+# Firebase web config and secrets
 .env
-storybook-static
+.env.*
+!.env.example
+
+# Firebase emulator state and logs
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+storage-debug.log
+emulator-data/
+
+# Editor
 .idea
+.vscode/*
+!.vscode/extensions.json
+.DS_Store

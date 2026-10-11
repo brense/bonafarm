@@ -1,12 +1,10 @@
 {
-  "name": "De voer app",
-  "short_name": "Voer app",
-  "url": "https://voer.rensebakker.nl/",
-  "manifestUrl": "https://voer.rensebakker.nl/manifest.json",
-  "display": "standalone",
-  "description": "Voer app voor kinderboerderij en waterspeeltuin Tanthof",
+  "name": "Bonafarm",
+  "short_name": "Bonafarm",
+  "description": "Voorraad en bestellingen van diervoer voor kinderboerderijen",
   "lang": "nl",
   "dir": "auto",
+  "display": "standalone",
   "theme_color": "#F61767",
   "background_color": "#000000",
   "orientation": "portrait-primary",
@@ -20,16 +18,16 @@
       "purpose": "any"
     },
     {
+      "src": "/manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Voer app",
-      "url": "https://voer.rensebakker.nl/"
     }
   ]
 }

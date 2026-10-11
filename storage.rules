@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Files live under organisations/{orgId}/... and are readable by members and
+// writable by owner/admin/member roles (not viewers). Uploads are limited to small images.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function role(orgId) {
+      return firestore.get(/databases/(default)/documents/organisations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isMember(orgId) {
+      return request.auth != null && role(orgId) in ['owner', 'admin', 'member', 'viewer'];
+    }
+
+    function canWrite(orgId) {
+      return request.auth != null && role(orgId) in ['owner', 'admin', 'member'];
+    }
+
+    function isSmallImage() {
+      return request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|webp|gif)');
+    }
+
+    match /organisations/{orgId}/{allPaths=**} {
+      allow read: if isMember(orgId);
+      allow write: if canWrite(orgId) && (request.resource == null || isSmallImage());
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
