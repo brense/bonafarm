@@ -2,6 +2,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -10,8 +11,8 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemText,
   Paper,
+  Snackbar,
   Stack,
   useMediaQuery,
   useTheme,
@@ -90,6 +91,15 @@ function pairAllocs(feedId: string, sources: Alloc[], targets: Alloc[]): Change[
 /** Stable ids so a line keeps its DOM node when it moves from "in progress" to the cart. */
 let nextLineId = 0
 
+/** One storage change in the cart; `closing` rows are folding away after their amount reached zero. */
+interface CartRow extends Change {
+  id: number
+  closing?: boolean
+}
+
+const sameChange = (a: Change, b: Change) =>
+  a.feedId === b.feedId && a.fromStorageId === b.fromStorageId && a.toStorageId === b.toStorageId
+
 interface Line {
   id: number
   feedId: string
@@ -113,20 +123,20 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const recent = useRecentLogs(orgId, 12, open)
   const [search, setSearch] = useState('')
   const [line, setLine] = useState<Line | null>(null)
-  const [lines, setLines] = useState<Line[]>([])
+  const [cart, setCart] = useState<CartRow[]>([])
+  const [notice, setNotice] = useState<{ id: number; text: string; severity: 'success' | 'warning'; open: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageQuery, setStorageQuery] = useState('')
   const [reopen, setReopen] = useState<'from' | 'to' | null>(null)
-  const searchRef = useRef<HTMLInputElement | null>(null)
   const cartRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = cartRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [lines, line, reopen])
+  }, [cart, line, reopen])
   const theme = useTheme()
   const wide = useMediaQuery(theme.breakpoints.up('md'))
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
-  const motion = reduceMotion ? 0 : 300
+  const motion = reduceMotion ? 0 : 450
 
   const isCounted = (storageId: string) => {
     const s = storages.get(storageId)
@@ -178,8 +188,44 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const commit = (l: Line) => {
     if (committedId.current === l.id) return
     committedId.current = l.id
-    setLines((prev) => [...prev, l])
+    const changes = toChanges(l)
+    setCart((prev) => {
+      const next = [...prev]
+      for (const ch of changes) {
+        const i = next.findIndex((r) => !r.closing && sameChange(r, ch))
+        if (i >= 0) next[i] = { ...next[i], amount: round2(next[i].amount + ch.amount) }
+        else next.push({ ...ch, id: ++nextLineId })
+      }
+      return next
+    })
+    notify('Wijziging toegevoegd', 'success')
   }
+
+  const notify = (text: string, severity: 'success' | 'warning') => setNotice({ id: ++nextLineId, text, severity, open: true })
+
+  const liveRows = cart.filter((r) => !r.closing)
+
+  /** Most a cart row drawing from a storage may take: its stock minus other rows and the line in progress. */
+  const rowCap = (row: CartRow) => {
+    if (row.fromStorageId === null) return Infinity
+    const others = liveRows.filter((r) => r.id !== row.id && r.fromStorageId === row.fromStorageId && r.feedId === row.feedId).reduce((sum, r) => sum + r.amount, 0)
+    const drawn = line && line.feedId === row.feedId ? line.sources.filter((src) => src.storageId === row.fromStorageId).reduce((sum, src) => sum + src.amount, 0) : 0
+    return Math.max(0, round2(stockOf(row.fromStorageId, row.feedId) - others - drawn))
+  }
+
+  /** `delta` > 0 is plus: for rows taking from a storage that lowers the amount, for plain plus rows it raises it. */
+  const changeRow = (id: number, delta: number) => {
+    const row = cart.find((r) => r.id === id)
+    if (!row || row.closing) return
+    const next = round2(row.amount + (row.fromStorageId ? -delta : delta))
+    if (next <= 0) {
+      setCart(cart.map((r) => (r.id === id ? { ...r, closing: true } : r)))
+      notify('Wijziging weggehaald', 'warning')
+      return
+    }
+    setCart(cart.map((r) => (r.id === id ? { ...r, amount: Math.min(next, rowCap(row)) } : r)))
+  }
+  const removeRow = (id: number) => setCart((prev) => prev.filter((r) => r.id !== id))
 
   const tap = (feedId: string, direction: 'out' | 'in', by = 1) => {
     const cap = direction === 'out' ? totalOf(feedId) : Infinity
@@ -219,9 +265,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const toChanges = (l: Line): Change[] =>
     pairAllocs(l.feedId, l.direction === 'in' ? [{ storageId: null, amount: l.amount }] : l.sources, l.targets)
 
-  const count = lines.length + (line && lineComplete ? 1 : 0)
-
-  const cartCount = lines.length + (line ? 1 : 0)
+  const pendingChanges = line && lineComplete ? toChanges(line) : []
+  const count = liveRows.length + pendingChanges.length
+  const cartCount = count
   const saveDisabled = count === 0 || (line !== null && !lineComplete)
 
   const storageName = (id: string | null) => (id ? (storages.get(id)?.name ?? id) : '')
@@ -231,18 +277,13 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   }
   const allocText = (list: Alloc[]) =>
     list.map((a) => `${a.storageId === null ? 'verbruik' : storageName(a.storageId)} ${formatAmount(a.amount)}`).join(', ')
-  const describe = (l: Line) => {
-    const head = `${feeds.get(l.feedId)?.name ?? l.feedId} ${amountText(l.feedId, l.direction, l.amount)}`
-    const from = allocText(l.sources)
-    return `${head} · ${from ? `${from} ` : ''}→ ${allocText(l.targets)}`
-  }
-
   const reset = () => {
     setSearch('')
     setLine(null)
     setStorageQuery('')
     setReopen(null)
-    setLines([])
+    setCart([])
+    setNotice(null)
     setError(null)
   }
 
@@ -269,9 +310,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const save = () => {
     if (!orgId || !user) return
-    const all = line && lineComplete && !lines.some((l) => l.id === line.id) ? [...lines, line] : lines
-    if (all.length === 0) return
-    const changes = all.flatMap(toChanges)
+    const changes: Change[] = [...liveRows.map(({ feedId, amount, fromStorageId, toStorageId }) => ({ feedId, amount, fromStorageId, toStorageId })), ...pendingChanges]
+    if (changes.length === 0) return
     const ctx = {
       orgId,
       uid: user.uid,
@@ -282,7 +322,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     try {
       const plans = changes.flatMap((c) => planChangeLine(c, ctx))
       applyMutations(plans).catch((err: { code?: string }) => onDone(`Niet opgeslagen (${err.code ?? 'fout'})`))
-      onDone(`${all.length} ${all.length === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
+      onDone(`${changes.length} ${changes.length === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
       close()
     } catch (err) {
       setError((err as Error).message)
@@ -452,57 +492,66 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={{ px: 2, pt: 2, flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {sectionTitle(cartCount === 0 ? 'Nog geen wijzigingen' : `${cartCount} ${cartCount === 1 ? 'wijziging' : 'wijzigingen'}`)}
         <Box ref={cartRef} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
-          {lines.length === 0 && !line ? null : (
+          {cart.length === 0 && !line ? null : (
             <List dense disablePadding aria-label="Wijzigingen">
-              {[...lines, ...(line ? [line] : [])].map((c) => {
-                const current = line !== null && c.id === line.id
+              {cart.map((r) => {
+                const f = feeds.get(r.feedId)
+                const from = r.fromStorageId !== null
+                const room = from ? Math.max(0, round2(rowCap(r) - r.amount)) : Infinity
                 return (
-                  <ListItem key={c.id} divider disablePadding sx={{ display: 'block' }}>
-                    {current && feed ? (
-                      <Collapse in={!lineComplete} unmountOnExit timeout={motion} onExited={finishLine}>
-                        <Box sx={{ p: 1 }}>
-                          <Stack direction="row" sx={{ alignItems: 'center' }}>
-                            <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
-                              <FeedRow
-                                name={feed.name}
-                                active
-                                swipeMax={feed.swipeMax}
-                                maxMinus={c.direction === 'out' ? Math.max(0, round2(totalOf(c.feedId) - c.amount)) : totalOf(c.feedId)}
-                                emptyLabel="Geen voorraad"
-                                detail={{ text: amountText(c.feedId, c.direction, c.amount), color: c.direction === 'out' ? 'error.main' : 'success.main' }}
-                                onSwipe={(signed) => tap(c.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                                onMinus={() => tap(c.feedId, 'out')}
-                                onPlus={() => tap(c.feedId, 'in')}
-                              />
-                            </List>
-                            <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
-                              <DeleteIcon />
-                            </IconButton>
-                          </Stack>
-                          {c.direction === 'out' && c.amount >= totalOf(c.feedId) && (
-                            <Typography variant="caption" color="text.secondary">
-                              Er ligt maar {formatAmount(totalOf(c.feedId))} {unitLabel(feed.unit, totalOf(c.feedId))}
-                            </Typography>
-                          )}
-                          {chooser.summaries}
-                        </Box>
-                      </Collapse>
-                    ) : null}
-                    <Collapse in={!current || lineComplete} appear unmountOnExit timeout={motion}>
-                      <Stack direction="row" sx={{ alignItems: 'center', minHeight: 48 }}>
-                        <ListItemText primary={describe(c)} sx={{ pl: 2, my: 0.5 }} />
-                        <IconButton
-                          aria-label="Verwijder regel"
-                          onClick={() => (current ? cancelLine() : setLines((prev) => prev.filter((x) => x.id !== c.id)))}
-                          sx={{ width: 48, height: 48, mr: 0.5 }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Stack>
+                  <ListItem key={r.id} divider disablePadding sx={{ display: 'block' }}>
+                    <Collapse in={!r.closing} appear unmountOnExit timeout={motion} onExited={() => removeRow(r.id)}>
+                      <FeedRow
+                        bare
+                        surface="background.default"
+                        name={f?.name ?? r.feedId}
+                        secondary={from ? `${storageName(r.fromStorageId)} → ${r.toStorageId === null ? 'Verbruik' : storageName(r.toStorageId)}` : storageName(r.toStorageId)}
+                        active
+                        swipeMax={f?.swipeMax}
+                        minusDisabled={from && room <= 0}
+                        maxMinus={from ? room : r.amount}
+                        maxPlus={from ? r.amount : undefined}
+                        detail={{ text: amountText(r.feedId, from ? 'out' : 'in', r.amount), color: from ? 'error.main' : 'success.main' }}
+                        onSwipe={(signed) => changeRow(r.id, signed)}
+                        onMinus={() => changeRow(r.id, -1)}
+                        onPlus={() => changeRow(r.id, 1)}
+                      />
                     </Collapse>
                   </ListItem>
                 )
               })}
+              {line && feed ? (
+                <ListItem key={line.id} divider disablePadding sx={{ display: 'block' }}>
+                  <Collapse in={!lineComplete} unmountOnExit timeout={motion} onExited={finishLine}>
+                    <Box sx={{ p: 1 }}>
+                      <Stack direction="row" sx={{ alignItems: 'center' }}>
+                        <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                          <FeedRow
+                            name={feed.name}
+                            active
+                            swipeMax={feed.swipeMax}
+                            maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
+                            emptyLabel="Geen voorraad"
+                            detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
+                            onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                            onMinus={() => tap(line.feedId, 'out')}
+                            onPlus={() => tap(line.feedId, 'in')}
+                          />
+                        </List>
+                        <IconButton aria-label="Regel annuleren" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                      {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
+                        <Typography variant="caption" color="text.secondary">
+                          Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
+                        </Typography>
+                      )}
+                      {chooser.summaries}
+                    </Box>
+                  </Collapse>
+                </ListItem>
+              ) : null}
             </List>
           )}
         </Box>
@@ -511,7 +560,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={{ px: 2, flex: '0 0 auto' }}>
         <Collapse in={!line || lineComplete} unmountOnExit timeout={motion}>
           <Box sx={{ py: 1 }}>
-            {sectionTitle('Welk voorraad wil je wijzigen?')}
+            {sectionTitle(cartCount === 0 ? 'Welke voorraad wil je wijzigen?' : 'Nog een voorraad wijzigen?')}
             <SearchList
               items={rows}
               getKey={(f) => f.id}
@@ -521,7 +570,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               emptyText="Geen voer gevonden"
               query={search}
               onQueryChange={setSearch}
-              inputRef={searchRef}
               renderRow={(f) => (
                 <FeedRow
                   bare
@@ -551,19 +599,23 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         )}
       </Box>
 
+      <Snackbar
+        key={notice?.id}
+        open={notice?.open ?? false}
+        autoHideDuration={2000}
+        onClose={(_, reason) => reason !== 'clickaway' && setNotice((n) => n && { ...n, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ bottom: { xs: 'calc(88px + env(safe-area-inset-bottom))', sm: 'calc(88px + env(safe-area-inset-bottom))' } }}
+      >
+        <Alert severity={notice?.severity ?? 'success'} variant="filled" sx={{ width: '100%' }}>
+          {notice?.text}
+        </Alert>
+      </Snackbar>
+
       <Paper square elevation={8} sx={{ flex: '0 0 auto', p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
           <Button variant="text" size="medium" color="secondary" sx={{ height: 40 }} onClick={close}>
             Annuleren
-          </Button>
-          <Button
-            variant="text"
-            size="medium"
-            sx={{ height: 40 }}
-            disabled={line !== null && !lineComplete}
-            onClick={() => searchRef.current?.focus()}
-          >
-            Nog eentje
           </Button>
           {wide ? (
             <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ height: 40 }} disabled={saveDisabled} onClick={save}>
