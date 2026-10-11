@@ -1,14 +1,10 @@
-import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
-import RemoveIcon from '@mui/icons-material/Remove'
 import SaveIcon from '@mui/icons-material/Save'
 import {
   AppBar,
   Box,
   Button,
-  Chip,
   Dialog,
   IconButton,
   List,
@@ -16,17 +12,18 @@ import {
   ListItemText,
   Paper,
   Stack,
-  TextField,
   useMediaQuery,
   useTheme,
   Toolbar,
   Typography,
 } from '@mui/material'
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { applyMutations, planChangeLine, type Change } from './mutations.ts'
+import { FeedRow } from './FeedRow.tsx'
+import { SearchList } from './SearchList.tsx'
 import { formatAmount, unitLabel } from './stock.ts'
 import { useRecentLogs } from './useRecentLogs.ts'
 
@@ -98,166 +95,6 @@ interface Line {
   targets: Alloc[]
 }
 
-const MAX_ROWS = 5
-const iconButtonSx = { width: 52, height: 52, border: 1, borderColor: 'divider' }
-
-const SWIPE_STEPS: [number, number][] = [
-  [180, 3],
-  [130, 2],
-  [80, 1],
-  [40, 0.5],
-]
-const SWIPE_MAX = 200
-
-/** Amount a horizontal drag of `distance` px stands for (0 below the threshold). */
-function swipeAmount(distance: number): number {
-  const d = Math.abs(distance)
-  return SWIPE_STEPS.find(([min]) => d >= min)?.[1] ?? 0
-}
-
-/**
- * Horizontal swipe on a row: right = minus (negative), left = plus (positive). Vertical
- * movement before the threshold abandons the gesture so scrolling keeps working.
- */
-function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = true) {
-  const [offset, setOffset] = useState(0)
-  const [dragging, setDragging] = useState(false)
-  const start = useRef<{ id: number; x: number; y: number; locked: boolean } | null>(null)
-
-  const finish = () => {
-    start.current = null
-    setDragging(false)
-    setOffset(0)
-  }
-
-  const handlers = {
-    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
-      if ((e.target as HTMLElement).closest('button')) return
-      start.current = { id: e.pointerId, x: e.clientX, y: e.clientY, locked: false }
-    },
-    onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
-      const s = start.current
-      if (!s || s.id !== e.pointerId) return
-      const dx = e.clientX - s.x
-      const dy = e.clientY - s.y
-      if (!s.locked) {
-        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dx) < 40) {
-          start.current = null
-          return
-        }
-        if (Math.abs(dx) < 10) return
-        s.locked = true
-        setDragging(true)
-        e.currentTarget.setPointerCapture?.(e.pointerId)
-      }
-      setOffset(Math.max(-SWIPE_MAX, Math.min(allowMinus ? SWIPE_MAX : 0, dx)))
-    },
-    onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
-      const s = start.current
-      if (!s || s.id !== e.pointerId) return
-      const dx = e.clientX - s.x
-      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture?.(e.pointerId)
-      const amount = s.locked && (allowMinus || dx < 0) ? swipeAmount(dx) : 0
-      finish()
-      if (amount > 0) onSwipe(dx < 0 ? amount : -amount)
-    },
-    onPointerCancel: finish,
-  }
-  return { offset, dragging, handlers }
-}
-
-/** Searchable list of up to 5 storages as allocation rows; the first + or swipe right picks one. */
-function StoragePicker({ options, onPick, onCancel }: { options: { id: string; name: string; type: string }[]; onPick: (id: string, delta: number) => void; onCancel: () => void }) {
-  const [q, setQ] = useState('')
-  const needle = q.trim().toLocaleLowerCase('nl')
-  const shown = options.filter((o) => !needle || o.name.toLocaleLowerCase('nl').includes(needle)).slice(0, MAX_ROWS)
-  return (
-    <Box>
-      <TextField label="Zoek opslag" type="search" variant="filled" fullWidth value={q} onChange={(e) => setQ(e.target.value)} />
-      <List aria-label="Opslagen" disablePadding>
-        {shown.map((o) => (
-          <FeedRow
-            key={o.id}
-            name={o.name}
-            badge={o.type}
-            active={false}
-            plusOnly
-            onSwipe={(signed) => signed > 0 && onPick(o.id, signed)}
-            onPlus={() => onPick(o.id, 1)}
-          />
-        ))}
-      </List>
-      <Button onClick={onCancel} sx={{ minHeight: 48 }}>
-        Annuleren
-      </Button>
-    </Box>
-  )
-}
-
-function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, plusOnly, onClear, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; plusOnly?: boolean; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus: () => void }) {
-  const { offset, dragging, handlers } = useSwipeAmount(onSwipe, !plusOnly)
-  const raw = swipeAmount(offset)
-  const cap = offset > 0 ? maxMinus : maxPlus
-  const label = raw === 0 ? '' : cap <= 0 ? (emptyLabel ?? '') : `${offset > 0 ? '−' : '+'}${formatAmount(Math.min(raw, cap))}`
-  return (
-    <ListItem disableGutters disablePadding divider sx={{ position: 'relative', overflow: 'hidden', display: 'block' }}>
-      {offset !== 0 && (
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: offset > 0 ? 'flex-start' : 'flex-end',
-            px: 2,
-            bgcolor: offset > 0 ? 'error.main' : 'success.main',
-            color: 'common.white',
-            fontWeight: 700,
-            fontSize: '1.4rem',
-          }}
-        >
-          {label}
-        </Box>
-      )}
-      <Box
-        {...handlers}
-        sx={{
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          py: 0.5,
-          bgcolor: 'background.default',
-          touchAction: 'pan-y',
-          transform: `translateX(${offset}px)`,
-          transition: dragging ? 'none' : 'transform 0.2s ease',
-        }}
-      >
-        <ListItemText primary={name} sx={{ minWidth: 96 }} slotProps={{ primary: { sx: { fontWeight: active ? 700 : 400 } } }} />
-        {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1, flexShrink: 1, maxWidth: 96 }} />}
-        {detail && (
-          <Typography sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
-        )}
-        {onClear && (
-          <IconButton aria-label={`${name} wissen`} onClick={onClear} sx={{ width: 40, height: 40, mr: 1 }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        )}
-        <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-          {!plusOnly && (
-            <IconButton aria-label={`${name} min`} disabled={minusDisabled} onClick={onMinus} sx={iconButtonSx}>
-              <RemoveIcon />
-            </IconButton>
-          )}
-          <IconButton aria-label={`${name} plus`} onClick={onPlus} sx={iconButtonSx}>
-            <AddIcon />
-          </IconButton>
-        </Stack>
-      </Box>
-    </ListItem>
-  )
-}
-
 /**
  * "Wijziging maken": search a feed, tap min (taken out) or plus (put in), then
  * pick where it came from / went to on the same screen. "Nog een" keeps the
@@ -272,7 +109,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [line, setLine] = useState<Line | null>(null)
   const [lines, setLines] = useState<Line[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [picker, setPicker] = useState<'from' | 'to' | null>(null)
+  const [storageQuery, setStorageQuery] = useState('')
   const [reopen, setReopen] = useState<'from' | 'to' | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const theme = useTheme()
@@ -323,7 +160,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       setLine({ ...line, amount, sources: fitAllocs(line.sources, amount), targets: fitAllocs(line.targets, amount) })
     } else {
       setLine({ ...newLine(feedId, direction), amount: round2(Math.min(cap, by)) })
-      setPicker(null)
+      setStorageQuery('')
       setReopen(null)
     }
   }
@@ -341,11 +178,10 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     [feeds],
   )
 
-  const rows = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase('nl')
-    if (q) return visibleFeeds.filter((f) => f.name.toLocaleLowerCase('nl').includes(q)).slice(0, MAX_ROWS)
-    return [...visibleFeeds].sort((a, b) => (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.order - b.order).slice(0, MAX_ROWS)
-  }, [visibleFeeds, search, usage])
+  const rows = useMemo(
+    () => [...visibleFeeds].sort((a, b) => (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.order - b.order),
+    [visibleFeeds, usage],
+  )
 
   const lineComplete =
     line !== null && sumOf(line.targets) === line.amount && (line.direction === 'in' || sumOf(line.sources) === line.amount)
@@ -373,7 +209,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const reset = () => {
     setSearch('')
     setLine(null)
-    setPicker(null)
+    setStorageQuery('')
     setReopen(null)
     setLines([])
     setError(null)
@@ -388,7 +224,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     if (!line || !lineComplete) return
     setLines((prev) => [...prev, line])
     setLine(null)
-    setPicker(null)
+    setStorageQuery('')
     setReopen(null)
     setSearch('')
   }
@@ -471,20 +307,34 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={sectionBox}>
         {sectionTitle(title)}
         {allocRows(label, rows, line.targets, () => Infinity, changeTarget)}
-        {picker === 'to' ? (
-          <StoragePicker
-            options={options}
-            onPick={(id, delta) => {
-              changeTarget(id, delta)
-              setPicker(null)
-            }}
-            onCancel={() => setPicker(null)}
-          />
-        ) : (
-          <Button onClick={() => setPicker('to')} sx={{ minHeight: 48, mt: 0.5 }}>
-            Selecteer andere opslag
-          </Button>
-        )}
+        <SearchList
+          items={options}
+          getKey={(o) => o.id}
+          getLabel={(o) => o.name}
+          searchLabel="Zoek opslag"
+          listAriaLabel="Opslagen"
+          emptyText="Geen opslagen"
+          query={storageQuery}
+          onQueryChange={setStorageQuery}
+          renderRow={(o) => (
+            <FeedRow
+              name={o.name}
+              badge={o.type}
+              active={false}
+              plusOnly
+              onSwipe={(signed) => {
+                if (signed > 0) {
+                  changeTarget(o.id, signed)
+                  setStorageQuery('')
+                }
+              }}
+              onPlus={() => {
+                changeTarget(o.id, 1)
+                setStorageQuery('')
+              }}
+            />
+          )}
+        />
         {showDone && (
           <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5, ml: 1 }}>
             Klaar
@@ -620,10 +470,18 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         ) : (
           <>
             {sectionTitle('Welk voorraad wil je wijzigen?')}
-            <List aria-label="Voerlijst" disablePadding>
-              {rows.map((f) => (
+            <SearchList
+              items={rows}
+              getKey={(f) => f.id}
+              getLabel={(f) => f.name}
+              searchLabel="Zoeken…"
+              listAriaLabel="Voerlijst"
+              emptyText="Geen voer gevonden"
+              query={search}
+              onQueryChange={setSearch}
+              inputRef={searchRef}
+              renderRow={(f) => (
                 <FeedRow
-                  key={f.id}
                   name={f.name}
                   active={false}
                   minusDisabled={totalOf(f.id) <= 0}
@@ -633,17 +491,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   onMinus={() => tap(f.id, 'out')}
                   onPlus={() => tap(f.id, 'in')}
                 />
-              ))}
-            </List>
-            <TextField
-              label="Zoeken…"
-              type="search"
-              variant="filled"
-              fullWidth
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              inputRef={searchRef}
-              sx={{ mt: 1 }}
+              )}
             />
           </>
         )}
