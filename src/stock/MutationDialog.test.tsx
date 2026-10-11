@@ -103,9 +103,12 @@ describe('MutationDialog', () => {
     fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))
     await lineCommitted()
     const row = within(screen.getByRole('list', { name: 'Wijzigingen' }))
-    expect(row.getByText('Geitenkorrel')).toBeTruthy()
-    expect(row.getByText('Ton roze → Koker geit')).toBeTruthy()
+    expect(row.getAllByText('Geitenkorrel')).toHaveLength(2)
+    expect(row.getByText('Ton roze')).toBeTruthy()
+    expect(row.getByText('Koker geit')).toBeTruthy()
     expect(row.getByText('−1 zak')).toBeTruthy()
+    expect(row.getByText('+1 zak')).toBeTruthy()
+    expect(screen.getByText('2 wijzigingen')).toBeTruthy()
     expect(screen.getByLabelText('Zoeken…')).toBeTruthy()
     expect(screen.getByText('Nog een voorraad wijzigen?')).toBeTruthy()
     expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
@@ -123,7 +126,9 @@ describe('MutationDialog', () => {
     fireEvent.click(within(picker).getByRole('button', { name: 'Kalverstal plus' }))
     await lineCommitted()
     expect(screen.queryByLabelText('Zoek opslag')).toBeNull()
-    expect(screen.getByText('Ton roze → Kalverstal')).toBeTruthy()
+    const cartRows = within(screen.getByRole('list', { name: 'Wijzigingen' }))
+    expect(cartRows.getByText('Ton roze')).toBeTruthy()
+    expect(cartRows.getByText('Kalverstal')).toBeTruthy()
   })
 
   it('commits a completed plus line into the cart', async () => {
@@ -160,7 +165,7 @@ describe('MutationDialog', () => {
     expect(screen.getByText('Wijziging toegevoegd')).toBeTruthy()
   })
 
-  it('merges the same change committed twice and removes a row at zero', async () => {
+  it('merges net rows per storage and removes a row at zero', async () => {
     setup()
     for (let n = 0; n < 2; n++) {
       fireEvent.click(within(screen.getByRole('list', { name: 'Voerlijst' })).getByRole('button', { name: 'Geitenkorrel min' }))
@@ -169,22 +174,60 @@ describe('MutationDialog', () => {
       await lineCommitted()
     }
     const cart = within(screen.getByRole('list', { name: 'Wijzigingen' }))
-    expect(cart.getAllByText('Ton roze → Koker geit')).toHaveLength(1)
+    expect(cart.getAllByText('Ton roze')).toHaveLength(1)
     expect(cart.getByText('−2 zakken')).toBeTruthy()
-    // plus on a minus row lowers it, down to zero removes the row.
-    fireEvent.click(cart.getByRole('button', { name: 'Geitenkorrel plus' }))
+    expect(cart.getByText('+2 zakken')).toBeTruthy()
+    expect(screen.getByText('2 wijzigingen')).toBeTruthy()
+    // Plus on a taking row lowers it; reaching zero removes the row without flipping sign.
+    const plusOnTon = () => within(screen.getByRole('list', { name: 'Wijzigingen' })).getAllByRole('button', { name: 'Geitenkorrel plus' })[0]
+    fireEvent.click(plusOnTon())
     expect(cart.getByText('−1 zak')).toBeTruthy()
-    fireEvent.click(cart.getByRole('button', { name: 'Geitenkorrel plus' }))
-    await waitFor(() => expect(screen.queryByText('Ton roze → Koker geit')).toBeNull())
+    fireEvent.click(plusOnTon())
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Ton roze')).toBeNull())
     expect(screen.getByText('Wijziging weggehaald')).toBeTruthy()
-    expect(screen.getByText('Nog geen wijzigingen')).toBeTruthy()
+    expect(screen.getByText('1 wijziging')).toBeTruthy()
   })
 
-  it('shows stock under feed names', () => {
+  it('shows the net rows of a split line and settles them into moves and consumption', async () => {
+    const gras = new Map([...data.feeds, ['gras', feed('Grasbrok', 'zak', 4)]])
+    setup({
+      ...data,
+      feeds: gras,
+      storages: new Map([...data.storages, ['over', storage('stable', 'Overige', 4)], ['blauw', storage('bin', 'Ton blauw', 5)]]),
+      items: new Map([item('over', 'gras', 5)]),
+    })
+    click('Grasbrok min')
+    clickInCart('Grasbrok min')
+    click('Overige min')
+    click('Overige min')
+    click('Verbruik plus')
+    click('Ton blauw plus')
+    await lineCommitted()
+    const cart = within(screen.getByRole('list', { name: 'Wijzigingen' }))
+    expect(cart.getByText('Overige')).toBeTruthy()
+    expect(cart.getByText('Ton blauw')).toBeTruthy()
+    expect(cart.getByText('−2 zakken')).toBeTruthy()
+    expect(cart.getByText('+1 zak')).toBeTruthy()
+    expect(cart.queryByText('Verbruik')).toBeNull()
+    expect(screen.getByText('2 wijzigingen')).toBeTruthy()
+    click('Opslaan')
+    const plans = vi.mocked(applyMutations).mock.calls.at(-1)![0]
+    expect(plans.map((p) => `${p.log.type}:${p.log.storageId}:${p.log.amount}`)).toEqual(['move:over:1', 'move:blauw:1', 'dispense:over:1'])
+  })
+
+  it('pairs a take-out and a put-in from separate lines into one move', async () => {
     setup()
-    const list = within(screen.getByRole('list', { name: 'Voerlijst' }))
-    expect(list.getByText('6 balen')).toBeTruthy()
-    expect(list.getByText('3 zakken')).toBeTruthy()
+    click('Geitenkorrel min')
+    click('Ton roze min')
+    click('Verbruik plus')
+    await lineCommitted()
+    fireEvent.click(within(screen.getByRole('list', { name: 'Voerlijst' })).getByRole('button', { name: 'Geitenkorrel plus' }))
+    click('Koker geit plus')
+    await lineCommitted()
+    expect(screen.getByText('2 wijzigingen')).toBeTruthy()
+    click('Opslaan')
+    const plans = vi.mocked(applyMutations).mock.calls.at(-1)![0]
+    expect(plans.map((p) => `${p.log.type}:${p.log.storageId}`)).toEqual(['move:ton', 'fill:koker'])
   })
 
   it('counts cart rows in the heading', async () => {
@@ -195,7 +238,7 @@ describe('MutationDialog', () => {
     click('Ton roze min')
     click('Koker geit plus')
     await lineCommitted()
-    expect(screen.getByText('1 wijziging')).toBeTruthy()
+    expect(screen.getByText('2 wijzigingen')).toBeTruthy()
   })
 
   it('cancels the line in progress', () => {
@@ -224,7 +267,7 @@ describe('MutationDialog', () => {
     click('Opslaan')
     expect(applyMutations).toHaveBeenCalledTimes(1)
     expect(vi.mocked(applyMutations).mock.calls[0][0]).toHaveLength(3)
-    expect(onDone).toHaveBeenCalledWith('2 wijzigingen opgeslagen')
+    expect(onDone).toHaveBeenCalledWith('3 wijzigingen opgeslagen')
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -258,8 +301,11 @@ describe('MutationDialog', () => {
     expect((screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement).disabled).toBe(true)
     click('Verbruik plus')
     await lineCommitted()
-    expect(screen.getByText('Ton roze → Verbruik')).toBeTruthy()
-    expect(screen.getByText('Ton oranje → Verbruik')).toBeTruthy()
+    const rows = within(screen.getByRole('list', { name: 'Wijzigingen' }))
+    expect(rows.getByText('Ton roze')).toBeTruthy()
+    expect(rows.getByText('Ton oranje')).toBeTruthy()
+    expect(rows.getByText('−1 zak')).toBeTruthy()
+    expect(rows.getByText('−2 zakken')).toBeTruthy()
     click('Opslaan')
     expect(vi.mocked(applyMutations).mock.calls.at(-1)![0]).toHaveLength(2)
   })

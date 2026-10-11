@@ -91,14 +91,17 @@ function pairAllocs(feedId: string, sources: Alloc[], targets: Alloc[]): Change[
 /** Stable ids so a line keeps its DOM node when it moves from "in progress" to the cart. */
 let nextLineId = 0
 
-/** One storage change in the cart; `closing` rows are folding away after their amount reached zero. */
-interface CartRow extends Change {
+/** Net stock change of one feed in one storage; `closing` rows are folding away after reaching zero. */
+interface CartRow {
   id: number
+  feedId: string
+  storageId: string
+  /** Negative = taken out, positive = put in; never 0 on a live row. */
+  delta: number
   closing?: boolean
 }
 
-const sameChange = (a: Change, b: Change) =>
-  a.feedId === b.feedId && a.fromStorageId === b.fromStorageId && a.toStorageId === b.toStorageId
+type RowDelta = Omit<CartRow, 'id' | 'closing'>
 
 interface Line {
   id: number
@@ -109,6 +112,39 @@ interface Line {
   sources: Alloc[]
   /** Where it goes (null storage = verbruik). */
   targets: Alloc[]
+}
+
+/** The net row changes a finished line stands for: sources take out, storage targets put in; consumed has no row. */
+function rowsOf(l: Line): RowDelta[] {
+  return [
+    ...l.sources.flatMap((a) => (a.storageId ? [{ feedId: l.feedId, storageId: a.storageId, delta: -a.amount }] : [])),
+    ...l.targets.flatMap((a) => (a.storageId ? [{ feedId: l.feedId, storageId: a.storageId, delta: a.amount }] : [])),
+  ]
+}
+
+/** Adds row changes to the cart, summing per (feed, storage); a sum of 0 closes the row. Pure. */
+function mergeRows(prev: CartRow[], add: RowDelta[], newId: () => number): CartRow[] {
+  const next = [...prev]
+  for (const a of add) {
+    const i = next.findIndex((r) => !r.closing && r.feedId === a.feedId && r.storageId === a.storageId)
+    if (i < 0) {
+      next.push({ id: newId(), ...a })
+      continue
+    }
+    const sum = round2(next[i].delta + a.delta)
+    next[i] = sum === 0 ? { ...next[i], closing: true } : { ...next[i], delta: sum }
+  }
+  return next
+}
+
+/** Pairs a feed's net rows into moves; what is left over is consumed (no target) or put in from outside (no source). */
+function settleRows(feedId: string, rows: CartRow[]): Change[] {
+  const sources: Alloc[] = rows.filter((r) => r.delta < 0).map((r) => ({ storageId: r.storageId, amount: -r.delta }))
+  const targets: Alloc[] = rows.filter((r) => r.delta > 0).map((r) => ({ storageId: r.storageId, amount: r.delta }))
+  const diff = round2(sumOf(sources) - sumOf(targets))
+  if (diff > 0) targets.push({ storageId: null, amount: diff })
+  if (diff < 0) sources.push({ storageId: null, amount: -diff })
+  return pairAllocs(feedId, sources, targets)
 }
 
 /**
@@ -188,42 +224,35 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const commit = (l: Line) => {
     if (committedId.current === l.id) return
     committedId.current = l.id
-    const changes = toChanges(l)
-    setCart((prev) => {
-      const next = [...prev]
-      for (const ch of changes) {
-        const i = next.findIndex((r) => !r.closing && sameChange(r, ch))
-        if (i >= 0) next[i] = { ...next[i], amount: round2(next[i].amount + ch.amount) }
-        else next.push({ ...ch, id: ++nextLineId })
-      }
-      return next
-    })
-    notify('Wijziging toegevoegd', 'success')
+    const add = rowsOf(l)
+    const next = mergeRows(cart, add, () => ++nextLineId)
+    setCart(next)
+    const alive = add.some((a) => next.some((r) => !r.closing && r.feedId === a.feedId && r.storageId === a.storageId))
+    if (alive) notify('Wijziging toegevoegd', 'success')
+    else notify('Wijziging weggehaald', 'warning')
   }
 
   const notify = (text: string, severity: 'success' | 'warning') => setNotice({ id: ++nextLineId, text, severity, open: true })
 
   const liveRows = cart.filter((r) => !r.closing)
 
-  /** Most a cart row drawing from a storage may take: its stock minus other rows and the line in progress. */
-  const rowCap = (row: CartRow) => {
-    if (row.fromStorageId === null) return Infinity
-    const others = liveRows.filter((r) => r.id !== row.id && r.fromStorageId === row.fromStorageId && r.feedId === row.feedId).reduce((sum, r) => sum + r.amount, 0)
-    const drawn = line && line.feedId === row.feedId ? line.sources.filter((src) => src.storageId === row.fromStorageId).reduce((sum, src) => sum + src.amount, 0) : 0
-    return Math.max(0, round2(stockOf(row.fromStorageId, row.feedId) - others - drawn))
+  /** How much more a row may take out of its storage: its stock minus what the line in progress already draws. */
+  const rowAvailable = (row: CartRow) => {
+    const drawn = line && line.feedId === row.feedId ? line.sources.filter((src) => src.storageId === row.storageId).reduce((sum, src) => sum + src.amount, 0) : 0
+    return Math.max(0, round2(stockOf(row.storageId, row.feedId) - drawn))
   }
 
-  /** `delta` > 0 is plus: for rows taking from a storage that lowers the amount, for plain plus rows it raises it. */
-  const changeRow = (id: number, delta: number) => {
+  /** Signed change of a row's delta: reaching or crossing zero removes the row, taking out is capped by stock. */
+  const changeRow = (id: number, change: number) => {
     const row = cart.find((r) => r.id === id)
     if (!row || row.closing) return
-    const next = round2(row.amount + (row.fromStorageId ? -delta : delta))
-    if (next <= 0) {
+    const next = round2(row.delta + change)
+    if (row.delta < 0 ? next >= 0 : next <= 0) {
       setCart(cart.map((r) => (r.id === id ? { ...r, closing: true } : r)))
       notify('Wijziging weggehaald', 'warning')
       return
     }
-    setCart(cart.map((r) => (r.id === id ? { ...r, amount: Math.min(next, rowCap(row)) } : r)))
+    setCart(cart.map((r) => (r.id === id ? { ...r, delta: Math.max(next, -rowAvailable(row)) } : r)))
   }
   const removeRow = (id: number) => setCart((prev) => prev.filter((r) => r.id !== id))
 
@@ -262,11 +291,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const lineComplete =
     line !== null && sumOf(line.targets) === line.amount && (line.direction === 'in' || sumOf(line.sources) === line.amount)
 
-  const toChanges = (l: Line): Change[] =>
-    pairAllocs(l.feedId, l.direction === 'in' ? [{ storageId: null, amount: l.amount }] : l.sources, l.targets)
-
-  const pendingChanges = line && lineComplete ? toChanges(line) : []
-  const count = liveRows.length + pendingChanges.length
+  /** The cart as it will be saved: a finished line that has not folded in yet is merged into a scratch copy. */
+  const effectiveRows = (line && lineComplete ? mergeRows(liveRows, rowsOf(line), () => 0) : liveRows).filter((r) => !r.closing)
+  const count = effectiveRows.length
   const cartCount = count
   const saveDisabled = count === 0 || (line !== null && !lineComplete)
 
@@ -310,7 +337,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const save = () => {
     if (!orgId || !user) return
-    const changes: Change[] = [...liveRows.map(({ feedId, amount, fromStorageId, toStorageId }) => ({ feedId, amount, fromStorageId, toStorageId })), ...pendingChanges]
+    const changes: Change[] = [...new Set(effectiveRows.map((r) => r.feedId))].flatMap((fid) =>
+      settleRows(fid, effectiveRows.filter((r) => r.feedId === fid)),
+    )
     if (changes.length === 0) return
     const ctx = {
       orgId,
@@ -322,7 +351,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     try {
       const plans = changes.flatMap((c) => planChangeLine(c, ctx))
       applyMutations(plans).catch((err: { code?: string }) => onDone(`Niet opgeslagen (${err.code ?? 'fout'})`))
-      onDone(`${changes.length} ${changes.length === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
+      onDone(`${count} ${count === 1 ? 'wijziging' : 'wijzigingen'} opgeslagen`)
       close()
     } catch (err) {
       setError((err as Error).message)
@@ -496,8 +525,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             <List dense disablePadding aria-label="Wijzigingen">
               {cart.map((r) => {
                 const f = feeds.get(r.feedId)
-                const from = r.fromStorageId !== null
-                const room = from ? Math.max(0, round2(rowCap(r) - r.amount)) : Infinity
+                const taking = r.delta < 0
+                const room = taking ? Math.max(0, round2(rowAvailable(r) + r.delta)) : r.delta
                 return (
                   <ListItem key={r.id} divider disablePadding sx={{ display: 'block' }}>
                     <Collapse in={!r.closing} appear unmountOnExit timeout={motion} onExited={() => removeRow(r.id)}>
@@ -505,13 +534,13 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                         bare
                         surface="background.default"
                         name={f?.name ?? r.feedId}
-                        secondary={from ? `${storageName(r.fromStorageId)} → ${r.toStorageId === null ? 'Verbruik' : storageName(r.toStorageId)}` : storageName(r.toStorageId)}
+                        secondary={storageName(r.storageId)}
                         active
                         swipeMax={f?.swipeMax}
-                        minusDisabled={from && room <= 0}
-                        maxMinus={from ? room : r.amount}
-                        maxPlus={from ? r.amount : undefined}
-                        detail={{ text: amountText(r.feedId, from ? 'out' : 'in', r.amount), color: from ? 'error.main' : 'success.main' }}
+                        minusDisabled={room <= 0}
+                        maxMinus={room}
+                        maxPlus={taking ? -r.delta : undefined}
+                        detail={{ text: amountText(r.feedId, taking ? 'out' : 'in', Math.abs(r.delta)), color: taking ? 'error.main' : 'success.main' }}
                         onSwipe={(signed) => changeRow(r.id, signed)}
                         onMinus={() => changeRow(r.id, -1)}
                         onPlus={() => changeRow(r.id, 1)}
