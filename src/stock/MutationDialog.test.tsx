@@ -79,7 +79,7 @@ describe('MutationDialog', () => {
     setup()
     click('Geitenkorrel min')
     const from = screen.getByRole('list', { name: 'Uit welke opslag?' })
-    expect(within(from).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Ton roze'])
+    expect(within(from).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Ton roze3 zakken'])
     expect(within(from).queryByRole('button', { name: /plus$/ })).toBeNull()
     expect(screen.queryByText('Waar is de zak naartoe?')).toBeNull()
     const another = screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement
@@ -114,6 +114,13 @@ describe('MutationDialog', () => {
     fireEvent.click(within(picker).getByRole('button', { name: 'Kalverstal plus' }))
     expect(screen.queryByLabelText('Zoek opslag')).toBeNull()
     expect(screen.getByText('Naar: Kalverstal 1')).toBeTruthy()
+  })
+
+  it('shows stock under feed names', () => {
+    setup()
+    const list = within(screen.getByRole('list', { name: 'Voerlijst' }))
+    expect(list.getByText('6 balen')).toBeTruthy()
+    expect(list.getByText('3 zakken')).toBeTruthy()
   })
 
   it('counts lines in the cart heading', () => {
@@ -220,10 +227,10 @@ describe('MutationDialog', () => {
     const row = screen.getByRole('button', { name: 'Stro min' }).parentElement!.parentElement!
     fireEvent.pointerDown(row, { pointerId: 1, clientX: 10, clientY: 10 })
     fireEvent.pointerMove(row, { pointerId: 1, clientX: 100, clientY: 12 })
-    expect(screen.getByText('Geen voorraad')).toBeTruthy()
+    expect(screen.getAllByText('Geen voorraad')).toHaveLength(2)
     expect(screen.queryByText('−1')).toBeNull()
     fireEvent.pointerUp(row, { pointerId: 1, clientX: 100, clientY: 12 })
-    expect(screen.queryByText('Geen voorraad')).toBeNull()
+    expect(screen.getAllByText('Geen voorraad')).toHaveLength(1)
     expect(screen.queryByRole('list', { name: 'Gekozen voer' })).toBeNull()
   })
 

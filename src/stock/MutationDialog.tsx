@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
+import type { Feed } from '../model/types.ts'
 import { applyMutations, planChangeLine, type Change } from './mutations.ts'
 import { FeedRow } from './FeedRow.tsx'
 import { SearchList } from './SearchList.tsx'
@@ -157,6 +158,13 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const totalOf = (feedId: string) =>
     round2(activeStorages().reduce((sum, [id]) => sum + (isCounted(id) ? stockOf(id, feedId) : 0), 0))
 
+  /** Counted stock under a feed's name; shute feeds without counted stock show nothing. */
+  const stockText = (feedId: string, unit: Feed['unit']) => {
+    const total = totalOf(feedId)
+    if (total > 0) return `${formatAmount(total)} ${unitLabel(unit, total)}`
+    return linkedShute(feedId) ? undefined : 'Geen voorraad'
+  }
+
   const tap = (feedId: string, direction: 'out' | 'in', by = 1) => {
     const cap = direction === 'out' ? totalOf(feedId) : Infinity
     if (cap <= 0) return
@@ -283,7 +291,14 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     </Typography>
   )
 
-  type Row = { id: string | null; name: string; badge?: string }
+  /** How much of the line's feed a storage holds, as a small second line. */
+  const holdsText = (id: string | null) => {
+    const held = id && line ? stockOf(id, line.feedId) : 0
+    const unit = line ? feeds.get(line.feedId)?.unit : undefined
+    return held > 0 && unit ? `${formatAmount(held)} ${unitLabel(unit, held)}` : undefined
+  }
+
+  type Row = { id: string | null; name: string; badge?: string; secondary?: string }
 
   const allocRow = (r: Row, list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus', bare = false) => {
     const a = list.find((x) => x.storageId === r.id)?.amount ?? 0
@@ -295,6 +310,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         surface={bare ? 'var(--row-surface)' : undefined}
         name={r.name}
         badge={r.badge}
+        secondary={r.secondary}
         active={a > 0}
         gesture={mode}
         swipeMax={feed?.swipeMax}
@@ -324,7 +340,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     if (!line) return null
     const badgeOf = (id: string | null): Row => {
       const st = id ? storages.get(id) : undefined
-      return { id, name: id === null ? 'Verbruik' : storageName(id), badge: st ? storageTypes.get(st.typeId)?.name : undefined }
+      return { id, name: id === null ? 'Verbruik' : storageName(id), badge: st ? storageTypes.get(st.typeId)?.name : undefined, secondary: holdsText(id) }
     }
     const allocated = line.targets.map((t) => badgeOf(t.storageId))
     const used = new Set<string | null>(allocated.map((r) => r.id))
@@ -393,7 +409,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       question: showFrom ? (
         <Box sx={sectionBox}>
           {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-          {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
+          {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id), secondary: holdsText(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
           {fromDone && (
             <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
               Klaar
@@ -497,6 +513,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                     name={f.name}
                     active={false}
                     swipeMax={f.swipeMax}
+                    secondary={stockText(f.id, f.unit)}
                     minusDisabled={totalOf(f.id) <= 0}
                     maxMinus={totalOf(f.id)}
                     emptyLabel="Geen voorraad"
