@@ -3,6 +3,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RemoveIcon from '@mui/icons-material/Remove'
+import SaveIcon from '@mui/icons-material/Save'
 import {
   AppBar,
   Divider,
@@ -17,6 +18,8 @@ import {
   Paper,
   Stack,
   TextField,
+  useMediaQuery,
+  useTheme,
   Toolbar,
   Typography,
 } from '@mui/material'
@@ -272,6 +275,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [picker, setPicker] = useState<'from' | 'to' | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
+  const theme = useTheme()
+  const wide = useMediaQuery(theme.breakpoints.up('md'))
 
   const isCounted = (storageId: string) => {
     const s = storages.get(storageId)
@@ -348,6 +353,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     pairAllocs(l.feedId, l.direction === 'in' ? [{ storageId: null, amount: l.amount }] : l.sources, l.targets)
 
   const count = lines.length + (line && lineComplete ? 1 : 0)
+
+  const saveDisabled = count === 0 || (line !== null && !lineComplete)
 
   const storageName = (id: string | null) => (id ? (storages.get(id)?.name ?? id) : '')
   const amountText = (feedId: string, direction: 'out' | 'in', amount: number) => {
@@ -603,13 +610,28 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       </Box>
 
       <Paper square elevation={8} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="large" fullWidth sx={{ minHeight: 56 }} disabled={line !== null && !lineComplete} onClick={line ? another : () => searchRef.current?.focus()}>
-            Nog een wijziging
+        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Button variant="text" size="small" sx={{ minHeight: 48 }} onClick={close}>
+            Annuleren
           </Button>
-          <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0 || (line !== null && !lineComplete)} onClick={save}>
-            Wijziging(en) opslaan
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ minHeight: 48 }}
+            disabled={line !== null && !lineComplete}
+            onClick={line ? another : () => searchRef.current?.focus()}
+          >
+            Nog eentje
           </Button>
+          {wide ? (
+            <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ minHeight: 48 }} disabled={saveDisabled} onClick={save}>
+              Opslaan
+            </Button>
+          ) : (
+            <Button variant="contained" aria-label="Opslaan" sx={{ width: 48, height: 48, minWidth: 48, p: 0 }} disabled={saveDisabled} onClick={save}>
+              <SaveIcon />
+            </Button>
+          )}
         </Stack>
       </Paper>
     </Dialog>

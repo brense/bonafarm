@@ -84,8 +84,8 @@ describe('MutationDialog', () => {
     const to = screen.getByRole('list', { name: 'Waar naartoe?' })
     expect(within(to).getAllByRole('listitem').map((r) => r.textContent)).toEqual(['Verbruik', 'Koker geit'])
     expect(screen.getByRole('button', { name: 'Selecteer andere opslag' })).toBeTruthy()
-    const another = screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement
-    const saveBtn = screen.getByRole('button', { name: 'Wijziging(en) opslaan' }) as HTMLButtonElement
+    const another = screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement
+    const saveBtn = screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement
     expect(another.disabled).toBe(true)
     expect(saveBtn.disabled).toBe(true)
     fireEvent.click(within(from).getByRole('button', { name: 'Ton roze plus' }))
@@ -128,11 +128,11 @@ describe('MutationDialog', () => {
     click('Geitenkorrel min')
     click('Ton roze plus')
     click('Koker geit plus')
-    click('Nog een wijziging')
+    click('Nog eentje')
     click('Hooi min')
     click('Kalverstal plus')
     click('Verbruik plus')
-    click('Wijziging(en) opslaan')
+    click('Opslaan')
     expect(applyMutations).toHaveBeenCalledTimes(1)
     expect(vi.mocked(applyMutations).mock.calls[0][0]).toHaveLength(3)
     expect(onDone).toHaveBeenCalledWith('2 wijzigingen opgeslagen')
@@ -164,12 +164,12 @@ describe('MutationDialog', () => {
     click('Verbruik plus')
     click('Verbruik plus')
     click('Verbruik plus')
-    expect((screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(true)
     click('Ton oranje plus')
-    expect((screen.getByRole('button', { name: 'Nog een wijziging' }) as HTMLButtonElement).disabled).toBe(false)
-    click('Nog een wijziging')
+    expect((screen.getByRole('button', { name: 'Nog eentje' }) as HTMLButtonElement).disabled).toBe(false)
+    click('Nog eentje')
     expect(screen.getByText(/Ton roze 1, Ton oranje 2 → verbruik 3/)).toBeTruthy()
-    click('Wijziging(en) opslaan')
+    click('Opslaan')
     expect(vi.mocked(applyMutations).mock.calls.at(-1)![0]).toHaveLength(2)
   })
 
