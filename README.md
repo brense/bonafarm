@@ -16,11 +16,11 @@ Bonafarm is a feed stock and ordering app for petting zoos. This is a multi-tena
 
 ## Getting Started
 
-**Requirements:** Node 24+
+**Requirements:** Node 24+ and Bun 1.3+
 
 1. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 
 2. Copy environment template and fill in Firebase SDK config:
@@ -31,12 +31,12 @@ Bonafarm is a feed stock and ordering app for petting zoos. This is a multi-tena
 
 3. Start Firebase emulators in one terminal:
    ```bash
-   npm run emulators
+   bun run emulators
    ```
 
 4. Start the dev server in another:
    ```bash
-   npm run dev
+   bun run dev
    ```
 
 The `VITE_USE_EMULATORS` variable defaults to `true`, which makes the app talk to local emulators in dev. Set to `false` to hit the real Firebase project.
@@ -70,8 +70,8 @@ firebase deploy --only firestore,storage
 An organisation with its default storage types, default group and an owner is
 created with the seed script (idempotent, 6 documents):
 ```bash
-npm run seed -- --org tanthof --owner <auth uid>          # emulator
-npm run seed -- --org tanthof --owner <auth uid> --live   # bonafarm-next
+bun run seed --org tanthof --owner <auth uid>          # emulator
+bun run seed --org tanthof --owner <auth uid> --live   # bonafarm-next
 ```
 
 ## Data Model
