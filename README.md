@@ -67,6 +67,12 @@ Security rules in `firestore.rules` and `storage.rules` are deployed manually:
 firebase deploy --only firestore,storage
 ```
 
+The Firestore rules have a test suite that runs against the Rules API, so no
+emulator or deploy is needed (uses the Firebase CLI login token):
+```bash
+python3 scripts/test-rules.py
+```
+
 An organisation with its default storage types, default group and an owner is
 created with the seed script (idempotent, 6 documents):
 ```bash
@@ -82,14 +88,28 @@ Multi-tenant Firestore structure:
 organisations/{orgId}
   members/{uid}
   feeds/{feedId}
-  logs/{logId}
   storageTypes/{typeId}
   storageGroups/{groupId}
-  storages/{storageId}      groupId and typeId reference the two collections above
-    items/{feedId}
+  storages/{storageId}
+  items/{storageId}_{feedId}
+  batches/{batchId}
+  logs/{logId}
 ```
 
 The path always identifies the organisation, so documents carry no `orgId` field. Storages are flat under the organisation; moving one to another group is a single field update.
+
+Items are flat too, with a compound id `{storageId}_{feedId}` (underscore separates them unambiguously since both ids are slugs of `[a-z0-9-]`), so org-wide stock is one listener and one storage is `where('storageId', '==', id)`. Item writes are upserts.
+
+### Roles
+
+A member has an array of one or more roles:
+
+- `owner` — admin privileges plus cannot be removed; only owners manage owners and admins
+- `admin` — manages feeds, storages, members, and branding; may log anything
+- `order` — stock overview with order advice and export (use case 1)
+- `deliver` — logs deliveries and koker fills, opens delivery batches (use case 2)
+- `feed` — dispenses, counts, empties, and moves stock (use case 3)
+- `view` — read only
 
 Log event types are explicit (replacing sign-and-timing inference from the old app):
 
@@ -98,8 +118,10 @@ Log event types are explicit (replacing sign-and-timing inference from the old a
 - `dispense` — feed taken from a counted storage for use
 - `fill` — feed poured into a consumed storage
 - `empty` — consumed storage was emptied
-- `move` — feed moved between storages (two logs share moveId)
+- `move` — feed moved between storages (two logs share a batchId)
 - `correction` — manual correction of a mistake
+
+Batches group logs of one delivery or move. An open batch (no `closedAt`) can be resumed after the app was closed.
 
 ## Branding
 

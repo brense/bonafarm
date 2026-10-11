@@ -1,3 +1,5 @@
+import { itemId } from './types.ts'
+
 /** Firestore path helpers. Keep collection names in one place. */
 export const paths = {
   organisations: () => 'organisations',
@@ -8,14 +10,16 @@ export const paths = {
   feeds: (orgId: string) => `organisations/${orgId}/feeds`,
   feed: (orgId: string, feedId: string) => `organisations/${orgId}/feeds/${feedId}`,
   logs: (orgId: string) => `organisations/${orgId}/logs`,
+  batches: (orgId: string) => `organisations/${orgId}/batches`,
+  batch: (orgId: string, batchId: string) => `organisations/${orgId}/batches/${batchId}`,
   storageTypes: (orgId: string) => `organisations/${orgId}/storageTypes`,
   storageGroups: (orgId: string) => `organisations/${orgId}/storageGroups`,
   storageGroup: (orgId: string, groupId: string) => `organisations/${orgId}/storageGroups/${groupId}`,
   storages: (orgId: string) => `organisations/${orgId}/storages`,
   storage: (orgId: string, storageId: string) => `organisations/${orgId}/storages/${storageId}`,
-  items: (orgId: string, storageId: string) => `organisations/${orgId}/storages/${storageId}/items`,
+  items: (orgId: string) => `organisations/${orgId}/items`,
   item: (orgId: string, storageId: string, feedId: string) =>
-    `organisations/${orgId}/storages/${storageId}/items/${feedId}`,
+    `organisations/${orgId}/items/${itemId(storageId, feedId)}`,
 } as const
 
 /** Seeded document ids. */

@@ -47,7 +47,7 @@ const docs = [
     icon192: str('/manifest-icon-192.maskable.png'), icon512: str('/manifest-icon-512.maskable.png'),
     iconMaskable: str('/icon.png'),
   }],
-  [`organisations/${ORG}/members/${OWNER}`, { uid: str(OWNER), role: str('owner'), createdAt: ts(now) }],
+  [`organisations/${ORG}/members/${OWNER}`, { uid: str(OWNER), roles: arr(['owner']), createdAt: ts(now) }],
   [`organisations/${ORG}/storageTypes/bin`, { name: str('Bak'), behaviour: str('counted'), order: int(0) }],
   [`organisations/${ORG}/storageTypes/shute`, { name: str('Koker'), behaviour: str('consumed'), order: int(1) }],
   [`organisations/${ORG}/storageTypes/stable`, { name: str('Stal'), behaviour: str('counted'), order: int(2) }],
@@ -79,6 +79,7 @@ for (const [path, fields] of docs) {
 console.log(`done, ${created} created, ${docs.length - created} skipped`)
 
 function str(v) { return { stringValue: v } }
+function arr(v) { return { arrayValue: { values: v.map(str) } } }
 function int(v) { return { integerValue: String(v) } }
 function ts(v) { return { timestampValue: v } }
 

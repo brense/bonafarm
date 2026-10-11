@@ -5,15 +5,24 @@ rules_version = '2';
 //
 // organisations/{orgId}
 //   branding/public          world-readable (the manifest is fetched without auth)
-//   members/{uid}            uid, role: owner | admin | member | viewer
+//   members/{uid}            uid, roles: [owner | admin | order | deliver | feed | view]
 //   feeds/{feedId}
-//   logs/{logId}
 //   storageTypes/{typeId}
 //   storageGroups/{groupId}
 //   storages/{storageId}     groupId -> storageGroups, typeId -> storageTypes
-//     items/{feedId}
+//   items/{storageId}_{feedId}
+//   batches/{batchId}
+//   logs/{logId}
 //
 // The path always identifies the organisation; documents carry no orgId field.
+//
+// Roles:
+//   owner    admin, and cannot be removed; only owners manage owners and admins
+//   admin    manages the catalogue, members and branding; may log anything
+//   order    stock overview and order advice (read only)
+//   deliver  logs deliveries and fills, opens delivery batches
+//   feed     dispenses, counts, empties, moves
+//   view     read only
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,28 +33,50 @@ service cloud.firestore {
 
     // One document read per rule evaluation. A missing member document makes
     // get() fail, which denies access.
-    function memberRole(orgId) {
-      return get(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid)).data.role;
+    function memberRoles(orgId) {
+      return get(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid)).data.roles;
+    }
+
+    function allRoles() {
+      return ['owner', 'admin', 'order', 'deliver', 'feed', 'view'];
     }
 
     function isMember(orgId) {
-      return signedIn() && memberRole(orgId) in ['owner', 'admin', 'member', 'viewer'];
+      return signedIn() && memberRoles(orgId).hasAny(allRoles());
     }
 
-    function hasRole(orgId, roles) {
-      return signedIn() && memberRole(orgId) in roles;
-    }
-
-    function canEdit(orgId) {
-      return hasRole(orgId, ['owner', 'admin', 'member']);
-    }
-
-    function isAdmin(orgId) {
-      return hasRole(orgId, ['owner', 'admin']);
+    function hasAny(orgId, roles) {
+      return signedIn() && memberRoles(orgId).hasAny(roles);
     }
 
     function isOwner(orgId) {
-      return hasRole(orgId, ['owner']);
+      return hasAny(orgId, ['owner']);
+    }
+
+    function isAdmin(orgId) {
+      return hasAny(orgId, ['owner', 'admin']);
+    }
+
+    function canDeliver(orgId) {
+      return hasAny(orgId, ['owner', 'admin', 'deliver']);
+    }
+
+    function canFeed(orgId) {
+      return hasAny(orgId, ['owner', 'admin', 'feed']);
+    }
+
+    // Anyone who mutates stock may also maintain the catalogue (a new feed on
+    // a delivery list, a new bin). Deleting stays with admins.
+    function canEdit(orgId) {
+      return hasAny(orgId, ['owner', 'admin', 'deliver', 'feed']);
+    }
+
+    function validRoles(roles) {
+      return roles is list && roles.size() > 0 && roles.hasOnly(allRoles());
+    }
+
+    function slug(s) {
+      return s is string && s.matches('^[a-z0-9][a-z0-9-]*$');
     }
 
     match /organisations/{orgId} {
@@ -69,28 +100,42 @@ service cloud.firestore {
 
       match /members/{uid} {
         allow read: if isMember(orgId);
+        // Admins add members; only owners may hand out owner or admin.
         allow create: if isAdmin(orgId)
           && request.resource.data.uid == uid
-          && request.resource.data.role in ['admin', 'member', 'viewer'];
-        allow update: if isAdmin(orgId)
-          && request.resource.data.uid == uid
-          && request.resource.data.role in ['owner', 'admin', 'member', 'viewer']
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'email'])
-          // Only an owner can hand out or take away the owner role.
-          && (resource.data.role != 'owner' || isOwner(orgId))
-          && (request.resource.data.role != 'owner' || isOwner(orgId))
-          // The last owner cannot demote themselves.
-          && !(uid == request.auth.uid && resource.data.role == 'owner' && request.resource.data.role != 'owner')
-          // Only owners may change admins (an admin may edit their own profile, not their role).
-          && (resource.data.role != 'admin' || isOwner(orgId)
-              || (uid == request.auth.uid && request.resource.data.role == 'admin'));
-        allow delete: if isAdmin(orgId) && resource.data.role != 'owner' && uid != request.auth.uid;
+          && validRoles(request.resource.data.roles)
+          && (isOwner(orgId) || !request.resource.data.roles.hasAny(['owner', 'admin']))
+          && request.resource.data.keys().hasOnly(['uid', 'roles', 'email', 'createdAt']);
+        allow update: if (
+            // Anyone may update their own email.
+            (uid == request.auth.uid && isMember(orgId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email']))
+            ||
+            (isAdmin(orgId)
+              && request.resource.data.uid == uid
+              && validRoles(request.resource.data.roles)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roles', 'email'])
+              // Only owners touch members who are (or become) owner or admin.
+              && (isOwner(orgId)
+                  || (!resource.data.roles.hasAny(['owner', 'admin'])
+                      && !request.resource.data.roles.hasAny(['owner', 'admin'])))
+              // An owner cannot drop their own owner role (avoids an owner-less organisation).
+              && !(uid == request.auth.uid
+                   && 'owner' in resource.data.roles
+                   && !('owner' in request.resource.data.roles)))
+          );
+        // Owners are never deleted, nobody deletes themselves, admins only by owners.
+        allow delete: if isAdmin(orgId)
+          && uid != request.auth.uid
+          && !('owner' in resource.data.roles)
+          && (isOwner(orgId) || !('admin' in resource.data.roles));
       }
 
       match /feeds/{feedId} {
         allow read: if isMember(orgId);
-        allow create: if canEdit(orgId);
-        allow update: if canEdit(orgId);
+        allow create, update: if canEdit(orgId)
+          && slug(feedId)
+          && (!('aliases' in request.resource.data) || request.resource.data.aliases is list);
         allow delete: if isAdmin(orgId);
       }
 
@@ -112,44 +157,70 @@ service cloud.firestore {
       match /storages/{storageId} {
         allow read: if isMember(orgId);
         // groupId and typeId must reference existing documents. Each exists() is
-        // one extra document access, on top of the memberRole get().
-        allow create: if canEdit(orgId)
+        // one extra document access, on top of the memberRoles get().
+        allow create, update: if canEdit(orgId)
+          && slug(storageId)
           && request.resource.data.groupId is string
           && exists(/databases/$(database)/documents/organisations/$(orgId)/storageGroups/$(request.resource.data.groupId))
           && request.resource.data.typeId is string
-          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageTypes/$(request.resource.data.typeId));
-        allow update: if canEdit(orgId)
-          && request.resource.data.groupId is string
-          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageGroups/$(request.resource.data.groupId))
-          && request.resource.data.typeId is string
-          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageTypes/$(request.resource.data.typeId));
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/storageTypes/$(request.resource.data.typeId))
+          && (!('location' in request.resource.data) || request.resource.data.location is latlng);
         allow delete: if isAdmin(orgId);
+      }
 
-        match /items/{feedId} {
-          allow read: if isMember(orgId);
-          allow create: if canEdit(orgId)
-            && request.resource.data.feedId == feedId
-            && request.resource.data.amount is number
-            && request.resource.data.updatedAt is timestamp;
-          allow update: if canEdit(orgId)
-            && request.resource.data.feedId == feedId
-            && request.resource.data.amount is number
-            && request.resource.data.updatedAt is timestamp;
-          allow delete: if canEdit(orgId);
-        }
+      // Current stock, one document per storage/feed pair. The compound id makes
+      // writes upserts; the rules only check the id matches the fields, not that
+      // the storage and feed exist (that would cost two more reads per write).
+      match /items/{itemId} {
+        allow read: if isMember(orgId);
+        allow create, update: if canEdit(orgId)
+          && slug(request.resource.data.storageId)
+          && slug(request.resource.data.feedId)
+          && itemId == request.resource.data.storageId + '_' + request.resource.data.feedId
+          && request.resource.data.amount is number
+          && request.resource.data.amount >= 0
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.keys().hasOnly(['storageId', 'feedId', 'amount', 'updatedAt']);
+        allow delete: if canEdit(orgId);
+      }
+
+      // A batch groups logs, e.g. the lines of one delivery. Open batches
+      // (no closedAt) can be resumed.
+      match /batches/{batchId} {
+        allow read: if isMember(orgId);
+        allow create: if canEdit(orgId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.type in ['delivery', 'move']
+          && (request.resource.data.type != 'delivery' || canDeliver(orgId))
+          && (request.resource.data.type != 'move' || canFeed(orgId))
+          && request.resource.data.startedAt is timestamp
+          && (!('note' in request.resource.data)
+              || (request.resource.data.note is string && request.resource.data.note.size() <= 500))
+          && request.resource.data.keys().hasOnly(['type', 'uid', 'startedAt', 'closedAt', 'note']);
+        // The person who opened it closes it or adds a note; admins too.
+        allow update: if (resource.data.uid == request.auth.uid && canEdit(orgId) || isAdmin(orgId))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closedAt', 'note'])
+          && (!('closedAt' in request.resource.data) || request.resource.data.closedAt is timestamp)
+          && (!('note' in request.resource.data)
+              || (request.resource.data.note is string && request.resource.data.note.size() <= 500));
+        allow delete: if isAdmin(orgId);
       }
 
       match /logs/{logId} {
         allow read: if isMember(orgId);
         // Logs are an audit trail: members add them, only admins may change or
-        // remove them afterwards.
-        allow create: if canEdit(orgId)
+        // remove them afterwards. The type decides which role may write it.
+        allow create: if isMember(orgId)
           && request.resource.data.uid == request.auth.uid
+          && request.resource.data.type in ['delivery', 'count', 'dispense', 'fill', 'empty', 'move', 'correction']
+          && (request.resource.data.type != 'delivery' || canDeliver(orgId))
+          && (request.resource.data.type != 'fill' || canDeliver(orgId) || canFeed(orgId))
+          && (!(request.resource.data.type in ['count', 'dispense', 'empty', 'move']) || canFeed(orgId))
+          && (request.resource.data.type != 'correction' || canEdit(orgId))
           && request.resource.data.amount is number
           && request.resource.data.amount >= 0
-          && request.resource.data.type in ['delivery', 'count', 'dispense', 'fill', 'empty', 'move', 'correction']
-          && request.resource.data.feedId is string
-          && request.resource.data.storageId is string
+          && slug(request.resource.data.feedId)
+          && slug(request.resource.data.storageId)
           // Backdating is allowed (a Friday delivery logged on Tuesday); the
           // future is not, apart from a little clock skew.
           && request.resource.data.timestamp is timestamp
@@ -157,10 +228,11 @@ service cloud.firestore {
           && (!('note' in request.resource.data)
               || (request.resource.data.note is string && request.resource.data.note.size() <= 500))
           && (!('previousAmount' in request.resource.data) || request.resource.data.previousAmount is number)
+          && (!('batchId' in request.resource.data) || request.resource.data.batchId is string)
           && request.resource.data.keys().hasOnly(['type', 'feedId', 'storageId',
-               'amount', 'previousAmount', 'moveId', 'note', 'uid', 'timestamp']);
+               'amount', 'previousAmount', 'batchId', 'note', 'uid', 'timestamp']);
         // Admins may correct amount, note, timestamp and previousAmount only;
-        // uid, type, feedId and storageId are immutable.
+        // uid, type, feedId, storageId and batchId are immutable.
         allow update: if isAdmin(orgId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'note', 'timestamp', 'previousAmount'])
           && request.resource.data.amount is number
