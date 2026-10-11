@@ -70,7 +70,18 @@ for (const [label, ctxOpts] of [['phone', phone], ['desktop', desktop]]) {
       if ((await link.count()) === 0) continue
       await link.click()
       await page.getByRole('heading', { level: 1, name: tab }).waitFor()
+      if (tab === 'Voorraad') await page.waitForSelector('[aria-label="Voorraad per voer"]', { timeout: 15000 }).catch(() => {})
       await shot(page, `${label}-${tab.toLowerCase()}`)
+      if (tab === 'Voorraad') {
+        const toggle = page.getByLabel('Besteladvies')
+        if ((await toggle.count()) > 0) {
+          await toggle.check()
+          await page.locator('.MuiChip-root').first().waitFor({ timeout: 20000 })
+          await page.waitForTimeout(300)
+          await shot(page, `${label}-voorraad-advies`)
+          await toggle.uncheck()
+        }
+      }
     }
     if (label === 'phone') {
       await page.getByRole('button', { name: 'Account' }).click()

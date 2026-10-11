@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import SignInPage from './auth/SignInPage.tsx'
 import { useAuth } from './auth/useAuth.ts'
+import OrgDataProvider from './org/OrgDataProvider.tsx'
 import { useOrg } from './org/useOrg.ts'
 import LeveringPage from './pages/LeveringPage.tsx'
 import MuterenPage from './pages/MuterenPage.tsx'
@@ -29,13 +30,15 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/voorraad/*" element={<VoorraadPage />} />
-        <Route path="/levering/*" element={<LeveringPage />} />
-        <Route path="/muteren/*" element={<MuterenPage />} />
-        <Route path="*" element={<VoorraadPage />} />
-      </Route>
-    </Routes>
+    <OrgDataProvider>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/voorraad/*" element={<VoorraadPage />} />
+          <Route path="/levering/*" element={<LeveringPage />} />
+          <Route path="/muteren/*" element={<MuterenPage />} />
+          <Route path="*" element={<VoorraadPage />} />
+        </Route>
+      </Routes>
+    </OrgDataProvider>
   )
 }

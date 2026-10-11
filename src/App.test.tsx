@@ -10,6 +10,9 @@ import type { MemberRole } from './model/types.ts'
 import type { OrgStatus } from './org/context.ts'
 
 vi.mock('./lib/firebase.ts', () => ({ auth: {}, db: {} }))
+vi.mock('./org/OrgDataProvider.tsx', () => ({
+  default: ({ children }: { children: React.ReactNode }) => children,
+}))
 
 function renderApp(opts: { user?: boolean; status: OrgStatus; roles?: MemberRole[]; path?: string }) {
   const user = opts.user === false ? null : ({ uid: 'u1', email: 'test@example.com' } as never)
