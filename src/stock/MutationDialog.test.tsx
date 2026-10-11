@@ -94,9 +94,9 @@ describe('MutationDialog', () => {
   it('saves several lines as one batch', () => {
     const { onDone, onClose } = setup()
     click('Geitenkorrel min')
-    click('Nog een')
+    click('Nog een wijziging')
     click('Hooi min')
-    click('Wijzigingen opslaan (2)')
+    click('Wijziging(en) opslaan')
     expect(applyMutations).toHaveBeenCalledTimes(1)
     expect(vi.mocked(applyMutations).mock.calls[0][0]).toHaveLength(3)
     expect(onDone).toHaveBeenCalledWith('2 wijzigingen opgeslagen')
@@ -114,7 +114,7 @@ describe('MutationDialog', () => {
 
   it('filters rows while typing', () => {
     setup()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Voer' }), { target: { value: 'st' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Zoeken…' }), { target: { value: 'st' } })
     const items = within(screen.getByRole('list', { name: 'Voerlijst' })).getAllByRole('listitem')
     expect(items).toHaveLength(1)
     expect(items[0].textContent).toContain('Stro')

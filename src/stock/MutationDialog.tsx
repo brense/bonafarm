@@ -1,5 +1,5 @@
 import AddIcon from '@mui/icons-material/Add'
-import CloseIcon from '@mui/icons-material/Close'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RemoveIcon from '@mui/icons-material/Remove'
 import {
@@ -111,7 +111,7 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void) {
   return { offset, dragging, handlers }
 }
 
-function FeedRow({ name, active, onSwipe, onMinus, onPlus }: { name: string; active: boolean; onSwipe: (signed: number) => void; onMinus: () => void; onPlus: () => void }) {
+function FeedRow({ name, active, detail, onSwipe, onMinus, onPlus }: { name: string; active: boolean; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus: () => void; onPlus: () => void }) {
   const { offset, dragging, handlers } = useSwipeAmount(onSwipe)
   const amount = swipeAmount(offset)
   return (
@@ -149,6 +149,9 @@ function FeedRow({ name, active, onSwipe, onMinus, onPlus }: { name: string; act
         }}
       >
         <ListItemText primary={name} slotProps={{ primary: { sx: { fontWeight: active ? 700 : 400 } } }} />
+        {detail && (
+          <Typography sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
+        )}
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
           <IconButton aria-label={`${name} min`} onClick={onMinus} sx={iconButtonSx}>
             <RemoveIcon />
@@ -176,6 +179,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [line, setLine] = useState<Line | null>(null)
   const [lines, setLines] = useState<Change[]>([])
   const [error, setError] = useState<string | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
 
   const isCounted = (storageId: string) => {
     const s = storages.get(storageId)
@@ -339,161 +343,174 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     </Typography>
   )
 
+  const chooser = line && feed && (
+    <Paper variant="outlined" sx={{ p: 1.5, mt: 1 }}>
+      {line.direction === 'out' ? (
+        <>
+          {sectionTitle('Waar vandaan?')}
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar vandaan?">
+            {sources.map((id) => (
+              <Chip
+                key={id}
+                label={storageName(id)}
+                clickable
+                aria-pressed={line.fromStorageId === id}
+                color={line.fromStorageId === id ? 'primary' : 'default'}
+                variant={line.fromStorageId === id ? 'filled' : 'outlined'}
+                onClick={() => pickSource(id)}
+                sx={chipSx}
+              />
+            ))}
+          </Stack>
+          {sectionTitle('En dan?')}
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="En dan?">
+            <Chip
+              label="Verbruikt"
+              clickable
+              aria-pressed={line.consumed}
+              color={line.consumed ? 'primary' : 'default'}
+              variant={line.consumed ? 'filled' : 'outlined'}
+              onClick={() => setLine({ ...line, consumed: true, toStorageId: null })}
+              sx={chipSx}
+            />
+            {destinations.map((id) => {
+              const on = !line.consumed && line.toStorageId === id
+              return (
+                <Chip
+                  key={id}
+                  label={storageName(id)}
+                  clickable
+                  aria-pressed={on}
+                  color={on ? 'primary' : 'default'}
+                  variant={on ? 'filled' : 'outlined'}
+                  onClick={() => setLine({ ...line, consumed: false, toStorageId: id })}
+                  sx={chipSx}
+                />
+              )
+            })}
+          </Stack>
+        </>
+      ) : (
+        <>
+          {sectionTitle('Waar in?')}
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar in?">
+            {targets.map((id) => (
+              <Chip
+                key={id}
+                label={storageName(id)}
+                clickable
+                aria-pressed={line.toStorageId === id}
+                color={line.toStorageId === id ? 'primary' : 'default'}
+                variant={line.toStorageId === id ? 'filled' : 'outlined'}
+                onClick={() => setLine({ ...line, toStorageId: id })}
+                sx={chipSx}
+              />
+            ))}
+          </Stack>
+        </>
+      )}
+    </Paper>
+  )
+
   return (
     <Dialog open={open} onClose={close} fullScreen>
       <AppBar position="sticky" color="default" enableColorOnDark>
         <Toolbar>
           <IconButton edge="start" aria-label="Sluiten" onClick={close}>
-            <CloseIcon />
+            <ArrowBackIcon />
           </IconButton>
           <Typography variant="h6" component="h1" sx={{ flexGrow: 1, ml: 1 }}>
-            Wijziging maken
+            Wijzigingen
           </Typography>
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ px: 2, pt: 2, pb: 30 }}>
-        <Autocomplete
-          autoHighlight
-          openOnFocus={false}
-          options={visibleFeeds}
-          getOptionLabel={(o) => o.name}
-          getOptionKey={(o) => o.id}
-          value={null}
-          inputValue={search}
-          onInputChange={(_, v, reason) => {
-            if (reason === 'input' || reason === 'clear') setSearch(v)
-          }}
-          renderInput={(params) => <TextField {...params} label="Voer" variant="filled" />}
-        />
-        <List aria-label="Voerlijst">
-          {rows.map((f) => (
-            <FeedRow
-              key={f.id}
-              name={f.name}
-              active={line?.feedId === f.id}
-              onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-              onMinus={() => tap(f.id, 'out')}
-              onPlus={() => tap(f.id, 'in')}
+      <Box sx={{ px: 2, pt: 2, pb: 14 }}>
+        <Paper variant="outlined" sx={{ minHeight: '35vh', maxHeight: '35vh', overflowY: 'auto', mb: 2 }}>
+          {lines.length === 0 ? (
+            <Typography color="text.secondary" sx={{ p: 2 }}>
+              Nog geen wijzigingen
+            </Typography>
+          ) : (
+            <List dense disablePadding aria-label="Wijzigingen">
+              {lines.map((c, i) => (
+                <ListItem
+                  key={i}
+                  divider
+                  secondaryAction={
+                    <IconButton edge="end" aria-label="Verwijder regel" onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))} sx={{ width: 48, height: 48 }}>
+                      <DeleteIcon />
+                    </IconButton>
+                  }
+                  sx={{ minHeight: 48 }}
+                >
+                  <ListItemText primary={describe(c)} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+
+        {line && feed ? (
+          <>
+            <List aria-label="Gekozen voer" disablePadding>
+              <FeedRow
+                name={feed.name}
+                active
+                detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
+                onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                onMinus={() => tap(line.feedId, 'out')}
+                onPlus={() => tap(line.feedId, 'in')}
+              />
+            </List>
+            {chooser}
+          </>
+        ) : (
+          <>
+            <List aria-label="Voerlijst" disablePadding>
+              {rows.map((f) => (
+                <FeedRow
+                  key={f.id}
+                  name={f.name}
+                  active={false}
+                  onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                  onMinus={() => tap(f.id, 'out')}
+                  onPlus={() => tap(f.id, 'in')}
+                />
+              ))}
+            </List>
+            <Autocomplete
+              autoHighlight
+              openOnFocus={false}
+              options={visibleFeeds}
+              getOptionLabel={(o) => o.name}
+              getOptionKey={(o) => o.id}
+              value={null}
+              inputValue={search}
+              onInputChange={(_, v, reason) => {
+                if (reason === 'input' || reason === 'clear') setSearch(v)
+              }}
+              renderInput={(params) => <TextField {...params} label="Zoeken…" variant="filled" inputRef={searchRef} />}
+              sx={{ mt: 1 }}
             />
-          ))}
-        </List>
-
-        {line && feed && (
-          <Paper variant="outlined" sx={{ p: 1.5, mt: 1 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-              <Typography sx={{ fontWeight: 700 }}>{feed.name}</Typography>
-              <Typography color={line.direction === 'out' ? 'error.main' : 'success.main'} sx={{ fontWeight: 700 }}>
-                {amountText(line.feedId, line.direction, line.amount)}
-              </Typography>
-            </Stack>
-
-            {line.direction === 'out' ? (
-              <>
-                {sectionTitle('Waar vandaan?')}
-                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar vandaan?">
-                  {sources.map((id) => (
-                    <Chip
-                      key={id}
-                      label={storageName(id)}
-                      clickable
-                      aria-pressed={line.fromStorageId === id}
-                      color={line.fromStorageId === id ? 'primary' : 'default'}
-                      variant={line.fromStorageId === id ? 'filled' : 'outlined'}
-                      onClick={() => pickSource(id)}
-                      sx={chipSx}
-                    />
-                  ))}
-                </Stack>
-                {sectionTitle('En dan?')}
-                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="En dan?">
-                  <Chip
-                    label="Verbruikt"
-                    clickable
-                    aria-pressed={line.consumed}
-                    color={line.consumed ? 'primary' : 'default'}
-                    variant={line.consumed ? 'filled' : 'outlined'}
-                    onClick={() => setLine({ ...line, consumed: true, toStorageId: null })}
-                    sx={chipSx}
-                  />
-                  {destinations.map((id) => {
-                    const on = !line.consumed && line.toStorageId === id
-                    return (
-                      <Chip
-                        key={id}
-                        label={storageName(id)}
-                        clickable
-                        aria-pressed={on}
-                        color={on ? 'primary' : 'default'}
-                        variant={on ? 'filled' : 'outlined'}
-                        onClick={() => setLine({ ...line, consumed: false, toStorageId: id })}
-                        sx={chipSx}
-                      />
-                    )
-                  })}
-                </Stack>
-              </>
-            ) : (
-              <>
-                {sectionTitle('Waar in?')}
-                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waar in?">
-                  {targets.map((id) => (
-                    <Chip
-                      key={id}
-                      label={storageName(id)}
-                      clickable
-                      aria-pressed={line.toStorageId === id}
-                      color={line.toStorageId === id ? 'primary' : 'default'}
-                      variant={line.toStorageId === id ? 'filled' : 'outlined'}
-                      onClick={() => setLine({ ...line, toStorageId: id })}
-                      sx={chipSx}
-                    />
-                  ))}
-                </Stack>
-              </>
-            )}
-          </Paper>
+          </>
+        )}
+        {error && (
+          <Typography color="error" sx={{ mt: 1 }}>
+            {error}
+          </Typography>
         )}
       </Box>
 
       <Paper square elevation={8} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' }}>
-        {lines.length > 0 && (
-          <List dense disablePadding aria-label="Regels" sx={{ maxHeight: 160, overflowY: 'auto', mb: 1 }}>
-            {lines.map((c, i) => (
-              <ListItem
-                key={i}
-                disableGutters
-                secondaryAction={
-                  <IconButton edge="end" aria-label="Verwijder regel" onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))} sx={{ width: 48, height: 48 }}>
-                    <DeleteIcon />
-                  </IconButton>
-                }
-                sx={{ minHeight: 48, pr: 6 }}
-              >
-                <ListItemText primary={describe(c)} />
-              </ListItem>
-            ))}
-          </List>
-        )}
-        {error && (
-          <Typography color="error" sx={{ mb: 1 }}>
-            {error}
-          </Typography>
-        )}
-        {line ? (
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" size="large" fullWidth sx={{ minHeight: 56 }} disabled={!lineComplete} onClick={another}>
-              Nog een
-            </Button>
-            <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0} onClick={save}>
-              Wijzigingen opslaan ({count})
-            </Button>
-          </Stack>
-        ) : (
-          <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0} onClick={save}>
-            Wijzigingen opslaan ({count})
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="large" fullWidth sx={{ minHeight: 56 }} onClick={line ? another : () => searchRef.current?.focus()}>
+            Nog een wijziging
           </Button>
-        )}
+          <Button variant="contained" size="large" fullWidth sx={{ minHeight: 56 }} disabled={count === 0} onClick={save}>
+            Wijziging(en) opslaan
+          </Button>
+        </Stack>
       </Paper>
     </Dialog>
   )
