@@ -23,6 +23,7 @@ export interface MutationPlan {
     storageId: string
     amount: number
     previousAmount?: number
+    note?: string
     uid: string
   }
   /** Stock change for counted storages; kokers (fill, empty) have no item. */
@@ -78,30 +79,70 @@ function round(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/** One line of the "Wijziging maken" dialog: a signed delta for a feed in a storage. */
+export interface ChangeLine {
+  feedId: string
+  storageId: string
+  /** Negative = taken out, positive = put in. */
+  delta: number
+  /** Whether the storage counts stock (bin, stable) or consumes it (koker). */
+  counted: boolean
+  /** Known stock in that storage, for clamping. */
+  current: number
+}
+
 /**
- * Writes the plan as one batch: the log and, for counted storages, the item
- * upsert. Resolves when the local cache has it; the server may still reject
- * (rules), which surfaces through the returned promise's rejection.
+ * Maps a signed change to the explicit log types: out of a counted storage is
+ * `dispense`; into a koker is `fill`; into a counted storage is a `correction`
+ * (deliveries have their own flow). Out of a koker makes no sense and throws.
  */
-export async function applyMutation(plan: MutationPlan): Promise<void> {
+export function planChange(orgId: string, uid: string, line: ChangeLine): MutationPlan {
+  const amount = Math.abs(line.delta)
+  const input = { orgId, uid, storageId: line.storageId, feedId: line.feedId, amount, current: line.current }
+  if (line.delta < 0) {
+    if (!line.counted) throw new Error('cannot take feed out of a koker')
+    return planMutation('dispense', input)
+  }
+  if (!line.counted) return planMutation('fill', input)
+  const plan = planMutation('count', input) // reuse the paths, then overwrite the semantics
+  return {
+    logPath: plan.logPath,
+    log: { type: 'correction', feedId: line.feedId, storageId: line.storageId, amount, uid, note: 'erbij gezet' },
+    item: { path: plan.item!.path, storageId: line.storageId, feedId: line.feedId, op: { kind: 'increment', by: amount } },
+  }
+}
+
+/**
+ * Writes one or more plans as a single batch: each log and, for counted
+ * storages, the item upsert. Resolves when the local cache has it; the server
+ * may still reject (rules), which surfaces through the returned promise.
+ */
+export async function applyMutations(plans: MutationPlan[]): Promise<void> {
+  if (plans.length === 0) return
   const [{ db }, { collection, doc, increment, serverTimestamp, writeBatch }] = await Promise.all([
     import('../lib/firebase.ts'),
     import('firebase/firestore'),
   ])
   const batch = writeBatch(db)
-  batch.set(doc(collection(db, plan.logPath)), { ...plan.log, timestamp: serverTimestamp() })
-  if (plan.item) {
-    const { path, storageId, feedId, op } = plan.item
-    batch.set(
-      doc(db, path),
-      {
-        storageId,
-        feedId,
-        amount: op.kind === 'increment' ? increment(op.by) : op.to,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    )
+  for (const plan of plans) {
+    batch.set(doc(collection(db, plan.logPath)), { ...plan.log, timestamp: serverTimestamp() })
+    if (plan.item) {
+      const { path, storageId, feedId, op } = plan.item
+      batch.set(
+        doc(db, path),
+        {
+          storageId,
+          feedId,
+          amount: op.kind === 'increment' ? increment(op.by) : op.to,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+    }
   }
   await batch.commit()
+}
+
+export function applyMutation(plan: MutationPlan): Promise<void> {
+  return applyMutations([plan])
 }

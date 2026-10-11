@@ -130,25 +130,26 @@ function kokerMeta(k: KokerEstimate, unit: Row['unit'], a: Advice): string {
   return `levering ${formatAmount(k.delivered)} ${unitLabel(unit, k.delivered)}${ago}`
 }
 
-function breakdown(row: FeedStock): string {
-  if (row.perStorage.length === 0) return row.isKoker ? '' : 'Niet op voorraad'
-  return row.perStorage.map((s) => `${s.storageName} ${formatAmount(s.amount)}`).join(' · ')
-}
 
-/** "nog 8 dagen", "nu op", or nothing when not in use. */
-function runsOut(a: Advice): string {
+/**
+ * When it runs out. Bins are counted, so "op" is a fact; kokers and stables
+ * are estimates, so the wording stays tentative.
+ */
+function runsOut(row: Row, a: Advice): string {
   if (a.dueInDays === null) return ''
-  return a.dueInDays <= 0 ? 'nu op' : `nog ${a.dueInDays} dagen`
+  const rough = row.isKoker || row.inStable
+  if (a.dueInDays <= 0) return rough ? 'mogelijk niet genoeg' : 'op'
+  return rough ? `± ${a.dueInDays} dagen` : `nog ${a.dueInDays} dagen`
 }
 
 function adviceMeta(row: Row): string {
   const a = row.advice
   if (!a) return ''
   const parts: string[] = []
-  if (row.ratePerWeek !== null) parts.push(`${formatAmount(row.ratePerWeek)}/wk`)
+  if (row.ratePerWeek !== null) parts.push(`${formatAmount(row.ratePerWeek)} ${row.unit}/wk`)
   if (row.koker) parts.push(kokerMeta(row.koker, row.unit, a))
   else if (a.daysSinceDelivery !== null) parts.push(`levering ${a.daysSinceDelivery} d geleden`)
-  const out = runsOut(a)
+  const out = runsOut(row, a)
   if (out) parts.push(out)
   return parts.join(' · ')
 }
@@ -290,7 +291,6 @@ export default function VoorraadPage() {
               <TableRow>
                 <TableCell>Voer</TableCell>
                 <TableCell align="right">Voorraad</TableCell>
-                <TableCell>Waar</TableCell>
                 <TableCell align="right">Per week</TableCell>
                 <TableCell>Status</TableCell>
                 {ordering && <TableCell align="right">Bestellen</TableCell>}
@@ -303,14 +303,13 @@ export default function VoorraadPage() {
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
                     {r.koker ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
                   </TableCell>
-                  <TableCell sx={{ color: 'text.secondary' }}>{breakdown(r)}</TableCell>
                   <TableCell align="right">{r.ratePerWeek !== null ? formatAmount(r.ratePerWeek) : ''}</TableCell>
                   <TableCell>
                     {r.advice && (
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <StatusChip advice={r.advice} />
                         <Typography variant="caption" color="text.secondary" noWrap>
-                          {[r.koker ? kokerMeta(r.koker, r.unit, r.advice) : '', runsOut(r.advice)].filter(Boolean).join(' · ')}
+                          {[r.koker ? kokerMeta(r.koker, r.unit, r.advice) : '', runsOut(r, r.advice)].filter(Boolean).join(' · ')}
                         </Typography>
                       </Stack>
                     )}
@@ -337,20 +336,13 @@ export default function VoorraadPage() {
                       {r.advice && <StatusChip advice={r.advice} />}
                     </Stack>
                   }
-                  secondary={[breakdown(r), r.advice ? adviceMeta(r) : ''].filter(Boolean).map((line, i) => (
-                    <span key={i} style={{ display: 'block' }}>
-                      {line}
-                    </span>
-                  ))}
+                  secondary={r.advice ? adviceMeta(r) : ' '}
                   slotProps={{ secondary: { component: 'span' } }}
                   sx={{ my: 0, pr: 2 }}
                 />
                 <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 72 }}>
                   <Typography variant="h6" component="div" sx={{ lineHeight: 1.2, color: amountColor(r) }}>
                     {r.koker ? '≈ ' : ''}{formatAmount(shownAmount(r))}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {unitLabel(r.unit, shownAmount(r))}
                   </Typography>
                   {ordering && r.advice && r.advice.orderQty > 0 && (
                     <Typography variant="body2" sx={{ mt: 0.5, color: 'warning.main', fontWeight: 700 }}>

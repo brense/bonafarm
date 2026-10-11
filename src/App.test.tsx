@@ -43,16 +43,15 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Geen organisatie' })).toBeInTheDocument()
   })
 
-  it('renders the shell with only the tabs the roles allow', () => {
-    renderApp({ status: 'ready', roles: ['feed'], path: '/muteren' })
-    expect(screen.getByRole('heading', { level: 1, name: 'Muteren' })).toBeInTheDocument()
+  it('renders the shell with the two tabs', () => {
+    renderApp({ status: 'ready', roles: ['feed'], path: '/opslagen' })
+    expect(screen.getByRole('heading', { level: 1, name: 'Opslagen' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Hoofdmenu' })
     expect(nav).toHaveTextContent('Voorraad')
-    expect(nav).toHaveTextContent('Muteren')
-    expect(nav).not.toHaveTextContent('Levering')
+    expect(nav).toHaveTextContent('Opslagen')
   })
 
-  it('redirects an unknown route to the first visible tab', () => {
+  it('redirects an unknown route to the first tab', () => {
     renderApp({ status: 'ready', roles: ['view'], path: '/levering' })
     expect(screen.getByRole('heading', { level: 1, name: 'Voorraad' })).toBeInTheDocument()
   })

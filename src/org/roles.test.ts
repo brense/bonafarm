@@ -1,22 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { can, visibleTabs } from './roles.ts'
+import { can, canEditCatalogue, visibleTabs } from './roles.ts'
 
 describe('visibleTabs', () => {
-  it('shows only stock to viewers and orderers', () => {
-    expect(visibleTabs(['view'])).toEqual(['voorraad'])
-    expect(visibleTabs(['order'])).toEqual(['voorraad'])
-  })
-  it('adds the use-case tabs per role, in nav order', () => {
-    expect(visibleTabs(['deliver'])).toEqual(['voorraad', 'levering'])
-    expect(visibleTabs(['feed'])).toEqual(['voorraad', 'muteren'])
-    expect(visibleTabs(['feed', 'deliver'])).toEqual(['voorraad', 'levering', 'muteren'])
-  })
-  it('gives owners and admins everything', () => {
-    expect(visibleTabs(['owner'])).toEqual(['voorraad', 'levering', 'muteren'])
-    expect(visibleTabs(['admin'])).toEqual(['voorraad', 'levering', 'muteren'])
-  })
-  it('shows nothing extra without roles', () => {
-    expect(visibleTabs([])).toEqual(['voorraad'])
+  it('shows stock and storages to every member', () => {
+    expect(visibleTabs(['view'])).toEqual(['voorraad', 'opslagen'])
+    expect(visibleTabs([])).toEqual(['voorraad', 'opslagen'])
+    expect(visibleTabs(['owner'])).toEqual(['voorraad', 'opslagen'])
   })
 })
 
@@ -26,5 +15,15 @@ describe('can', () => {
     expect(can(['feed'], 'deliver')).toBe(false)
     expect(can(['admin'], 'deliver')).toBe(true)
     expect(can([], 'view')).toBe(false)
+  })
+})
+
+describe('canEditCatalogue', () => {
+  it('follows the rules: deliver, feed, admin, owner', () => {
+    expect(canEditCatalogue(['view'])).toBe(false)
+    expect(canEditCatalogue(['order'])).toBe(false)
+    expect(canEditCatalogue(['feed'])).toBe(true)
+    expect(canEditCatalogue(['deliver'])).toBe(true)
+    expect(canEditCatalogue(['admin'])).toBe(true)
   })
 })

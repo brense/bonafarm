@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planMutation } from './mutations.ts'
+import { planChange, planMutation } from './mutations.ts'
 
 const base = { orgId: 'tanthof', uid: 'u1', storageId: 'ton-roze', feedId: 'hooi' }
 
@@ -39,5 +39,31 @@ describe('planMutation', () => {
   it('rejects zero and negative amounts', () => {
     expect(() => planMutation('dispense', { ...base, amount: 0, current: 1 })).toThrow()
     expect(() => planMutation('count', { ...base, amount: -1, current: 1 })).toThrow()
+  })
+})
+
+describe('planChange', () => {
+  const line = { feedId: 'hooi', storageId: 'ton-roze', current: 5, counted: true }
+
+  it('negative from a counted storage is a dispense', () => {
+    const p = planChange('tanthof', 'u1', { ...line, delta: -2 })
+    expect(p.log).toMatchObject({ type: 'dispense', amount: 2 })
+    expect(p.item?.op).toEqual({ kind: 'increment', by: -2 })
+  })
+
+  it('positive into a koker is a fill without item', () => {
+    const p = planChange('tanthof', 'u1', { ...line, storageId: 'koker', counted: false, delta: 1 })
+    expect(p.log).toMatchObject({ type: 'fill', amount: 1, storageId: 'koker' })
+    expect(p.item).toBeUndefined()
+  })
+
+  it('positive into a counted storage is a correction that increments', () => {
+    const p = planChange('tanthof', 'u1', { ...line, delta: 1.5 })
+    expect(p.log).toMatchObject({ type: 'correction', amount: 1.5, note: 'erbij gezet' })
+    expect(p.item?.op).toEqual({ kind: 'increment', by: 1.5 })
+  })
+
+  it('refuses taking feed out of a koker', () => {
+    expect(() => planChange('tanthof', 'u1', { ...line, counted: false, delta: -1 })).toThrow()
   })
 })

@@ -18,6 +18,8 @@ export interface FeedStock {
   perStorage: StorageStock[]
   /** The feed's default storage is a koker: bags go straight in, stock is rarely counted. */
   isKoker: boolean
+  /** Lives in a stable (hooi, stro): counts are rough, so advice stays tentative. */
+  inStable: boolean
 }
 
 /** Stock per visible feed. Only items in active storages whose type is counted contribute. */
@@ -45,6 +47,7 @@ export function stockPerFeed(
       (a, b) => (storages.get(a.storageId)?.order ?? 0) - (storages.get(b.storageId)?.order ?? 0),
     )
     const defaultType = feed.defaultStorageId ? storages.get(feed.defaultStorageId)?.typeId : undefined
+    const inStable = defaultType === 'stable' || perStorage.some((s) => storages.get(s.storageId)?.typeId === 'stable')
     rows.push({
       feedId,
       name: feed.name,
@@ -53,6 +56,7 @@ export function stockPerFeed(
       total: perStorage.reduce((sum, s) => sum + s.amount, 0),
       perStorage,
       isKoker: defaultType !== undefined && storageTypes.get(defaultType)?.behaviour === 'consumed',
+      inStable,
     })
   }
   return rows.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'nl'))

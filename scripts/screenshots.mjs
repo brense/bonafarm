@@ -65,7 +65,7 @@ for (const [label, ctxOpts] of [['phone', phone], ['desktop', desktop]]) {
   await shot(page, `${label}-signin`)
   if (args.email) {
     await signIn(page)
-    for (const tab of ['Voorraad', 'Levering', 'Muteren']) {
+    for (const tab of ['Voorraad', 'Opslagen']) {
       const link = page.getByRole('navigation', { name: 'Hoofdmenu' }).getByText(tab, { exact: true })
       if ((await link.count()) === 0) continue
       await link.click()
@@ -88,25 +88,62 @@ for (const [label, ctxOpts] of [['phone', phone], ['desktop', desktop]]) {
         }
       }
     }
-    // Muteren flow: storage list -> a bin -> the amount sheet -> a stable (count mode)
-    if ((await page.getByRole('navigation', { name: 'Hoofdmenu' }).getByText('Muteren', { exact: true }).count()) > 0) {
+    // Opslagen flow: edit mode with handles, group menu, a bin, the amount sheet, a stable (count mode), a koker
+    {
       const list = () => page.getByRole('list', { name: 'Voer in deze opslag' })
-      await page.goto(`${URL}/muteren/${args.bin ?? 'tonroze'}`)
+      await page.goto(`${URL}/opslagen`)
+      await page.getByRole('heading', { level: 1, name: 'Opslagen' }).waitFor()
+      const edit = page.getByRole('button', { name: 'Volgorde en groepen' })
+      await edit.waitFor({ timeout: 15000 }).catch(() => {})
+      await page.waitForTimeout(300)
+      await shot(page, `${label}-opslagen`)
+      if ((await edit.count()) > 0) {
+        await edit.click()
+        await page.getByRole('button', { name: 'Versleep' }).first().waitFor()
+        await page.waitForTimeout(300)
+        await shot(page, `${label}-opslagen-bewerken`)
+        await page.getByRole('button', { name: /^Opties voor (?!groep)/ }).first().click()
+        await page.getByRole('menuitem', { name: 'Naar andere groep…' }).click()
+        await page.getByRole('dialog').waitFor()
+        await shot(page, `${label}-opslagen-naar-groep`)
+        await page.keyboard.press('Escape')
+      }
+      await page.goto(`${URL}/opslagen/${args.bin ?? 'tonroze'}`)
       await list().waitFor({ timeout: 15000 })
-      await shot(page, `${label}-muteren-bak`)
+      await shot(page, `${label}-opslag-bak`)
       await list().getByRole('button').first().click()
       await page.getByRole('dialog').waitFor()
-      await shot(page, `${label}-muteren-sheet`)
+      await shot(page, `${label}-opslag-sheet`)
       await page.getByRole('button', { name: 'Annuleren' }).click()
-      await page.goto(`${URL}/muteren/${args.stable ?? 'paardenstal'}`)
+      await page.goto(`${URL}/opslagen/${args.stable ?? 'paardenstal'}`)
       await list().waitFor({ timeout: 15000 })
       await list().getByRole('button').first().click()
       await page.getByRole('dialog').waitFor()
-      await shot(page, `${label}-muteren-stal-tellen`)
+      await shot(page, `${label}-opslag-stal-tellen`)
       await page.getByRole('button', { name: 'Annuleren' }).click()
-      await page.goto(`${URL}/muteren/${args.koker ?? 'geitenkorrel'}`)
+      await page.goto(`${URL}/opslagen/${args.koker ?? 'geitenkorrel'}`)
       await list().waitFor({ timeout: 15000 })
-      await shot(page, `${label}-muteren-koker`)
+      await shot(page, `${label}-opslag-koker`)
+    }
+    // Speed dial -> Wijziging maken: pick two feeds, then the storages
+    if ((await page.getByRole('button', { name: 'Acties' }).count()) > 0) {
+      await page.goto(`${URL}/voorraad`)
+      await page.locator('.MuiChip-root').first().waitFor({ timeout: 20000 }).catch(() => {})
+      await page.getByRole('button', { name: 'Acties' }).click()
+      await page.getByRole('menuitem', { name: 'Wijziging maken' }).waitFor()
+      await shot(page, `${label}-speeddial`)
+      await page.getByRole('menuitem', { name: 'Wijziging maken' }).click()
+      await page.getByRole('heading', { name: 'Wijziging maken' }).waitFor()
+      await page.getByRole('button', { name: 'Hooi min' }).click()
+      await page.getByRole('button', { name: 'Hooi min' }).click()
+      await page.getByRole('button', { name: 'Geitenkorrel plus' }).click()
+      await shot(page, `${label}-wijziging-1`)
+      await page.getByRole('button', { name: /^Verder/ }).click()
+      await page.getByRole('heading', { name: 'Waar?' }).waitFor()
+      await page.waitForTimeout(300)
+      await shot(page, `${label}-wijziging-2`)
+      await page.getByRole('button', { name: 'Terug' }).click()
+      await page.getByRole('button', { name: 'Sluiten' }).click()
     }
     if (label === 'phone') {
       await page.goto(`${URL}/voorraad`)

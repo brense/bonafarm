@@ -95,7 +95,7 @@ export default function StoragePage() {
       </Box>
     )
   }
-  if (!ID_PATTERN.test(storageId) || !storage) return <Navigate to="/muteren" replace />
+  if (!ID_PATTERN.test(storageId) || !storage) return <Navigate to="/opslagen" replace />
 
   const defaultMode: AmountMode = consumed ? 'fill' : storage.typeId === 'stable' ? 'count' : 'dispense'
   const current = (feedId: string) => items.get(`${storageId}_${feedId}`)?.amount ?? 0
@@ -136,7 +136,7 @@ export default function StoragePage() {
   return (
     <Container maxWidth="md" sx={{ py: 2 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-        <IconButton aria-label="Terug naar opslag" onClick={() => navigate('/muteren')} edge="start">
+        <IconButton aria-label="Terug naar opslag" onClick={() => navigate('/opslagen')} edge="start">
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }} noWrap>

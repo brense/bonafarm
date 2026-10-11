@@ -1,7 +1,7 @@
+import EditIcon from '@mui/icons-material/EditOutlined'
 import InventoryIcon from '@mui/icons-material/Inventory2Outlined'
-import LocalShippingIcon from '@mui/icons-material/LocalShippingOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
-import TuneIcon from '@mui/icons-material/TuneOutlined'
+import WarehouseIcon from '@mui/icons-material/WarehouseOutlined'
 import {
   AppBar,
   Avatar,
@@ -17,6 +17,10 @@ import {
   Menu,
   MenuItem,
   Paper,
+  Snackbar,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -27,12 +31,12 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth.ts'
 import { useBranding } from '../branding/useBranding.ts'
 import { useOrg } from '../org/useOrg.ts'
-import { visibleTabs, type Tab } from '../org/roles.ts'
+import { can, visibleTabs, type Tab } from '../org/roles.ts'
+import MutationDialog from '../stock/MutationDialog.tsx'
 
 const TAB_META: Record<Tab, { label: string; icon: ReactElement }> = {
   voorraad: { label: 'Voorraad', icon: <InventoryIcon /> },
-  levering: { label: 'Levering', icon: <LocalShippingIcon /> },
-  muteren: { label: 'Muteren', icon: <TuneIcon /> },
+  opslagen: { label: 'Opslagen', icon: <WarehouseIcon /> },
 }
 
 const DRAWER_WIDTH = 240
@@ -91,6 +95,10 @@ export default function AppShell() {
   const navigate = useNavigate()
   const tabs = visibleTabs(roles)
   const current = tabs.find((t) => location.pathname === `/${t}` || location.pathname.startsWith(`/${t}/`))
+  const [dialOpen, setDialOpen] = useState(false)
+  const [mutating, setMutating] = useState(false)
+  const [snack, setSnack] = useState<string | null>(null)
+  const mayFeed = can(roles, 'feed')
 
   if (!current) return <Navigate to={`/${tabs[0]}`} replace />
 
@@ -138,6 +146,33 @@ export default function AppShell() {
         <Toolbar />
         <Outlet />
       </Box>
+
+      {mayFeed && (
+        <SpeedDial
+          ariaLabel="Acties"
+          icon={<SpeedDialIcon />}
+          open={dialOpen}
+          onOpen={() => setDialOpen(true)}
+          onClose={() => setDialOpen(false)}
+          sx={{
+            position: 'fixed',
+            right: 16,
+            bottom: desktop ? 24 : `calc(${BOTTOM_NAV_HEIGHT}px + 12px + env(safe-area-inset-bottom))`,
+            zIndex: (t) => t.zIndex.speedDial,
+          }}
+        >
+          <SpeedDialAction
+            icon={<EditIcon />}
+            slotProps={{ tooltip: { title: 'Wijziging maken', open: true } }}
+            onClick={() => {
+              setDialOpen(false)
+              setMutating(true)
+            }}
+          />
+        </SpeedDial>
+      )}
+      <MutationDialog open={mutating} onClose={() => setMutating(false)} onDone={setSnack} />
+      <Snackbar open={snack !== null} autoHideDuration={3000} onClose={() => setSnack(null)} message={snack} />
 
       {!desktop && (
         <Paper

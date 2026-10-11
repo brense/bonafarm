@@ -3,8 +3,7 @@ import SignInPage from './auth/SignInPage.tsx'
 import { useAuth } from './auth/useAuth.ts'
 import OrgDataProvider from './org/OrgDataProvider.tsx'
 import { useOrg } from './org/useOrg.ts'
-import LeveringPage from './pages/LeveringPage.tsx'
-import MuterenPage from './pages/MuterenPage.tsx'
+import OpslagenPage from './pages/OpslagenPage.tsx'
 import StoragePage from './pages/StoragePage.tsx'
 import VoorraadPage from './pages/VoorraadPage.tsx'
 import AppShell from './shell/AppShell.tsx'
@@ -35,9 +34,8 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/voorraad/*" element={<VoorraadPage />} />
-          <Route path="/levering/*" element={<LeveringPage />} />
-          <Route path="/muteren" element={<MuterenPage />} />
-          <Route path="/muteren/:storageId" element={<StoragePage />} />
+          <Route path="/opslagen" element={<OpslagenPage />} />
+          <Route path="/opslagen/:storageId" element={<StoragePage />} />
           <Route path="*" element={<VoorraadPage />} />
         </Route>
       </Routes>

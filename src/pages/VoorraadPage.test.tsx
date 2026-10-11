@@ -41,11 +41,10 @@ function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['r
 }
 
 describe('VoorraadPage', () => {
-  it('lists stock per feed with Dutch amounts and storage breakdown', () => {
+  it('lists stock per feed with Dutch amounts', () => {
     renderPage(['view'])
     expect(screen.getByText('Hooi')).toBeInTheDocument()
     expect(screen.getByText('7,5')).toBeInTheDocument()
-    expect(screen.getByText('Ton roze 7,5')).toBeInTheDocument()
     expect(screen.getByText('Geitenkorrel')).toBeInTheDocument()
   })
 
