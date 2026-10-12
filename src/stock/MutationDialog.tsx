@@ -141,7 +141,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
   const [notice, setNotice] = useState<{ id: number; text: string; severity: 'success' | 'warning'; open: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageQuery, setStorageQuery] = useState('')
-  const [reopen, setReopen] = useState<'from' | 'to' | null>(null)
+  const [reopen, setReopen] = useState<'feed' | 'from' | 'to' | null>(null)
   const cartRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = cartRef.current
@@ -439,20 +439,107 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     )
   }
 
+  const feedSearch = (
+    <SearchList
+      items={rows}
+      getKey={(f) => f.id}
+      getLabel={(f) => f.name}
+      searchLabel="Zoeken…"
+      listAriaLabel="Voerlijst"
+      emptyText="Geen voer gevonden"
+      query={search}
+      onQueryChange={setSearch}
+      renderRow={(f) => (
+        <FeedRow
+          bare
+          surface="var(--row-surface)"
+          name={f.name}
+          active={false}
+          swipeMax={f.swipeMax}
+          secondary={stockText(f.id, f.unit)}
+          minusDisabled={totalOf(f.id) <= 0}
+          maxMinus={totalOf(f.id)}
+          emptyLabel="Geen voorraad"
+          onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+          onMinus={() => tap(f.id, 'out')}
+          onPlus={() => tap(f.id, 'in')}
+        />
+      )}
+    />
+  )
+
+  const feedTitle = liveLines.length === 0 ? 'Welke voorraad wil je wijzigen?' : 'Nog een voorraad wijzigen?'
+
+  /** Hint under the feed row when a minus line has reached the stock there is. */
+  const stockHint =
+    line && feed && line.direction === 'out' && line.amount >= totalOf(line.feedId)
+      ? `Er ligt maar ${formatAmount(totalOf(line.feedId))} ${unitLabel(feed.unit, totalOf(line.feedId))}`
+      : undefined
+
+  type Answered = { key: 'feed' | 'from' | 'to'; title: string; rows: { name: string; text: string; color: string }[]; hint?: string }
+
   /**
    * The open question (`question`) plus the questions already answered (`answered`); an answered one
    * is shown as a tappable card above the open question and tapping it steps back.
    */
-  const chooser = ((): {
-    question: React.ReactNode
-    questionKey: 'from' | 'to' | 'in'
-    answered: { key: 'from' | 'to'; title: string; allocs: Alloc[]; sign: '−' | '+' }[]
-  } => {
+  const chooser = ((): { question: React.ReactNode; questionKey: 'feed' | 'from' | 'to' | 'in'; answered: Answered[] } => {
     if (!line || !feed) return { question: null, questionKey: 'in', answered: [] }
-    if (line.direction === 'in') {
+    const out = line.direction === 'out'
+    const lineColor = out ? 'error.main' : 'success.main'
+    const feedAnswered: Answered = {
+      key: 'feed',
+      title: feedTitle,
+      rows: [{ name: feed.name, text: amountText(line.feedId, line.direction, line.amount), color: lineColor }],
+      hint: stockHint,
+    }
+    if (reopen === 'feed') {
+      return {
+        questionKey: 'feed',
+        answered: [],
+        question: (
+          <Box>
+            {sectionTitle(feedTitle)}
+            <CardSurface>
+              <Stack direction="row" sx={{ alignItems: 'center', pr: 0.5 }}>
+                <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                  <FeedRow
+                    bare
+                    surface="var(--row-surface)"
+                    name={feed.name}
+                    active
+                    swipeMax={feed.swipeMax}
+                    maxMinus={out ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
+                    emptyLabel="Geen voorraad"
+                    detail={{ text: amountText(line.feedId, line.direction, line.amount), color: lineColor }}
+                    onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
+                    onMinus={() => tap(line.feedId, 'out')}
+                    onPlus={() => tap(line.feedId, 'in')}
+                  />
+                </List>
+                <IconButton aria-label="Regel annuleren" color="secondary" onClick={cancelLine} sx={{ width: 48, height: 48 }}>
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
+              {stockHint && (
+                <Typography variant="caption" color="text.secondary" sx={{ px: 2, display: 'block' }}>
+                  {stockHint}
+                </Typography>
+              )}
+              <Box sx={{ px: 1 }}>
+                <Button onClick={() => setReopen(null)} sx={{ minHeight: 48 }}>
+                  Klaar
+                </Button>
+              </Box>
+            </CardSurface>
+            <Box sx={{ mt: 1.5 }}>{feedSearch}</Box>
+          </Box>
+        ),
+      }
+    }
+    if (!out) {
       const linked = linkedShute(line.feedId)
       const base = [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
-      return { question: targetBox('In welke opslag?', base), questionKey: 'in', answered: [] }
+      return { question: targetBox('In welke opslag?', base), questionKey: 'in', answered: [feedAnswered] }
     }
     const fromDone = sumOf(line.sources) === line.amount
     const showFrom = reopen === 'from' || !fromDone
@@ -477,11 +564,26 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         targetBox(`Waar is de ${feed.unit} naartoe?`, [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])])
       ),
       questionKey: showFrom ? 'from' : 'to',
-      answered: showFrom ? [] : [{ key: 'from', title: fromTitle, allocs: line.sources, sign: '−' }],
+      answered: [
+        feedAnswered,
+        ...(showFrom
+          ? []
+          : [
+              {
+                key: 'from' as const,
+                title: fromTitle,
+                rows: line.sources.map((al) => ({
+                  name: al.storageId === null ? 'Verbruik' : storageName(al.storageId),
+                  text: `−${formatAmount(al.amount)} ${unitLabel(feed.unit, al.amount)}`,
+                  color: 'error.main',
+                })),
+              },
+            ]),
+      ],
     }
   })()
 
-  const answeredCard = (a: (typeof chooser.answered)[number]) => (
+  const answeredCard = (a: Answered) => (
     <Box>
       <CardSurface>
         <ButtonBase
@@ -497,24 +599,17 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             <UndoIcon fontSize="small" color="action" />
           </Stack>
           <List disablePadding>
-            {a.allocs.map((al) => (
-              <ListItem key={al.storageId ?? 'verbruik'} divider disablePadding>
-                <FeedRow
-                  bare
-                  dense
-                  surface="var(--row-surface)"
-                  name={al.storageId === null ? 'Verbruik' : storageName(al.storageId)}
-                  active={false}
-                  gesture="none"
-                  detail={{
-                    text: `${a.sign}${formatAmount(al.amount)} ${unitLabel(feed?.unit ?? 'zak', al.amount)}`,
-                    color: a.sign === '−' ? 'error.main' : 'success.main',
-                  }}
-                  onSwipe={() => {}}
-                />
+            {a.rows.map((r) => (
+              <ListItem key={r.name} divider disablePadding>
+                <FeedRow bare dense surface="var(--row-surface)" name={r.name} active={false} gesture="none" detail={{ text: r.text, color: r.color }} onSwipe={() => {}} />
               </ListItem>
             ))}
           </List>
+          {a.hint && (
+            <Typography variant="caption" color="text.secondary" sx={{ px: 2, pb: 1, display: 'block' }}>
+              {a.hint}
+            </Typography>
+          )}
         </ButtonBase>
       </CardSurface>
     </Box>
@@ -536,7 +631,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={{ px: 2, pt: 2, flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {sectionTitle(cartCount === 0 ? 'Nog geen wijzigingen' : `${cartCount} ${cartCount === 1 ? 'wijziging' : 'wijzigingen'}`)}
         <Box ref={cartRef} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
-          {cart.length === 0 && !line ? null : (
+          {cart.length === 0 ? null : (
             <List dense disablePadding aria-label="Wijzigingen">
               {cart.map((c) => {
                 const f = feeds.get(c.feedId)
@@ -546,11 +641,8 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                 return (
                   <ListItem key={c.id} divider disablePadding sx={{ display: 'block' }}>
                     <Collapse in={!c.closing} appear unmountOnExit timeout={motion} onExited={() => dropLine(c.id)}>
-                      <Stack direction="row" sx={{ alignItems: 'center', pl: 2, pr: out ? 0.5 : 2, minHeight: 56 }}>
+                      <Stack direction="row" sx={{ alignItems: 'center', pl: 2, pr: out ? 0.5 : 2, minHeight: out ? 56 : 48 }}>
                         <ListItemText primary={f?.name ?? c.feedId} slotProps={{ primary: { sx: { fontWeight: 700 } } }} sx={{ minWidth: 0 }} />
-                        <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', mr: out ? 1 : 0, color: out ? 'error.main' : 'success.main' }}>
-                          {amountText(c.feedId, c.direction, c.amount)}
-                        </Typography>
                         {out && (
                           <IconButton aria-label="Wijziging weghalen" color="secondary" onClick={() => weghalen(c.id)} sx={{ width: 48, height: 48 }}>
                             <CloseIcon />
@@ -583,37 +675,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   </ListItem>
                 )
               })}
-              {line && feed ? (
-                <ListItem key={line.id} divider disablePadding sx={{ display: 'block' }}>
-                  <Collapse in={!lineComplete} unmountOnExit timeout={motion} onExited={finishLine}>
-                    <Box sx={{ p: 1 }}>
-                      <Stack direction="row" sx={{ alignItems: 'center' }}>
-                        <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
-                          <FeedRow
-                            name={feed.name}
-                            active
-                            swipeMax={feed.swipeMax}
-                            maxMinus={line.direction === 'out' ? Math.max(0, round2(totalOf(line.feedId) - line.amount)) : totalOf(line.feedId)}
-                            emptyLabel="Geen voorraad"
-                            detail={{ text: amountText(line.feedId, line.direction, line.amount), color: line.direction === 'out' ? 'error.main' : 'success.main' }}
-                            onSwipe={(signed) => tap(line.feedId, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                            onMinus={() => tap(line.feedId, 'out')}
-                            onPlus={() => tap(line.feedId, 'in')}
-                          />
-                        </List>
-                        <IconButton aria-label="Regel annuleren" color="secondary" onClick={cancelLine} sx={{ width: 48, height: 48, ml: 0.5 }}>
-                          <CloseIcon />
-                        </IconButton>
-                      </Stack>
-                      {line.direction === 'out' && line.amount >= totalOf(line.feedId) && (
-                        <Typography variant="caption" color="text.secondary">
-                          Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Collapse>
-                </ListItem>
-              ) : null}
             </List>
           )}
         </Box>
@@ -622,51 +683,28 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={{ px: 2, mt: 3, flex: '0 0 auto' }}>
         <Collapse in={!line || lineComplete} unmountOnExit timeout={motion}>
           <Box sx={{ pb: 1 }}>
-            {sectionTitle(cartCount === 0 ? 'Welke voorraad wil je wijzigen?' : 'Nog een voorraad wijzigen?')}
-            <SearchList
-              items={rows}
-              getKey={(f) => f.id}
-              getLabel={(f) => f.name}
-              searchLabel="Zoeken…"
-              listAriaLabel="Voerlijst"
-              emptyText="Geen voer gevonden"
-              query={search}
-              onQueryChange={setSearch}
-              renderRow={(f) => (
-                <FeedRow
-                  bare
-                  surface="var(--row-surface)"
-                  name={f.name}
-                  active={false}
-                  swipeMax={f.swipeMax}
-                  secondary={stockText(f.id, f.unit)}
-                  minusDisabled={totalOf(f.id) <= 0}
-                  maxMinus={totalOf(f.id)}
-                  emptyLabel="Geen voorraad"
-                  onSwipe={(signed) => tap(f.id, signed < 0 ? 'out' : 'in', Math.abs(signed))}
-                  onMinus={() => tap(f.id, 'out')}
-                  onPlus={() => tap(f.id, 'in')}
-                />
-              )}
-            />
+            {sectionTitle(feedTitle)}
+            {feedSearch}
           </Box>
         </Collapse>
-        <TransitionGroup>
-          {line !== null && !lineComplete
-            ? chooser.answered.map((a) => (
-                <QuestionCollapse key={`answered-${a.key}`} motion={motion}>
-                  {answeredCard(a)}
-                </QuestionCollapse>
-              ))
-            : null}
-        </TransitionGroup>
-        <TransitionGroup>
-          {line !== null && !lineComplete && chooser.question ? (
-            <QuestionCollapse key={chooser.questionKey} motion={motion}>
-              {chooser.question}
-            </QuestionCollapse>
-          ) : null}
-        </TransitionGroup>
+        <Collapse in={line !== null && !lineComplete} unmountOnExit timeout={motion} onExited={finishLine}>
+          <TransitionGroup>
+            {line !== null
+              ? chooser.answered.map((a) => (
+                  <QuestionCollapse key={`answered-${a.key}`} motion={motion}>
+                    {answeredCard(a)}
+                  </QuestionCollapse>
+                ))
+              : null}
+          </TransitionGroup>
+          <TransitionGroup>
+            {line !== null && chooser.question ? (
+              <QuestionCollapse key={chooser.questionKey} motion={motion}>
+                {chooser.question}
+              </QuestionCollapse>
+            ) : null}
+          </TransitionGroup>
+        </Collapse>
         {error && (
           <Typography color="error" sx={{ py: 1 }}>
             {error}
