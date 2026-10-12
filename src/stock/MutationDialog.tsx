@@ -352,6 +352,12 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       {text}
     </Typography>
   )
+  /** The question being asked: larger and with extra room above it. */
+  const questionTitle = (text: string) => (
+    <Typography variant="h6" component="h2" sx={{ mt: 2, mb: 1.5 }}>
+      {text}
+    </Typography>
+  )
 
   /** How much of the line's feed a storage holds, as a small second line. */
   const holdsText = (id: string | null) => {
@@ -422,7 +428,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     }
     return (
       <Box>
-        {sectionTitle(title)}
+        {questionTitle(title)}
         <SearchList
           items={items}
           getKey={(o) => o.id ?? 'verbruik'}
@@ -482,7 +488,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     const lineColor = out ? 'error.main' : 'success.main'
     const feedAnswered: Answered = {
       key: 'feed',
-      title: feedTitle,
+      title: 'Welke voorraad wil je wijzigen?',
       rows: [{ name: feed.name, text: amountText(line.feedId, line.direction, line.amount), color: lineColor }],
     }
     if (reopen === 'feed') {
@@ -491,7 +497,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         answered: [],
         question: (
           <Box>
-            {sectionTitle(feedTitle)}
+            {questionTitle(feedTitle)}
             <CardSurface>
               <Stack direction="row" sx={{ alignItems: 'center', pr: 0.5 }}>
                 <List aria-label="Gekozen voer" disablePadding sx={{ flex: '1 1 auto', minWidth: 0 }}>
@@ -536,7 +542,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     return {
       question: showFrom ? (
         <Box>
-          {sectionTitle(fromTitle)}
+          {questionTitle(fromTitle)}
           <CardSurface>
             {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id), secondary: holdsText(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
             {fromDone && (
@@ -666,7 +672,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       <Box sx={{ px: 2, mt: 3, flex: '0 0 auto' }}>
         <Collapse in={!line || lineComplete} unmountOnExit timeout={motion}>
           <Box sx={{ pb: 1 }}>
-            {sectionTitle(feedTitle)}
+            {questionTitle(feedTitle)}
             {feedSearch}
           </Box>
         </Collapse>
