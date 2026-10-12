@@ -470,13 +470,7 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const feedTitle = liveLines.length === 0 ? 'Welke voorraad wil je wijzigen?' : 'Nog een voorraad wijzigen?'
 
-  /** Hint under the feed row when a minus line has reached the stock there is. */
-  const stockHint =
-    line && feed && line.direction === 'out' && line.amount >= totalOf(line.feedId)
-      ? `Er ligt maar ${formatAmount(totalOf(line.feedId))} ${unitLabel(feed.unit, totalOf(line.feedId))}`
-      : undefined
-
-  type Answered = { key: 'feed' | 'from' | 'to'; title: string; rows: { name: string; text: string; color: string }[]; hint?: string }
+  type Answered = { key: 'feed' | 'from' | 'to'; title: string; rows: { name: string; text: string; color: string }[] }
 
   /**
    * The open question (`question`) plus the questions already answered (`answered`); an answered one
@@ -490,7 +484,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
       key: 'feed',
       title: feedTitle,
       rows: [{ name: feed.name, text: amountText(line.feedId, line.direction, line.amount), color: lineColor }],
-      hint: stockHint,
     }
     if (reopen === 'feed') {
       return {
@@ -520,11 +513,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                   <CloseIcon />
                 </IconButton>
               </Stack>
-              {stockHint && (
-                <Typography variant="caption" color="text.secondary" sx={{ px: 2, display: 'block' }}>
-                  {stockHint}
-                </Typography>
-              )}
               <Box sx={{ px: 1 }}>
                 <Button onClick={() => setReopen(null)} sx={{ minHeight: 48 }}>
                   Klaar
@@ -605,11 +593,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
               </ListItem>
             ))}
           </List>
-          {a.hint && (
-            <Typography variant="caption" color="text.secondary" sx={{ px: 2, pb: 1, display: 'block' }}>
-              {a.hint}
-            </Typography>
-          )}
         </ButtonBase>
       </CardSurface>
     </Box>

@@ -360,7 +360,7 @@ describe('MutationDialog', () => {
     click('Geitenkorrel min')
     click('Geitenkorrel min')
     click('Geitenkorrel min')
-    expect(screen.getByText('Er ligt maar 3 zakken')).toBeTruthy()
+    expect(screen.getByText('−3 zakken')).toBeTruthy()
     expect(screen.getByText('Uit welke opslagen?')).toBeTruthy()
     click('Ton roze min')
     click('Ton oranje min')
