@@ -70,14 +70,7 @@ export function SearchList<T>({
     />
   )
   return (
-    <Paper variant="outlined" sx={{
-        borderRadius: '12px',
-        overflow: 'hidden',
-        // Opaque raised surface; rows use the same colour via var(--row-surface) so swiped rows match the card.
-        '--row-surface': (t: Theme) => (t.palette.mode === 'dark' ? lighten(t.palette.background.default, 0.08) : t.palette.grey[50]),
-        bgcolor: 'var(--row-surface)',
-        backgroundImage: 'none',
-      }}>
+    <CardSurface>
       {searchPosition === 'top' && (
         <>
           {field}
@@ -102,6 +95,25 @@ export function SearchList<T>({
           {field}
         </>
       )}
+    </CardSurface>
+  )
+}
+
+/** The raised, outlined card every question and the feed search sits on. Rows inside use var(--row-surface). */
+export function CardSurface({ children }: { children: ReactNode }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: '12px',
+        overflow: 'hidden',
+        // Opaque raised surface; rows use the same colour via var(--row-surface) so swiped rows match the card.
+        '--row-surface': (t: Theme) => (t.palette.mode === 'dark' ? lighten(t.palette.background.default, 0.08) : t.palette.grey[50]),
+        bgcolor: 'var(--row-surface)',
+        backgroundImage: 'none',
+      }}
+    >
+      {children}
     </Paper>
   )
 }

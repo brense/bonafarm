@@ -94,15 +94,21 @@ describe('MutationDialog', () => {
     const saveBtn = screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement
     expect(saveBtn.disabled).toBe(true)
     fireEvent.click(within(from).getByRole('button', { name: 'Ton roze min' }))
-    const cart = screen.getByRole('list', { name: 'Wijzigingen' })
-    expect(within(cart).getByText('Van: Ton roze 1')).toBeTruthy()
+    // The answered question becomes a card; the next question is open.
+    const card = screen.getByRole('button', { name: 'Terug naar: Uit welke opslag?' })
+    expect(within(card).getByText('Ton roze')).toBeTruthy()
+    expect(within(card).getByText('−1 zak')).toBeTruthy()
     expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
-    expect(within(cart).queryByText('Waar is de zak naartoe?')).toBeNull()
-    // Reopen the first question and close it again.
-    fireEvent.click(within(cart).getByRole('button', { name: 'Wijzig' }))
-    expect(screen.getByText('Uit welke opslag?')).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).queryByText('Waar is de zak naartoe?')).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Uit welke opslag?' })).toBeNull(), { timeout: 4000 })
+    // Step back to the first question: its list returns and the second question goes.
+    fireEvent.click(card)
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Opslagen' })).toBeNull(), { timeout: 4000 })
+    expect(screen.getByRole('list', { name: 'Uit welke opslag?' })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Terug naar: Uit welke opslag?' })).toBeNull(), { timeout: 4000 })
+    // Finish it again: the second question comes back.
     click('Klaar')
-    const to = screen.getByRole('list', { name: 'Opslagen' })
+    const to = await screen.findByRole('list', { name: 'Opslagen' })
     expect(within(to).getAllByRole('listitem')).toHaveLength(3)
     expect(within(to).getAllByRole('listitem')[0].textContent).toContain('Verbruik')
     fireEvent.click(within(to).getByRole('button', { name: 'Koker geit plus' }))

@@ -1,11 +1,13 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CloseIcon from '@mui/icons-material/Close'
 import SaveIcon from '@mui/icons-material/Save'
+import UndoIcon from '@mui/icons-material/Undo'
 import {
   Alert,
   AppBar,
   Box,
   Button,
+  ButtonBase,
   Collapse,
   Dialog,
   Grow,
@@ -17,7 +19,6 @@ import {
   Snackbar,
   Stack,
   useMediaQuery,
-  useTheme,
   Toolbar,
   Typography,
 } from '@mui/material'
@@ -29,7 +30,7 @@ import { useOrgData } from '../org/useOrgData.ts'
 import type { Feed } from '../model/types.ts'
 import { applyMutations, planChangeLine, type Change } from './mutations.ts'
 import { FeedRow } from './FeedRow.tsx'
-import { SearchList } from './SearchList.tsx'
+import { CardSurface, SearchList } from './SearchList.tsx'
 import { formatAmount, unitLabel } from './stock.ts'
 import { useRecentLogs } from './useRecentLogs.ts'
 
@@ -123,7 +124,7 @@ function QuestionCollapse({ in: show, motion, children, onExited }: { in?: boole
   return (
     <Collapse in={show} appear unmountOnExit timeout={motion} onExited={onExited} sx={{ pointerEvents: show ? undefined : 'none' }}>
       <Grow in appear timeout={motion}>
-        <Box sx={{ py: 1 }}>{children}</Box>
+        <Box sx={{ pb: 1 }}>{children}</Box>
       </Grow>
     </Collapse>
   )
@@ -146,8 +147,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     const el = cartRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [cart, line, reopen])
-  const theme = useTheme()
-  const wide = useMediaQuery(theme.breakpoints.up('md'))
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const motion = reduceMotion ? 0 : 450
 
@@ -283,8 +282,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     const unit = feeds.get(feedId)?.unit ?? 'zak'
     return `${direction === 'out' ? '−' : '+'}${formatAmount(amount)} ${unitLabel(unit, amount)}`
   }
-  const allocText = (list: Alloc[]) =>
-    list.map((a) => `${a.storageId === null ? 'verbruik' : storageName(a.storageId)} ${formatAmount(a.amount)}`).join(', ')
   const reset = () => {
     setSearch('')
     setLine(null)
@@ -350,7 +347,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     setLine({ ...line, targets: adjustAlloc(line.targets, id, delta, Infinity, line.amount) })
   }
 
-  const sectionBox = { border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }
   const sectionTitle = (text: string) => (
     <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
       {text}
@@ -397,7 +393,11 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
 
   const allocRows = (label: string, rows: Row[], list: Alloc[], capOf: (id: string | null) => number, onChange: (id: string | null, delta: number) => void, mode: 'minus' | 'plus') => (
     <List aria-label={label} disablePadding>
-      {rows.map((r) => allocRow(r, list, capOf, onChange, mode))}
+      {rows.map((r) => (
+        <ListItem key={r.id ?? 'verbruik'} divider disablePadding>
+          {allocRow(r, list, capOf, onChange, mode, true)}
+        </ListItem>
+      ))}
     </List>
   )
 
@@ -439,53 +439,86 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
     )
   }
 
-  /** Answered questions collapse into summaries inside the cart; the open question goes below it. */
-  const chooser = ((): { summaries: React.ReactNode; question: React.ReactNode; questionKey: 'from' | 'to' | 'in' } => {
-    if (!line || !feed) return { summaries: null, question: null, questionKey: 'in' }
+  /**
+   * The open question (`question`) plus the questions already answered (`answered`); an answered one
+   * is shown as a tappable card above the open question and tapping it steps back.
+   */
+  const chooser = ((): {
+    question: React.ReactNode
+    questionKey: 'from' | 'to' | 'in'
+    answered: { key: 'from' | 'to'; title: string; allocs: Alloc[]; sign: '−' | '+' }[]
+  } => {
+    if (!line || !feed) return { question: null, questionKey: 'in', answered: [] }
     if (line.direction === 'in') {
       const linked = linkedShute(line.feedId)
       const base = [...(linked ? [linked] : []), ...holdersOf(line.feedId).filter((id) => id !== linked)].map((id) => ({ id, name: storageName(id) }))
-      return { summaries: null, question: targetBox('In welke opslag?', base), questionKey: 'in' }
+      return { question: targetBox('In welke opslag?', base), questionKey: 'in', answered: [] }
     }
     const fromDone = sumOf(line.sources) === line.amount
     const showFrom = reopen === 'from' || !fromDone
-    const showTo = !showFrom
-    const summary = (text: string, which: 'from') => (
-      <Collapse in appear timeout={motion}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
-          <Typography>{text}</Typography>
-          <Button onClick={() => setReopen(which)} sx={{ minHeight: 48 }}>
-            Wijzig
-          </Button>
-        </Box>
-      </Collapse>
-    )
     const linked = linkedShute(line.feedId)
+    const fromTitle = Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?'
     return {
-      summaries: (
-        <>
-          {!showFrom && summary(`Van: ${allocText(line.sources)}`, 'from')}
-        </>
-      ),
       question: showFrom ? (
-        <Box sx={sectionBox}>
-          {sectionTitle(Math.max(0, ...holdersOf(line.feedId).map((id) => stockOf(id, line.feedId))) < line.amount ? 'Uit welke opslagen?' : 'Uit welke opslag?')}
-          {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id), secondary: holdsText(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
-          {fromDone && (
-            <Button onClick={() => setReopen(null)} sx={{ minHeight: 48, mt: 0.5 }}>
-              Klaar
-            </Button>
-          )}
+        <Box>
+          {sectionTitle(fromTitle)}
+          <CardSurface>
+            {allocRows('Uit welke opslag?', holdersOf(line.feedId).map((id) => ({ id, name: storageName(id), secondary: holdsText(id) })), line.sources, (id) => (id ? stockOf(id, line.feedId) : 0), changeSource, 'minus')}
+            {fromDone && (
+              <Box sx={{ px: 1 }}>
+                <Button onClick={() => setReopen(null)} sx={{ minHeight: 48 }}>
+                  Klaar
+                </Button>
+              </Box>
+            )}
+          </CardSurface>
         </Box>
-      ) : showTo ? (
-        targetBox(
-          `Waar is de ${feed.unit} naartoe?`,
-          [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])],
-        )
-      ) : null,
+      ) : (
+        targetBox(`Waar is de ${feed.unit} naartoe?`, [{ id: null, name: 'Verbruik' }, ...(linked ? [{ id: linked, name: storageName(linked) }] : [])])
+      ),
       questionKey: showFrom ? 'from' : 'to',
+      answered: showFrom ? [] : [{ key: 'from', title: fromTitle, allocs: line.sources, sign: '−' }],
     }
   })()
+
+  const answeredCard = (a: (typeof chooser.answered)[number]) => (
+    <Box>
+      <CardSurface>
+        <ButtonBase
+          component="div"
+          aria-label={`Terug naar: ${a.title}`}
+          onClick={() => setReopen(a.key)}
+          sx={{ display: 'block', width: '100%', textAlign: 'left' }}
+        >
+          <Stack direction="row" sx={{ alignItems: 'center', px: 2, pt: 1.5, pb: 0.5 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ flex: '1 1 auto' }}>
+              {a.title}
+            </Typography>
+            <UndoIcon fontSize="small" color="action" />
+          </Stack>
+          <List disablePadding>
+            {a.allocs.map((al) => (
+              <ListItem key={al.storageId ?? 'verbruik'} divider disablePadding>
+                <FeedRow
+                  bare
+                  dense
+                  surface="var(--row-surface)"
+                  name={al.storageId === null ? 'Verbruik' : storageName(al.storageId)}
+                  active={false}
+                  gesture="none"
+                  detail={{
+                    text: `${a.sign}${formatAmount(al.amount)} ${unitLabel(feed?.unit ?? 'zak', al.amount)}`,
+                    color: a.sign === '−' ? 'error.main' : 'success.main',
+                  }}
+                  onSwipe={() => {}}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </ButtonBase>
+      </CardSurface>
+    </Box>
+  )
 
   return (
     <Dialog open={open} onClose={close} fullScreen slotProps={{ paper: { sx: { bgcolor: 'background.default', backgroundImage: 'none', display: 'flex', flexDirection: 'column', height: '100dvh' } } }}>
@@ -577,7 +610,6 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
                           Er ligt maar {formatAmount(totalOf(line.feedId))} {unitLabel(feed.unit, totalOf(line.feedId))}
                         </Typography>
                       )}
-                      {chooser.summaries}
                     </Box>
                   </Collapse>
                 </ListItem>
@@ -587,9 +619,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
         </Box>
       </Box>
 
-      <Box sx={{ px: 2, flex: '0 0 auto' }}>
+      <Box sx={{ px: 2, mt: 3, flex: '0 0 auto' }}>
         <Collapse in={!line || lineComplete} unmountOnExit timeout={motion}>
-          <Box sx={{ py: 1 }}>
+          <Box sx={{ pb: 1 }}>
             {sectionTitle(cartCount === 0 ? 'Welke voorraad wil je wijzigen?' : 'Nog een voorraad wijzigen?')}
             <SearchList
               items={rows}
@@ -619,6 +651,15 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
             />
           </Box>
         </Collapse>
+        <TransitionGroup>
+          {line !== null && !lineComplete
+            ? chooser.answered.map((a) => (
+                <QuestionCollapse key={`answered-${a.key}`} motion={motion}>
+                  {answeredCard(a)}
+                </QuestionCollapse>
+              ))
+            : null}
+        </TransitionGroup>
         <TransitionGroup>
           {line !== null && !lineComplete && chooser.question ? (
             <QuestionCollapse key={chooser.questionKey} motion={motion}>
@@ -651,15 +692,9 @@ export default function MutationDialog({ open, onClose, onDone }: Props) {
           <Button variant="text" size="medium" color="secondary" sx={{ height: 40 }} onClick={close}>
             Annuleren
           </Button>
-          {wide ? (
-            <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ height: 40 }} disabled={saveDisabled} onClick={save}>
-              Opslaan
-            </Button>
-          ) : (
-            <Button variant="contained" aria-label="Opslaan" sx={{ width: 40, height: 40, minWidth: 40, p: 0 }} disabled={saveDisabled} onClick={save}>
-              <SaveIcon />
-            </Button>
-          )}
+          <Button variant="contained" size="medium" startIcon={<SaveIcon />} sx={{ height: 40 }} disabled={saveDisabled} onClick={save}>
+            Opslaan
+          </Button>
         </Stack>
       </Paper>
     </Dialog>
