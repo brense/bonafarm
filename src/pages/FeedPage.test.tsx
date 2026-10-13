@@ -115,10 +115,9 @@ describe('FeedPage', () => {
     mocks.logs = [log(new Date(2025, 9, 5, 12), 3), log(new Date(2026, 9, 10, 12), 2)]
     renderPage(['view'])
     expect(screen.getByText('gemiddeld per maand, laatste 12 maanden')).toBeInTheDocument()
-    expect(screen.getByText(/t\/m 13 okt: 2 balen · vorig jaar 3/)).toBeInTheDocument()
-    expect(screen.getByLabelText('okt 2025: 3 balen')).toHaveTextContent('3')
-    const future = screen.getByLabelText('dec 2026')
-    expect(future).toHaveTextContent('')
+    expect(screen.getByText('Deze maand')).toBeInTheDocument()
+    expect(screen.getByText('Zelfde periode vorig jaar')).toBeInTheDocument()
+    expect(screen.getByText('−1')).toBeInTheDocument()
   })
 
   it('shows stock per storage with the days left', () => {
@@ -139,7 +138,7 @@ describe('FeedPage', () => {
   it('shows the season, yearly totals and deliveries', () => {
     mocks.logs = history()
     renderPage(['view'])
-    expect(screen.getByText(/Piek in/)).toBeInTheDocument()
+    expect(screen.getAllByRole('img').some((e) => e.getAttribute('aria-label')?.startsWith('jan:'))).toBe(true)
     expect(screen.getByText('2026*')).toBeInTheDocument()
     expect(screen.getByText(/^\* 2026 is t\/m 13 okt/)).toBeInTheDocument()
     expect(screen.getByText('1 Ton paars · 1 Ton oranje')).toBeInTheDocument()

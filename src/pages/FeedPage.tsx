@@ -6,9 +6,7 @@ import { can } from '../org/roles.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
-import { completeYears, consumptionPerMonth, deliveries as deliveriesOf, medianDeliverySize, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats, yearGrid, yearTotals } from '../stock/consumption.ts'
-import HeatGrid from '../stock/HeatGrid.tsx'
-import { MONTHS } from '../stock/months.ts'
+import { completeYears, consumptionPerMonth, deliveries as deliveriesOf, medianDeliverySize, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats, yearTotals } from '../stock/consumption.ts'
 import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
@@ -90,7 +88,6 @@ export default function FeedPage() {
   }, [row, logs, nowMs, schedule])
 
   const stats = useMemo(() => (logs ? monthlyStats(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
-  const grid = useMemo(() => (logs ? yearGrid(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
 
   const detail = useMemo(() => {
     if (!logs) return null
@@ -141,7 +138,7 @@ export default function FeedPage() {
     runsOutLine = 'geen verbruik in de laatste 12 weken'
   }
 
-  const monthName = MONTHS[new Date(nowMs).getMonth()]
+  const delta = stats ? signed(stats.thisMonth - stats.lastYearToDate) : ''
 
   return (
     <Page title={row.name}>
@@ -169,12 +166,12 @@ export default function FeedPage() {
               </Typography>
             )}
             {row.perStorage.length > 0 && (
-              <Typography variant="caption" color="text.secondary" component="p">
+              <Typography variant="body2" color="text.secondary" component="p">
                 {row.perStorage.map((s) => `${s.storageName} ${formatAmount(s.amount)}`).join(' · ')}
               </Typography>
             )}
             {advice && advice.daysSinceDelivery !== null && (
-              <Typography variant="caption" color="text.secondary" component="p">
+              <Typography variant="body2" color="text.secondary" component="p">
                 Laatste levering {agoLabel(advice.daysSinceDelivery)}
               </Typography>
             )}
@@ -234,12 +231,7 @@ export default function FeedPage() {
             <Typography variant="subtitle2" component="h2">
               Verbruik per maand
             </Typography>
-            {detail && (
-              <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
-                {monthYear(detail.monthStarts[0])} t/m {monthYear(detail.monthStarts[11])} · {MONTHS[new Date(nowMs).getMonth()]} loopt nog
-              </Typography>
-            )}
-            {stats && grid ? (
+            {stats ? (
               <Stack spacing={1.5}>
                 <Box>
                   <Typography variant="h4" component="p">
@@ -248,17 +240,43 @@ export default function FeedPage() {
                       {unitLabel(unit, stats.average ?? 0)}
                     </Typography>
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary">
                     gemiddeld per maand, laatste 12 maanden
                   </Typography>
                 </Box>
-                <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography variant="body2">
-                    t/m {stats.dayOfMonth} {monthName}: {formatAmount(stats.thisMonth)} {unitLabel(unit, stats.thisMonth)} · vorig jaar{' '}
-                    {formatAmount(stats.lastYearToDate)} (hele maand {formatAmount(stats.lastYearFull)})
-                  </Typography>
-                  <Chip size="small" label={signed(stats.thisMonth - stats.lastYearToDate)} />
-                </Stack>
+                <Box>
+                  <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Deze maand
+                      </Typography>
+                      <Typography variant="h6" component="p">
+                        {formatAmount(stats.thisMonth)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Zelfde periode vorig jaar
+                      </Typography>
+                      <Typography variant="h6" component="p">
+                        {formatAmount(stats.lastYearToDate)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Verschil
+                      </Typography>
+                      <Typography variant="h6" component="p">
+                        {delta}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  {stats.lastYearFull !== stats.lastYearToDate && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      vorig jaar hele maand: {formatAmount(stats.lastYearFull)}
+                    </Typography>
+                  )}
+                </Box>
                 {detail && (
                   <BarChart
                     labels={detail.monthStarts.map(monthYear)}
@@ -269,7 +287,6 @@ export default function FeedPage() {
                     title={`Verbruik per maand, ${monthYear(detail.monthStarts[0])} t/m ${monthYear(detail.monthStarts[11])}`}
                   />
                 )}
-                <HeatGrid rows={grid} unit={unit} />
               </Stack>
             ) : (
               <Skeleton variant="rounded" height={120} />

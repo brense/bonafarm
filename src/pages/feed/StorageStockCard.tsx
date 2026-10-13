@@ -25,7 +25,7 @@ export default function StorageStockCard({ rows, unit }: Props) {
         <Typography variant="subtitle2" component="h2">
           Voorraad per opslag
         </Typography>
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
           Per opslag, en hoe lang het bij het huidige verbruik duurt
         </Typography>
         <Stack divider={<Divider />} spacing={1.25}>
@@ -41,7 +41,7 @@ export default function StorageStockCard({ rows, unit }: Props) {
               </Stack>
               <Track fraction={max > 0 ? r.amount / max : 0} />
               {r.ratePerWeek !== null && (
-                <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
+                <Typography variant="body2" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
                   {r.ratePerWeek > 0
                     ? `nog ±${Math.round((r.amount / r.ratePerWeek) * 7)} dagen bij ${formatAmount(r.ratePerWeek)} ${unit}/week`
                     : 'geen verbruik uit deze opslag in 12 weken'}

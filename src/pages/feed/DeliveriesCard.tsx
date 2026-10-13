@@ -30,7 +30,7 @@ export default function DeliveriesCard({ deliveries, median, unit, schedule, now
           </Typography>
         ) : (
           <>
-            <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
               Laatste {deliveries.length} leveringen
             </Typography>
             <Stack divider={<Divider />} spacing={1}>
@@ -42,7 +42,7 @@ export default function DeliveriesCard({ deliveries, median, unit, schedule, now
                   <Typography variant="body2" sx={{ flexShrink: 0 }}>
                     <b>{formatAmount(d.amount)}</b> {unitLabel(unit, d.amount)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary">
                     {d.perStorage.length === 1
                       ? storageName(d.perStorage[0].storageId)
                       : d.perStorage.map((s) => `${formatAmount(s.amount)} ${storageName(s.storageId)}`).join(' · ')}
@@ -50,7 +50,7 @@ export default function DeliveriesCard({ deliveries, median, unit, schedule, now
                 </Stack>
               ))}
             </Stack>
-            <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mt: 1 }}>
               Levering elke {DELIVERY_CYCLE_DAYS} dagen
               {median !== null ? `, meestal ±${formatAmount(median)} ${unitLabel(unit, median)}` : ''}. Volgende: {dateShort.format(schedule.next)}, daarna{' '}
               {dateShort.format(schedule.after)}.

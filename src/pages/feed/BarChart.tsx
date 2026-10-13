@@ -14,11 +14,11 @@ interface Props {
 }
 
 const W = 340
-const H = 180
+const H = 200
 const LEFT = 26
 const RIGHT = 6
 const TOP = 18
-const BOTTOM = 20
+const BOTTOM = 22
 const GAP = 2
 
 /** Plain inline-SVG bar chart with an optional dashed average line. */
@@ -38,7 +38,7 @@ export default function BarChart({ labels, values, average, unit, highlightLast 
       {[0, max].map((v) => (
         <g key={v}>
           <line x1={LEFT} x2={W - RIGHT} y1={y(v)} y2={y(v)} stroke={theme.palette.divider} strokeWidth={1} />
-          <text x={LEFT - 4} y={y(v) + 3} textAnchor="end" fontSize={9} fill={theme.palette.text.secondary}>
+          <text x={LEFT - 4} y={y(v) + 3} textAnchor="end" fontSize={11} fill={theme.palette.text.secondary}>
             {formatAmount(v)}
           </text>
         </g>
@@ -53,11 +53,11 @@ export default function BarChart({ labels, values, average, unit, highlightLast 
               <title>{`${labels[i]}: ${formatAmount(v)} ${unitLabel(unit, v)}`}</title>
             </rect>
             {hl && (
-              <text x={x + (slot - GAP) / 2} y={y(v) - 4} textAnchor="middle" fontSize={10} fontWeight={600} fill={theme.palette.text.primary}>
+              <text x={x + (slot - GAP) / 2} y={y(v) - 4} textAnchor="middle" fontSize={12} fontWeight={600} fill={theme.palette.text.primary}>
                 {formatAmount(v)}
               </text>
             )}
-            <text x={x + (slot - GAP) / 2} y={H - 6} textAnchor="middle" fontSize={9.6} fill={theme.palette.text.secondary}>
+            <text x={x + (slot - GAP) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill={theme.palette.text.secondary}>
               {labels[i].split(' ')[0]}
             </text>
           </g>
@@ -66,7 +66,7 @@ export default function BarChart({ labels, values, average, unit, highlightLast 
       {average !== null && (
         <g>
           <line x1={LEFT} x2={W - RIGHT} y1={y(average)} y2={y(average)} stroke={theme.palette.text.secondary} strokeWidth={1} strokeDasharray="4 3" />
-          <text x={W - RIGHT} y={y(average) - 3} textAnchor="end" fontSize={9} fill={theme.palette.text.secondary}>
+          <text x={W - RIGHT} y={y(average) - 3} textAnchor="end" fontSize={11} fill={theme.palette.text.secondary}>
             {`gem. ${formatAmount(average)}`}
           </text>
         </g>

@@ -22,7 +22,7 @@ export default function YearsCard({ years, feedName, unit, nowMs }: Props) {
         <Typography variant="subtitle2" component="h2">
           Per jaar
         </Typography>
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
           {plural.charAt(0).toUpperCase() + plural.slice(1)} {feedName.toLowerCase()} per kalenderjaar
         </Typography>
         <Stack spacing={1}>
@@ -42,7 +42,7 @@ export default function YearsCard({ years, feedName, unit, nowMs }: Props) {
           ))}
         </Stack>
         {partial && (
-          <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary" component="p" sx={{ mt: 1 }}>
             * {partial.year} is t/m {dayMonth.format(nowMs)}; het jaar is nog niet af.
           </Typography>
         )}

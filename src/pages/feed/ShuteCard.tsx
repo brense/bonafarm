@@ -24,7 +24,7 @@ function Metric({ value, caption }: { value: string; caption: string }) {
       <Typography variant="subtitle1" sx={{ fontWeight: 700, width: 112, flexShrink: 0 }}>
         {value}
       </Typography>
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="body2" color="text.secondary">
         {caption}
       </Typography>
     </Stack>
@@ -43,7 +43,7 @@ export default function ShuteCard({ lastEmptiedMs, avgDaysBetweenEmpties, cycles
           </Typography>
           {stale && <Chip size="small" color="warning" label="Lang niet leeggemaakt" />}
         </Stack>
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
           Bijvullen en leegmaken volgens de logboeken
         </Typography>
         <Stack spacing={1}>
@@ -57,7 +57,7 @@ export default function ShuteCard({ lastEmptiedMs, avgDaysBetweenEmpties, cycles
           />
           <Metric value={String(cycles)} caption="keer leeggemaakt" />
         </Stack>
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+        <Typography variant="body2" color="text.secondary" component="p" sx={{ mt: 1 }}>
           {lastFillMs === null ? 'Nog nooit bijgevuld.' : `${fills} keer bijgevuld, laatst ${dayMonth.format(lastFillMs)}.`}
         </Typography>
       </Box>
