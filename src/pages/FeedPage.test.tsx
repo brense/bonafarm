@@ -97,18 +97,20 @@ describe('FeedPage', () => {
     expect(screen.getByText('Hooi')).toBeInTheDocument()
     expect(screen.getByText(/^7,5/, { selector: 'p' })).toBeInTheDocument()
     expect(screen.getAllByText('balen')[0]).toBeInTheDocument()
-    expect(screen.getByText('Ton roze 7,5')).toBeInTheDocument()
+    expect(screen.queryByText('Ton roze 7,5')).toBeNull()
   })
 
   it('hides the advice from viewers and shows the order quantity to orderers', () => {
     mocks.logs = weeklyDispenses()
     const { unmount } = renderPage(['view'], '/stock/hooi', 1)
-    expect(screen.queryByRole('heading', { name: 'Advies' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Bestel advies' })).toBeNull()
     unmount()
     renderPage(['order'], '/stock/hooi', 1)
-    expect(screen.getByRole('heading', { name: 'Advies' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Bestel advies' })).toBeInTheDocument()
     expect(screen.getByText('3 balen')).toBeInTheDocument()
-    expect(screen.getByText(/voor de levering van/)).toBeInTheDocument()
+    expect(screen.queryByText(/voor de levering van/)).toBeNull()
+    expect(screen.getByText(/^Nog ±?\d+ dagen voorraad$/)).toBeInTheDocument()
+    expect(screen.getByText('Gem. verbruik per week 1 baal')).toBeInTheDocument()
   })
 
   it('shows monthly consumption against last year', () => {

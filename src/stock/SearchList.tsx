@@ -1,6 +1,6 @@
 import SearchIcon from '@mui/icons-material/Search'
 import { Divider, InputAdornment, List, ListItem, Paper, TextField, Typography } from '@mui/material'
-import { lighten, type Theme } from '@mui/material/styles'
+import { lighten, type SxProps, type Theme } from '@mui/material/styles'
 import { useState, type ReactNode, type Ref } from 'react'
 
 interface Props<T> {
@@ -100,18 +100,18 @@ export function SearchList<T>({
 }
 
 /** The raised, outlined card every question and the feed search sits on. Rows inside use var(--row-surface). */
-export function CardSurface({ children }: { children: ReactNode }) {
+export function CardSurface({ children, sx }: { children: ReactNode; /** Extra styles, e.g. a status tint. */ sx?: SxProps<Theme> }) {
   return (
     <Paper
       variant="outlined"
-      sx={{
+      sx={[{
         borderRadius: '12px',
         overflow: 'hidden',
         // Opaque raised surface; rows use the same colour via var(--row-surface) so swiped rows match the card.
         '--row-surface': (t: Theme) => (t.palette.mode === 'dark' ? lighten(t.palette.background.default, 0.08) : t.palette.grey[50]),
         bgcolor: 'var(--row-surface)',
         backgroundImage: 'none',
-      }}
+      }, ...(Array.isArray(sx) ? sx : [sx])]}
     >
       {children}
     </Paper>

@@ -1,4 +1,5 @@
 import { Box, Chip, CircularProgress, Divider, Skeleton, Stack, Typography } from '@mui/material'
+import { alpha, type Theme } from '@mui/material/styles'
 import { useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { ID_PATTERN } from '../model/types.ts'
@@ -127,23 +128,29 @@ export default function FeedPage() {
   const mayOrder = can(roles, 'order')
   const nextDate = dateShort.format(schedule.next)
 
-  let runsOutLine: string | null = null
+  /** Two short lines: how long the stock lasts, and the usage it is based on. */
+  let stockLine: string | null = null
+  let usageLine: string | null = null
   if (advice && rate > 0 && advice.dueInDays !== null) {
     const days = advice.dueInDays
-    runsOutLine =
-      days <= 0
-        ? `${rough ? 'mogelijk niet genoeg' : 'op'} bij ${formatAmount(rate)} ${unit}/week`
-        : `${rough ? 'nog ±' : 'nog '}${days} dagen bij ${formatAmount(rate)} ${unit}/week`
+    stockLine = days <= 0 ? (rough ? 'Mogelijk niet genoeg voorraad' : 'Voorraad is op') : `Nog ${rough ? '±' : ''}${days} dagen voorraad`
+    usageLine = `Gem. verbruik per week ${formatAmount(rate)} ${unitLabel(unit, rate)}`
   } else if (advice && rate === 0) {
-    runsOutLine = 'geen verbruik in de laatste 12 weken'
+    usageLine = 'Geen verbruik in de laatste 12 weken'
   }
+
+  // The card takes the same tint as the row on the stock list when the feed may run out.
+  const tint = advice?.status === 'critical' ? 'error' : advice?.status === 'warning' ? 'warning' : null
+  const summarySx = tint
+    ? (t: Theme) => ({ bgcolor: alpha(t.palette[tint].main, 0.1), borderLeft: `4px solid ${t.palette[tint].main}` })
+    : undefined
 
   const delta = stats ? signed(stats.thisMonth - stats.lastYearToDate) : ''
 
   return (
     <Page title={row.name}>
       <Stack spacing={2}>
-        <CardSurface>
+        <CardSurface sx={summarySx}>
           <Box sx={{ p: 2 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography variant="h6" component="h2">
@@ -160,14 +167,14 @@ export default function FeedPage() {
                 {unitLabel(unit, amount)}
               </Typography>
             </Typography>
-            {runsOutLine && (
+            {stockLine && (
               <Typography variant="body2" color="text.secondary">
-                {runsOutLine}
+                {stockLine}
               </Typography>
             )}
-            {row.perStorage.length > 0 && (
-              <Typography variant="body2" color="text.secondary" component="p">
-                {row.perStorage.map((s) => `${s.storageName} ${formatAmount(s.amount)}`).join(' · ')}
+            {usageLine && (
+              <Typography variant="body2" color="text.secondary">
+                {usageLine}
               </Typography>
             )}
             {advice && advice.daysSinceDelivery !== null && (
@@ -179,7 +186,7 @@ export default function FeedPage() {
               <>
                 <Divider sx={{ my: 1.5 }} />
                 <Typography variant="subtitle2" component="h3">
-                  Advies
+                  Bestel advies
                 </Typography>
                 {advice.status === 'inactive' ? (
                   <Typography variant="body2" color="text.secondary">
@@ -189,9 +196,6 @@ export default function FeedPage() {
                   <>
                     <Typography variant="h5" component="p">
                       {formatAmount(advice.orderQty)} {unitLabel(unit, advice.orderQty)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      voor de levering van {nextDate}
                     </Typography>
                   </>
                 ) : (
