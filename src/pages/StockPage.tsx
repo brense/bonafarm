@@ -5,6 +5,7 @@ import {
   CircularProgress,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   Stack,
   Table,
@@ -18,6 +19,7 @@ import {
 } from '@mui/material'
 import { alpha, type SxProps, type Theme } from '@mui/material/styles'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { can } from '../org/roles.ts'
@@ -132,6 +134,7 @@ function adviceMeta(row: Row): string {
 
 export default function StockPage() {
   const theme = useTheme()
+  const navigate = useNavigate()
   const wide = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
   const { orgId, roles } = useOrg()
   const { feeds, storages, storageTypes, items, loading, error } = useOrgData()
@@ -194,7 +197,7 @@ export default function StockPage() {
             </TableHead>
             <TableBody>
               {visible.map((r) => (
-                <TableRow key={r.feedId} hover sx={rowSx(r, 'table')}>
+                <TableRow key={r.feedId} hover onClick={() => navigate(`/stock/${r.feedId}`)} sx={[rowSx(r, 'table') as never, { cursor: 'pointer' }]}>
                   <TableCell sx={{ fontWeight: 500 }}>{r.name}</TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
                     {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
@@ -222,30 +225,32 @@ export default function StockPage() {
         ) : (
           <List disablePadding aria-label="Voorraad per voer">
             {visible.map((r) => (
-              <ListItem key={r.feedId} divider disableGutters alignItems="flex-start" sx={[{ py: 1.25 }, rowSx(r, 'list') as never]}>
-                <ListItemText
-                  primary={
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Typography component="span" sx={{ fontWeight: 500 }}>
-                        {r.name}
-                      </Typography>
-                      {r.advice && <StatusChip advice={r.advice} />}
-                    </Stack>
-                  }
-                  secondary={r.advice ? adviceMeta(r) : ' '}
-                  slotProps={{ secondary: { component: 'span' } }}
-                  sx={{ my: 0, pr: 2 }}
-                />
-                <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 72 }}>
-                  <Typography variant="h6" component="div" sx={{ lineHeight: 1.2, color: amountColor(r) }}>
-                    {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))}
-                  </Typography>
-                  {ordering && r.advice && r.advice.orderQty > 0 && (
-                    <Typography variant="body2" sx={{ mt: 0.5, color: 'warning.main', fontWeight: 700 }}>
-                      bestel {formatAmount(r.advice.orderQty)}
+              <ListItem key={r.feedId} divider disablePadding alignItems="flex-start" sx={rowSx(r, 'list')}>
+                <ListItemButton alignItems="flex-start" onClick={() => navigate(`/stock/${r.feedId}`)} sx={{ py: 1.25, px: 0 }}>
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Typography component="span" sx={{ fontWeight: 500 }}>
+                          {r.name}
+                        </Typography>
+                        {r.advice && <StatusChip advice={r.advice} />}
+                      </Stack>
+                    }
+                    secondary={r.advice ? adviceMeta(r) : ' '}
+                    slotProps={{ secondary: { component: 'span' } }}
+                    sx={{ my: 0, pr: 2 }}
+                  />
+                  <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 72 }}>
+                    <Typography variant="h6" component="div" sx={{ lineHeight: 1.2, color: amountColor(r) }}>
+                      {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))}
                     </Typography>
-                  )}
-                </Box>
+                    {ordering && r.advice && r.advice.orderQty > 0 && (
+                      <Typography variant="body2" sx={{ mt: 0.5, color: 'warning.main', fontWeight: 700 }}>
+                        bestel {formatAmount(r.advice.orderQty)}
+                      </Typography>
+                    )}
+                  </Box>
+                </ListItemButton>
               </ListItem>
             ))}
           </List>

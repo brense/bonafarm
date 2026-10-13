@@ -5,6 +5,7 @@ import OrgDataProvider from './org/OrgDataProvider.tsx'
 import { useOrg } from './org/useOrg.ts'
 import StoragesPage from './pages/StoragesPage.tsx'
 import StoragePage from './pages/StoragePage.tsx'
+import FeedPage from './pages/FeedPage.tsx'
 import StockPage from './pages/StockPage.tsx'
 import AppShell from './shell/AppShell.tsx'
 import Splash from './shell/Splash.tsx'
@@ -33,6 +34,7 @@ export default function App() {
     <OrgDataProvider>
       <Routes>
         <Route element={<AppShell />}>
+          <Route path="/stock/:feedId" element={<FeedPage />} />
           <Route path="/stock/*" element={<StockPage />} />
           <Route path="/storages" element={<StoragesPage />} />
           <Route path="/storages/:storageId" element={<StoragePage />} />

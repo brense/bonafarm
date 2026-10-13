@@ -1,0 +1,205 @@
+import { Box, Chip, CircularProgress, Divider, Skeleton, Stack, Typography } from '@mui/material'
+import { useMemo, useState } from 'react'
+import { Navigate, useParams } from 'react-router'
+import { ID_PATTERN } from '../model/types.ts'
+import { can } from '../org/roles.ts'
+import { useOrg } from '../org/useOrg.ts'
+import { useOrgData } from '../org/useOrgData.ts'
+import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
+import { monthlyStats, yearGrid } from '../stock/consumption.ts'
+import HeatGrid from '../stock/HeatGrid.tsx'
+import { MONTHS } from '../stock/months.ts'
+import { CardSurface } from '../stock/SearchList.tsx'
+import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
+import { useFeedLogs } from '../stock/useFeedLogs.ts'
+import Page from './Page.tsx'
+
+const ADVICE_WEEKS = 12
+
+const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'success' | 'info'> = {
+  critical: 'error',
+  warning: 'warning',
+  ok: 'success',
+  overstock: 'info',
+  inactive: 'default',
+}
+
+const dateNl = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
+
+function agoLabel(days: number): string {
+  if (days === 0) return 'vandaag'
+  if (days === 1) return 'gisteren'
+  return `${days} dagen geleden`
+}
+
+function signed(n: number): string {
+  const r = Math.round(n * 10) / 10
+  if (r === 0) return '±0'
+  return r > 0 ? `+${formatAmount(r)}` : `−${formatAmount(-r)}`
+}
+
+/** One feed: stock, advice and how consumption compares to last year. */
+export default function FeedPage() {
+  const { feedId = '' } = useParams()
+  const { orgId, roles } = useOrg()
+  const { feeds, storages, storageTypes, items, loading } = useOrgData()
+  const valid = ID_PATTERN.test(feedId)
+  const logs = useFeedLogs(orgId, valid ? feedId : null)
+  const [nowMs] = useState(() => Date.now())
+  const schedule = useMemo(() => deliverySchedule(new Date(nowMs)), [nowMs])
+
+  const row = useMemo(
+    () => stockPerFeed(feeds, storages, storageTypes, items).find((r) => r.feedId === feedId),
+    [feeds, storages, storageTypes, items, feedId],
+  )
+
+  const computed = useMemo(() => {
+    if (!row || logs === null) return null
+    const ratePerWeek = consumptionPerWeek(logs, row.feedId, nowMs, ADVICE_WEEKS)
+    const lastDelivery = logs.filter((l) => l.feedId === row.feedId && l.type === 'delivery').at(-1)
+    const shute = row.isShute ? estimateShuteStock(logs, row.feedId, nowMs, ratePerWeek) : null
+    const advice = adviseFeed({
+      stock: shute ? Math.max(row.total, shute.onHand) : row.total,
+      ratePerWeek,
+      isShute: row.isShute,
+      lastDeliveryMs: shute ? shute.lastDeliveryMs : (lastDelivery?.timestampMs ?? null),
+      nowMs,
+      schedule,
+    })
+    return { ratePerWeek, shute, advice }
+  }, [row, logs, nowMs, schedule])
+
+  const stats = useMemo(() => (logs ? monthlyStats(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
+  const grid = useMemo(() => (logs ? yearGrid(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
+
+  if (loading) {
+    return (
+      <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+  if (!valid || !row) return <Navigate to="/stock" replace />
+
+  const { unit } = row
+  const advice = computed?.advice ?? null
+  const rate = computed?.ratePerWeek ?? 0
+  const shute = computed?.shute ?? null
+  const amount = shute ? Math.max(row.total, shute.onHand) : row.total
+  const rough = row.isShute || row.inStable
+  const mayOrder = can(roles, 'order')
+  const nextDate = dateNl.format(schedule.next)
+
+  let runsOutLine: string | null = null
+  if (advice && rate > 0 && advice.dueInDays !== null) {
+    const days = advice.dueInDays
+    runsOutLine =
+      days <= 0
+        ? `${rough ? 'mogelijk niet genoeg' : 'op'} bij ${formatAmount(rate)} ${unit}/week`
+        : `${rough ? 'nog ±' : 'nog '}${days} dagen bij ${formatAmount(rate)} ${unit}/week`
+  } else if (advice && rate === 0) {
+    runsOutLine = 'geen verbruik in de laatste 12 weken'
+  }
+
+  const monthName = MONTHS[new Date(nowMs).getMonth()]
+
+  return (
+    <Page title={row.name}>
+      <Stack spacing={2}>
+        <CardSurface>
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h6" component="h2">
+                {row.name}
+              </Typography>
+              {advice && (
+                <Chip size="small" label={STATUS_LABEL[advice.status]} color={CHIP_COLOR[advice.status]} variant={advice.status === 'ok' ? 'outlined' : 'filled'} />
+              )}
+            </Stack>
+            <Typography variant="h3" component="p">
+              {shute ? '≈ ' : ''}
+              {formatAmount(amount)}{' '}
+              <Typography component="span" variant="h6" color="text.secondary">
+                {unitLabel(unit, amount)}
+              </Typography>
+            </Typography>
+            {runsOutLine && (
+              <Typography variant="body2" color="text.secondary">
+                {runsOutLine}
+              </Typography>
+            )}
+            {row.perStorage.length > 0 && (
+              <Typography variant="caption" color="text.secondary" component="p">
+                {row.perStorage.map((s) => `${s.storageName} ${formatAmount(s.amount)}`).join(' · ')}
+              </Typography>
+            )}
+            {advice && advice.daysSinceDelivery !== null && (
+              <Typography variant="caption" color="text.secondary" component="p">
+                Laatste levering {agoLabel(advice.daysSinceDelivery)}
+              </Typography>
+            )}
+            {mayOrder && advice && (
+              <>
+                <Divider sx={{ my: 1.5 }} />
+                <Typography variant="subtitle2" component="h3">
+                  Advies
+                </Typography>
+                {advice.status === 'inactive' ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Niet in gebruik: geen verbruik en geen voorraad.
+                  </Typography>
+                ) : advice.orderQty > 0 ? (
+                  <>
+                    <Typography variant="h5" component="p">
+                      {formatAmount(advice.orderQty)} {unitLabel(unit, advice.orderQty)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      voor de levering van {nextDate}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Niets te bestellen voor de levering van {nextDate}.
+                  </Typography>
+                )}
+              </>
+            )}
+          </Box>
+        </CardSurface>
+
+        <CardSurface>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
+              Verbruik per maand
+            </Typography>
+            {stats && grid ? (
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="h4" component="p">
+                    {formatAmount(stats.average ?? 0)}{' '}
+                    <Typography component="span" variant="h6" color="text.secondary">
+                      {unitLabel(unit, stats.average ?? 0)}
+                    </Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    gemiddeld per maand, laatste 12 maanden
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography variant="body2">
+                    t/m {stats.dayOfMonth} {monthName}: {formatAmount(stats.thisMonth)} {unitLabel(unit, stats.thisMonth)} · vorig jaar{' '}
+                    {formatAmount(stats.lastYearToDate)} (hele maand {formatAmount(stats.lastYearFull)})
+                  </Typography>
+                  <Chip size="small" label={signed(stats.thisMonth - stats.lastYearToDate)} />
+                </Stack>
+                <HeatGrid rows={grid} unit={unit} />
+              </Stack>
+            ) : (
+              <Skeleton variant="rounded" height={120} />
+            )}
+          </Box>
+        </CardSurface>
+      </Stack>
+    </Page>
+  )
+}

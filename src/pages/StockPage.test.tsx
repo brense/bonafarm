@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
@@ -30,13 +31,24 @@ const items = new Map<string, Item>([
 
 function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles']) {
   return render(
+    <MemoryRouter initialEntries={['/stock']}>
+      <Routes>
+        <Route path="/stock" element={page(roles)} />
+        <Route path="/stock/:feedId" element={<div>feed page</div>} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+function page(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles']) {
+  return (
     <OrgContext.Provider value={{ orgId: 'test', roles, status: 'ready' }}>
       <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items, loading: false, error: null }}>
         <ThemeProvider>
           <StockPage />
         </ThemeProvider>
       </OrgDataContext.Provider>
-    </OrgContext.Provider>,
+    </OrgContext.Provider>
   )
 }
 
@@ -58,5 +70,11 @@ describe('StockPage', () => {
     renderPage(['order'])
     expect(screen.getByRole('region', { name: 'Voorraad' })).toBeInTheDocument()
     expect(screen.queryByText(/^bestel /)).toBeNull()
+  })
+
+  it('opens the feed page when a feed is tapped', () => {
+    renderPage(['view'])
+    fireEvent.click(screen.getByText('Hooi'))
+    expect(screen.getByText('feed page')).toBeInTheDocument()
   })
 })

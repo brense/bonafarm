@@ -31,7 +31,22 @@ export interface ConsumptionLog {
   type: string
   feedId: string
   amount: number
+  /** Stock before a `count` was recorded; lets a count imply usage. */
+  previousAmount?: number
   timestampMs: number
+}
+
+/**
+ * What a log says was used. Dispenses and fills are plain usage. A count in a
+ * stable records implied usage: the drop from the previous stock to the
+ * counted amount. A count that went up (or has no previous amount) adds 0.
+ */
+export function consumedAmount(log: ConsumptionLog): number {
+  if (log.type === 'dispense' || log.type === 'fill') return log.amount
+  if (log.type === 'count' && typeof log.previousAmount === 'number') {
+    return Math.max(0, log.previousAmount - log.amount)
+  }
+  return 0
 }
 
 export function consumptionPerWeek(
@@ -44,8 +59,7 @@ export function consumptionPerWeek(
   let total = 0
   for (const log of logs) {
     if (log.feedId !== feedId) continue
-    if (log.type !== 'dispense' && log.type !== 'fill') continue
-    if (log.timestampMs > from && log.timestampMs <= nowMs) total += log.amount
+    if (log.timestampMs > from && log.timestampMs <= nowMs) total += consumedAmount(log)
   }
   return total / weeks
 }

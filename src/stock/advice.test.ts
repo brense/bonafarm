@@ -68,6 +68,13 @@ describe('consumptionPerWeek', () => {
     expect(consumptionPerWeek(logs, 'a', now)).toBe(1)
   })
 
+  it('adds the implied usage of a count with previousAmount', () => {
+    const counted: ConsumptionLog = { ...log('count', 4, 1), previousAmount: 10 }
+    expect(consumptionPerWeek([counted], 'a', now)).toBe(6 / 12)
+    expect(consumptionPerWeek([log('count', 4, 1)], 'a', now)).toBe(0)
+    expect(consumptionPerWeek([{ ...counted, previousAmount: 2 }], 'a', now)).toBe(0)
+  })
+
   it('filters on feed and window', () => {
     const logs = [
       log('dispense', 12, 1),

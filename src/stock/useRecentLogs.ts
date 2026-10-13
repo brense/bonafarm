@@ -7,6 +7,7 @@ export interface RecentLog {
   feedId: string
   storageId: string
   amount: number
+  previousAmount?: number
   timestampMs: number
 }
 
@@ -41,6 +42,7 @@ export function useRecentLogs(orgId: string | null, weeks: number, enabled: bool
                 feedId: data.feedId as string,
                 storageId: data.storageId as string,
                 amount: data.amount as number,
+                ...(typeof data.previousAmount === 'number' ? { previousAmount: data.previousAmount } : {}),
                 timestampMs: (data.timestamp as InstanceType<typeof Timestamp>).toMillis(),
               }
             }),
