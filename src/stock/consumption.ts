@@ -1,4 +1,4 @@
-import { consumedAmount, type ConsumptionLog } from './advice.ts'
+import { consumedAmount, consumptionPerWeek, type ConsumptionLog } from './advice.ts'
 
 /** Local-time month key, `'YYYY-MM'`. */
 export function monthKey(ms: number): string {
@@ -117,4 +117,142 @@ export function yearGrid(logs: ConsumptionLog[], feedId: string, nowMs: number):
       return perMonth.get(monthKey(monthStart(year, m))) ?? 0
     }),
   }))
+}
+
+export interface DetailLog extends ConsumptionLog {
+  storageId: string
+  batchId?: string
+}
+
+/** Average weekly consumption of one feed taken from one storage. */
+export function ratePerStorage(logs: DetailLog[], feedId: string, storageId: string, nowMs: number, weeks = 12): number {
+  return consumptionPerWeek(
+    logs.filter((l) => l.storageId === storageId),
+    feedId,
+    nowMs,
+    weeks,
+  )
+}
+
+export interface YearTotal {
+  year: number
+  amount: number
+  partial: boolean
+}
+
+/** One entry per calendar year from the first log of the feed to now, ascending. */
+export function yearTotals(logs: ConsumptionLog[], feedId: string, nowMs: number): YearTotal[] {
+  const perYear = new Map<number, number>()
+  for (const log of logs) {
+    if (log.feedId !== feedId) continue
+    const year = new Date(log.timestampMs).getFullYear()
+    perYear.set(year, (perYear.get(year) ?? 0) + consumedAmount(log))
+  }
+  if (perYear.size === 0) return []
+  const thisYear = new Date(nowMs).getFullYear()
+  const first = Math.min(...perYear.keys())
+  const result: YearTotal[] = []
+  for (let year = first; year <= thisYear; year += 1) {
+    result.push({ year, amount: perYear.get(year) ?? 0, partial: year === thisYear })
+  }
+  return result
+}
+
+/** Years before the current one that have at least one log of this feed. */
+export function completeYears(logs: ConsumptionLog[], feedId: string, nowMs: number): number[] {
+  const thisYear = new Date(nowMs).getFullYear()
+  const years = new Set<number>()
+  for (const log of logs) {
+    if (log.feedId !== feedId) continue
+    const year = new Date(log.timestampMs).getFullYear()
+    if (year < thisYear) years.add(year)
+  }
+  return [...years].sort((a, b) => a - b)
+}
+
+/** Mean consumption per calendar month (jan..dec) over the complete years; all null without any. */
+export function seasonality(logs: ConsumptionLog[], feedId: string, nowMs: number): (number | null)[] {
+  const years = completeYears(logs, feedId, nowMs)
+  if (years.length === 0) return Array.from({ length: 12 }, () => null)
+  const yearSet = new Set(years)
+  const totals = Array.from({ length: 12 }, () => 0)
+  for (const log of logs) {
+    if (log.feedId !== feedId) continue
+    const d = new Date(log.timestampMs)
+    if (!yearSet.has(d.getFullYear())) continue
+    totals[d.getMonth()] += consumedAmount(log)
+  }
+  return totals.map((t) => t / years.length)
+}
+
+export interface Delivery {
+  dayMs: number
+  amount: number
+  perStorage: { storageId: string; amount: number }[]
+}
+
+function groupDeliveries(logs: DetailLog[], feedId: string): Delivery[] {
+  const mine = logs.filter((l) => l.feedId === feedId && l.type === 'delivery').sort((a, b) => a.timestampMs - b.timestampMs)
+  const groups = new Map<string, { dayMs: number; amount: number; storages: Map<string, number> }>()
+  for (const log of mine) {
+    const d = new Date(log.timestampMs)
+    const key = log.batchId ? `b:${log.batchId}` : `d:${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    let group = groups.get(key)
+    if (!group) {
+      group = { dayMs: log.timestampMs, amount: 0, storages: new Map() }
+      groups.set(key, group)
+    }
+    group.amount += log.amount
+    group.storages.set(log.storageId, (group.storages.get(log.storageId) ?? 0) + log.amount)
+  }
+  return [...groups.values()]
+    .map((g) => ({
+      dayMs: g.dayMs,
+      amount: g.amount,
+      perStorage: [...g.storages.entries()].map(([storageId, amount]) => ({ storageId, amount })).sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.dayMs - a.dayMs)
+}
+
+/** Deliveries of one feed (grouped by batch, else by local day), newest first. */
+export function deliveries(logs: DetailLog[], feedId: string, limit = 6): Delivery[] {
+  return groupDeliveries(logs, feedId).slice(0, limit)
+}
+
+/** Median amount over all delivery groups; null without deliveries. */
+export function medianDeliverySize(logs: DetailLog[], feedId: string): number | null {
+  const amounts = groupDeliveries(logs, feedId)
+    .map((d) => d.amount)
+    .sort((a, b) => a - b)
+  if (amounts.length === 0) return null
+  const mid = amounts.length >> 1
+  return amounts.length % 2 === 1 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2
+}
+
+export interface ShuteStats {
+  lastEmptiedMs: number | null
+  avgDaysBetweenEmpties: number | null
+  cycles: number
+  fills: number
+  lastFillMs: number | null
+}
+
+const DAY = 24 * 60 * 60 * 1000
+
+export function shuteStats(logs: DetailLog[], feedId: string): ShuteStats {
+  const empties = logs
+    .filter((l) => l.feedId === feedId && l.type === 'empty')
+    .map((l) => l.timestampMs)
+    .sort((a, b) => a - b)
+  const fills = logs
+    .filter((l) => l.feedId === feedId && l.type === 'fill')
+    .map((l) => l.timestampMs)
+    .sort((a, b) => a - b)
+  return {
+    lastEmptiedMs: empties.at(-1) ?? null,
+    avgDaysBetweenEmpties: empties.length < 2 ? null : (empties[empties.length - 1] - empties[0]) / (empties.length - 1) / DAY,
+    cycles: empties.length,
+    fills: fills.length,
+    lastFillMs: fills.at(-1) ?? null,
+  }
 }

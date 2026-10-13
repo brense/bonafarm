@@ -6,12 +6,19 @@ import { can } from '../org/roles.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
-import { monthlyStats, yearGrid } from '../stock/consumption.ts'
+import { completeYears, consumptionPerMonth, deliveries as deliveriesOf, medianDeliverySize, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats, yearGrid, yearTotals } from '../stock/consumption.ts'
 import HeatGrid from '../stock/HeatGrid.tsx'
 import { MONTHS } from '../stock/months.ts'
 import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
+import BarChart from './feed/BarChart.tsx'
+import DeliveriesCard from './feed/DeliveriesCard.tsx'
+import { dateShort, monthYear } from './feed/format.ts'
+import SeasonCard from './feed/SeasonCard.tsx'
+import ShuteCard from './feed/ShuteCard.tsx'
+import StorageStockCard from './feed/StorageStockCard.tsx'
+import YearsCard from './feed/YearsCard.tsx'
 import Page from './Page.tsx'
 
 const ADVICE_WEEKS = 12
@@ -24,7 +31,7 @@ const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'succes
   inactive: 'default',
 }
 
-const dateNl = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
+const DELIVERY_LIMIT = 6
 
 function agoLabel(days: number): string {
   if (days === 0) return 'vandaag'
@@ -36,6 +43,19 @@ function signed(n: number): string {
   const r = Math.round(n * 10) / 10
   if (r === 0) return '±0'
   return r > 0 ? `+${formatAmount(r)}` : `−${formatAmount(-r)}`
+}
+
+function SkeletonCard({ title }: { title: string }) {
+  return (
+    <CardSurface>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
+          {title}
+        </Typography>
+        <Skeleton variant="rounded" height={90} />
+      </Box>
+    </CardSurface>
+  )
 }
 
 /** One feed: stock, advice and how consumption compares to last year. */
@@ -72,6 +92,26 @@ export default function FeedPage() {
   const stats = useMemo(() => (logs ? monthlyStats(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
   const grid = useMemo(() => (logs ? yearGrid(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
 
+  const detail = useMemo(() => {
+    if (!logs) return null
+    const now = new Date(nowMs)
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const perMonth = consumptionPerMonth(logs, feedId, monthStart(y, m - 11), nowMs)
+    const monthStarts = Array.from({ length: 12 }, (_, k) => new Date(y, m - 11 + k, 1))
+    const dels = deliveriesOf(logs, feedId, DELIVERY_LIMIT)
+    return {
+      monthStarts,
+      monthValues: monthStarts.map((d) => perMonth.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) ?? 0),
+      seasonality: seasonality(logs, feedId, nowMs),
+      completeYears: completeYears(logs, feedId, nowMs),
+      yearTotals: yearTotals(logs, feedId, nowMs),
+      shute: shuteStats(logs, feedId),
+      deliveries: dels,
+      median: medianDeliverySize(logs, feedId),
+    }
+  }, [logs, feedId, nowMs])
+
   if (loading) {
     return (
       <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}>
@@ -88,7 +128,7 @@ export default function FeedPage() {
   const amount = shute ? Math.max(row.total, shute.onHand) : row.total
   const rough = row.isShute || row.inStable
   const mayOrder = can(roles, 'order')
-  const nextDate = dateNl.format(schedule.next)
+  const nextDate = dateShort.format(schedule.next)
 
   let runsOutLine: string | null = null
   if (advice && rate > 0 && advice.dueInDays !== null) {
@@ -167,11 +207,38 @@ export default function FeedPage() {
           </Box>
         </CardSurface>
 
+        {row.perStorage.length > 0 &&
+          (logs === null ? (
+            <CardSurface>
+              <Box sx={{ p: 2 }}>
+                <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
+                  Voorraad per opslag
+                </Typography>
+                <Skeleton variant="rounded" height={90} />
+              </Box>
+            </CardSurface>
+          ) : (
+            <StorageStockCard
+              unit={unit}
+              rows={row.perStorage.map((st) => ({
+                storageId: st.storageId,
+                name: st.storageName,
+                amount: st.amount,
+                ratePerWeek: ratePerStorage(logs, row.feedId, st.storageId, nowMs),
+              }))}
+            />
+          ))}
+
         <CardSurface>
           <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" component="h2">
               Verbruik per maand
             </Typography>
+            {detail && (
+              <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+                {monthYear(detail.monthStarts[0])} t/m {monthYear(detail.monthStarts[11])} · {MONTHS[new Date(nowMs).getMonth()]} loopt nog
+              </Typography>
+            )}
             {stats && grid ? (
               <Stack spacing={1.5}>
                 <Box>
@@ -192,6 +259,16 @@ export default function FeedPage() {
                   </Typography>
                   <Chip size="small" label={signed(stats.thisMonth - stats.lastYearToDate)} />
                 </Stack>
+                {detail && (
+                  <BarChart
+                    labels={detail.monthStarts.map(monthYear)}
+                    values={detail.monthValues}
+                    average={stats.average}
+                    unit={unit}
+                    highlightLast
+                    title={`Verbruik per maand, ${monthYear(detail.monthStarts[0])} t/m ${monthYear(detail.monthStarts[11])}`}
+                  />
+                )}
                 <HeatGrid rows={grid} unit={unit} />
               </Stack>
             ) : (
@@ -199,6 +276,34 @@ export default function FeedPage() {
             )}
           </Box>
         </CardSurface>
+
+        {detail ? (
+          <SeasonCard seasonality={detail.seasonality} years={detail.completeYears} unit={unit} />
+        ) : (
+          <SkeletonCard title="Seizoen" />
+        )}
+
+        {detail ? (
+          detail.yearTotals.length > 0 && <YearsCard years={detail.yearTotals} feedName={row.name} unit={unit} nowMs={nowMs} />
+        ) : (
+          <SkeletonCard title="Per jaar" />
+        )}
+
+        {row.isShute &&
+          (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
+
+        {detail ? (
+          <DeliveriesCard
+            deliveries={detail.deliveries}
+            median={detail.median}
+            unit={unit}
+            schedule={schedule}
+            nowMs={nowMs}
+            storageName={(id) => storages.get(id)?.name ?? id}
+          />
+        ) : (
+          <SkeletonCard title="Leveringen" />
+        )}
       </Stack>
     </Page>
   )

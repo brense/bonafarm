@@ -9,10 +9,11 @@ import { formatAmount, unitLabel } from './stock.ts'
 interface Props {
   rows: YearRow[]
   unit: Unit
+  rowLabel?: (year: number) => string
 }
 
 /** Months as a small heat grid: one row per year, darker is more consumption. */
-export default function HeatGrid({ rows, unit }: Props) {
+export default function HeatGrid({ rows, unit, rowLabel = String }: Props) {
   const max = Math.max(1, ...rows.flatMap((r) => r.months.filter((m): m is number => m !== null)))
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: 'auto repeat(12, 1fr)', gap: 0.5, alignItems: 'center' }}>
@@ -24,10 +25,10 @@ export default function HeatGrid({ rows, unit }: Props) {
       ))}
       {rows.map((row) => [
         <Typography key={`y${row.year}`} variant="caption" sx={{ pr: 0.5 }}>
-          {row.year}
+          {rowLabel(row.year)}
         </Typography>,
         ...row.months.map((value, i) => {
-          const label = value === null ? `${MONTHS[i]} ${row.year}` : `${MONTHS[i]} ${row.year}: ${formatAmount(value)} ${unitLabel(unit, value)}`
+          const label = value === null ? `${MONTHS[i]} ${rowLabel(row.year)}` : `${MONTHS[i]} ${rowLabel(row.year)}: ${formatAmount(value)} ${unitLabel(unit, value)}`
           return (
             <Box
               key={`${row.year}-${i}`}

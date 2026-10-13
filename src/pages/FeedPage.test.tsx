@@ -23,14 +23,21 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const storageTypes = new Map<string, StorageType>([['bin', { name: 'Bak', behaviour: 'counted', order: 0 }]])
+const storageTypes = new Map<string, StorageType>([
+  ['bin', { name: 'Bak', behaviour: 'counted', order: 0 }],
+  ['shute', { name: 'Koker', behaviour: 'consumed', order: 1 }],
+])
 const storages = new Map<string, Storage>([
   ['ton-roze', { groupId: 'ungrouped', typeId: 'bin', name: 'Ton roze', status: 'active', order: 1 }],
   ['ton-blauw', { groupId: 'ungrouped', typeId: 'bin', name: 'Ton blauw', status: 'active', order: 2 }],
+  ['koker-1', { groupId: 'ungrouped', typeId: 'shute', name: 'Koker 1', status: 'active', order: 5 }],
+  ['ton-paars', { groupId: 'ungrouped', typeId: 'bin', name: 'Ton paars', status: 'active', order: 3 }],
+  ['ton-oranje', { groupId: 'ungrouped', typeId: 'bin', name: 'Ton oranje', status: 'active', order: 4 }],
 ])
 const feeds = new Map<string, Feed>([
   ['hooi', { name: 'Hooi', unit: 'baal', hidden: false, order: 1 }],
   ['stro', { name: 'Stro', unit: 'baal', hidden: true, order: 2 }],
+  ['korrel', { name: 'Korrel', unit: 'zak', hidden: false, order: 3, defaultStorageId: 'koker-1' }],
 ])
 
 function items(amount: number) {
@@ -39,8 +46,26 @@ function items(amount: number) {
   ])
 }
 
-function log(date: Date, amount: number, type: FeedLog['type'] = 'dispense'): FeedLog {
-  return { type, feedId: 'hooi', storageId: 'ton-roze', amount, timestampMs: date.getTime() }
+function log(date: Date, amount: number, type: FeedLog['type'] = 'dispense', feedId = 'hooi', storageId = 'ton-roze'): FeedLog {
+  return { type, feedId, storageId, amount, timestampMs: date.getTime() }
+}
+
+/** An older complete year (2024), last year and this year, plus a delivery split over two storages. */
+function history(): FeedLog[] {
+  return [
+    ...[2024, 2025, 2026].flatMap((y) => [0, 3, 6].map((m) => log(new Date(y, m, 10, 12), 4 + m))),
+    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-paars'),
+    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-oranje'),
+  ]
+}
+
+function shuteHistory(): FeedLog[] {
+  return [
+    log(new Date(2025, 0, 10, 12), 5, 'fill', 'korrel'),
+    log(new Date(2025, 5, 10, 12), 5, 'fill', 'korrel'),
+    log(new Date(2025, 2, 1, 12), 0, 'empty', 'korrel'),
+    log(new Date(2025, 8, 1, 12), 0, 'empty', 'korrel'),
+  ]
 }
 
 function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles'], path = '/stock/hooi', amount = 7.5) {
@@ -94,6 +119,47 @@ describe('FeedPage', () => {
     expect(screen.getByLabelText('okt 2025: 3 balen')).toHaveTextContent('3')
     const future = screen.getByLabelText('dec 2026')
     expect(future).toHaveTextContent('')
+  })
+
+  it('shows stock per storage with the days left', () => {
+    mocks.logs = weeklyDispenses()
+    renderPage(['view'], '/stock/hooi', 7.5)
+    expect(screen.getByRole('heading', { name: 'Voorraad per opslag' })).toBeInTheDocument()
+    expect(screen.getByText('Ton roze')).toBeInTheDocument()
+    expect(screen.getByText(/^nog ±\d+ dagen bij 1 baal\/week/)).toBeInTheDocument()
+  })
+
+  it('draws the monthly bar chart with a title for the current month', () => {
+    mocks.logs = history()
+    renderPage(['view'])
+    expect(screen.getByRole('img', { name: /^Verbruik per maand, nov 2025 t\/m okt 2026/ })).toBeInTheDocument()
+    expect(screen.getByText(/^okt 2026: /, { selector: 'title' })).toBeInTheDocument()
+  })
+
+  it('shows the season, yearly totals and deliveries', () => {
+    mocks.logs = history()
+    renderPage(['view'])
+    expect(screen.getByText(/Piek in/)).toBeInTheDocument()
+    expect(screen.getByText('2026*')).toBeInTheDocument()
+    expect(screen.getByText(/^\* 2026 is t\/m 13 okt/)).toBeInTheDocument()
+    expect(screen.getByText('1 Ton paars · 1 Ton oranje')).toBeInTheDocument()
+    expect(screen.getByText(/Volgende:/)).toBeInTheDocument()
+  })
+
+  it('says so without deliveries', () => {
+    renderPage(['view'])
+    expect(screen.getByText('Nog geen leveringen geregistreerd.')).toBeInTheDocument()
+    expect(screen.queryByText(/Volgende:/)).toBeNull()
+  })
+
+  it('shows the koker card only for shute feeds', () => {
+    mocks.logs = shuteHistory()
+    const { unmount } = renderPage(['view'])
+    expect(screen.queryByRole('heading', { name: 'Koker' })).toBeNull()
+    unmount()
+    renderPage(['view'], '/stock/korrel')
+    expect(screen.getByRole('heading', { name: 'Koker' })).toBeInTheDocument()
+    expect(screen.getByText('keer leeggemaakt')).toBeInTheDocument()
   })
 
   it('redirects an unknown feed to the list', () => {
