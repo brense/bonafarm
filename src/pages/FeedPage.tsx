@@ -7,17 +7,16 @@ import { can } from '../org/roles.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
-import { completeYears, consumptionPerMonth, deliveries as deliveriesOf, medianDeliverySize, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats, yearTotals } from '../stock/consumption.ts'
+import { completeYears, consumptionPerMonth, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats } from '../stock/consumption.ts'
 import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
 import BarChart from './feed/BarChart.tsx'
-import DeliveriesCard from './feed/DeliveriesCard.tsx'
+import ChangesCard from './feed/ChangesCard.tsx'
 import { dateShort, monthYear } from './feed/format.ts'
-import SeasonCard from './feed/SeasonCard.tsx'
+import SeasonSection from './feed/SeasonSection.tsx'
 import ShuteCard from './feed/ShuteCard.tsx'
 import StorageStockCard from './feed/StorageStockCard.tsx'
-import YearsCard from './feed/YearsCard.tsx'
 import Page from './Page.tsx'
 
 const ADVICE_WEEKS = 12
@@ -29,8 +28,6 @@ const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'succes
   overstock: 'info',
   inactive: 'default',
 }
-
-const DELIVERY_LIMIT = 6
 
 function agoLabel(days: number): string {
   if (days === 0) return 'vandaag'
@@ -48,7 +45,7 @@ function SkeletonCard({ title }: { title: string }) {
   return (
     <CardSurface>
       <Box sx={{ p: 2 }}>
-        <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
+        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
           {title}
         </Typography>
         <Skeleton variant="rounded" height={90} />
@@ -97,16 +94,12 @@ export default function FeedPage() {
     const m = now.getMonth()
     const perMonth = consumptionPerMonth(logs, feedId, monthStart(y, m - 11), nowMs)
     const monthStarts = Array.from({ length: 12 }, (_, k) => new Date(y, m - 11 + k, 1))
-    const dels = deliveriesOf(logs, feedId, DELIVERY_LIMIT)
     return {
       monthStarts,
       monthValues: monthStarts.map((d) => perMonth.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) ?? 0),
       seasonality: seasonality(logs, feedId, nowMs),
       completeYears: completeYears(logs, feedId, nowMs),
-      yearTotals: yearTotals(logs, feedId, nowMs),
       shute: shuteStats(logs, feedId),
-      deliveries: dels,
-      median: medianDeliverySize(logs, feedId),
     }
   }, [logs, feedId, nowMs])
 
@@ -212,8 +205,8 @@ export default function FeedPage() {
           (logs === null ? (
             <CardSurface>
               <Box sx={{ p: 2 }}>
-                <Typography variant="subtitle2" component="h2" sx={{ mb: 1 }}>
-                  Voorraad per opslag
+                <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
+                  Voorraad
                 </Typography>
                 <Skeleton variant="rounded" height={90} />
               </Box>
@@ -232,8 +225,8 @@ export default function FeedPage() {
 
         <CardSurface>
           <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle2" component="h2">
-              Verbruik per maand
+            <Typography variant="h6" component="h2">
+              Verbruik
             </Typography>
             {stats ? (
               <Stack spacing={1.5}>
@@ -291,6 +284,7 @@ export default function FeedPage() {
                     title={`Verbruik per maand, ${monthYear(detail.monthStarts[0])} t/m ${monthYear(detail.monthStarts[11])}`}
                   />
                 )}
+                {detail && <SeasonSection seasonality={detail.seasonality} years={detail.completeYears} unit={unit} />}
               </Stack>
             ) : (
               <Skeleton variant="rounded" height={120} />
@@ -298,33 +292,10 @@ export default function FeedPage() {
           </Box>
         </CardSurface>
 
-        {detail ? (
-          <SeasonCard seasonality={detail.seasonality} years={detail.completeYears} unit={unit} />
-        ) : (
-          <SkeletonCard title="Seizoen" />
-        )}
-
-        {detail ? (
-          detail.yearTotals.length > 0 && <YearsCard years={detail.yearTotals} feedName={row.name} unit={unit} nowMs={nowMs} />
-        ) : (
-          <SkeletonCard title="Per jaar" />
-        )}
-
         {row.isShute &&
           (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
 
-        {detail ? (
-          <DeliveriesCard
-            deliveries={detail.deliveries}
-            median={detail.median}
-            unit={unit}
-            schedule={schedule}
-            nowMs={nowMs}
-            storageName={(id) => storages.get(id)?.name ?? id}
-          />
-        ) : (
-          <SkeletonCard title="Leveringen" />
-        )}
+        <ChangesCard logs={logs} unit={unit} nowMs={nowMs} storageName={(id) => storages.get(id)?.name ?? id} />
       </Stack>
     </Page>
   )

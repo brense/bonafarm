@@ -156,7 +156,7 @@ export function planChangeLine(change: Change, ctx: ChangeContext): MutationPlan
 
   const batchId = `mv-${ctx.newId()}`
   const batch = { path: paths.batch(orgId, batchId), data: { type: 'move' as const, uid } }
-  const outMove: MutationPlan = { ...out, log: { ...out.log, type: 'move', batchId }, batch }
+  const outMove: MutationPlan = { ...out, log: { ...out.log, type: 'move', batchId, previousAmount: ctx.current(fromStorageId, feedId) }, batch }
   if (!ctx.counted(toStorageId)) {
     const fill = planMutation('fill', { orgId, uid, storageId: toStorageId, feedId, amount, current: 0 })
     return [outMove, { ...fill, log: { ...fill.log, batchId } }]

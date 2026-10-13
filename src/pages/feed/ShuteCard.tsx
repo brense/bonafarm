@@ -38,7 +38,7 @@ export default function ShuteCard({ lastEmptiedMs, avgDaysBetweenEmpties, cycles
     <CardSurface>
       <Box sx={{ p: 2 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle2" component="h2">
+          <Typography variant="h6" component="h2">
             Koker
           </Typography>
           {stale && <Chip size="small" color="warning" label="Lang niet leeggemaakt" />}

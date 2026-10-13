@@ -19,7 +19,7 @@ import {
 import { useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth.ts'
-import { ID_PATTERN, type LogType } from '../model/types.ts'
+import { ID_PATTERN } from '../model/types.ts'
 import { can } from '../org/roles.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
@@ -27,17 +27,8 @@ import AmountSheet, { type AmountMode } from '../stock/AmountSheet.tsx'
 import { applyMutation, planMutation } from '../stock/mutations.ts'
 import { formatAmount, unitLabel } from '../stock/stock.ts'
 import StorageAvatar from '../storage/StorageAvatar.tsx'
+import { LOG_LABEL } from '../stock/logLabels.ts'
 import { useStorageLogs } from '../stock/useStorageLogs.ts'
-
-const LOG_LABEL: Record<LogType, string> = {
-  delivery: 'geleverd',
-  count: 'geteld',
-  dispense: 'eruit',
-  fill: 'in de koker',
-  empty: 'koker leeg',
-  move: 'verplaatst',
-  correction: 'correctie',
-}
 
 const timeNl = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 

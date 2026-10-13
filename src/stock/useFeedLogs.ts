@@ -3,6 +3,7 @@ import type { LogType } from '../model/types.ts'
 import { paths } from '../model/paths.ts'
 
 export interface FeedLog {
+  id: string
   type: LogType
   feedId: string
   storageId: string
@@ -48,6 +49,7 @@ export function useFeedLogs(orgId: string | null, feedId: string | null): FeedLo
               .map((d): FeedLog => {
                 const data = d.data()
                 return {
+                  id: d.id,
                   type: data.type as LogType,
                   feedId: data.feedId as string,
                   storageId: data.storageId as string,

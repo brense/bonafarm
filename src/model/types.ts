@@ -174,7 +174,7 @@ export interface Log {
   feedId: string
   storageId: string
   amount: number
-  /** For `count`: the stock before the count, so the implied usage is known. */
+  /** For `count`: the stock before the count. For the out half of a `move`: the stock in the source storage before the move, which also marks which half is the source. */
   previousAmount?: number
   /** References batches/{batchId}: the delivery this line belongs to, or the two halves of a move. */
   batchId?: string

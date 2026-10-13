@@ -22,8 +22,8 @@ export default function StorageStockCard({ rows, unit }: Props) {
   return (
     <CardSurface>
       <Box sx={{ p: 2 }}>
-        <Typography variant="subtitle2" component="h2">
-          Voorraad per opslag
+        <Typography variant="h6" component="h2">
+          Voorraad
         </Typography>
         <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
           Per opslag, en hoe lang het bij het huidige verbruik duurt

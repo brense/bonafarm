@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
@@ -46,16 +46,17 @@ function items(amount: number) {
   ])
 }
 
-function log(date: Date, amount: number, type: FeedLog['type'] = 'dispense', feedId = 'hooi', storageId = 'ton-roze'): FeedLog {
-  return { type, feedId, storageId, amount, timestampMs: date.getTime() }
+let idSeq = 0
+function log(date: Date, amount: number, type: FeedLog['type'] = 'dispense', feedId = 'hooi', storageId = 'ton-roze', batchId?: string): FeedLog {
+  return { id: `l${idSeq++}`, type, feedId, storageId, amount, timestampMs: date.getTime(), ...(batchId ? { batchId } : {}) }
 }
 
 /** An older complete year (2024), last year and this year, plus a delivery split over two storages. */
 function history(): FeedLog[] {
   return [
     ...[2024, 2025, 2026].flatMap((y) => [0, 3, 6].map((m) => log(new Date(y, m, 10, 12), 4 + m))),
-    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-paars'),
-    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-oranje'),
+    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-paars', 'dl-1'),
+    log(new Date(2026, 9, 2, 12), 1, 'delivery', 'hooi', 'ton-oranje', 'dl-1'),
   ]
 }
 
@@ -125,8 +126,8 @@ describe('FeedPage', () => {
   it('shows stock per storage with the days left', () => {
     mocks.logs = weeklyDispenses()
     renderPage(['view'], '/stock/hooi', 7.5)
-    expect(screen.getByRole('heading', { name: 'Voorraad per opslag' })).toBeInTheDocument()
-    expect(screen.getByText('Ton roze')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Voorraad' })).toBeInTheDocument()
+    expect(screen.getAllByText('Ton roze').length).toBeGreaterThan(0)
     expect(screen.getByText(/^nog ±\d+ dagen bij 1 baal\/week/)).toBeInTheDocument()
   })
 
@@ -137,20 +138,51 @@ describe('FeedPage', () => {
     expect(screen.getByText(/^okt 2026: /, { selector: 'title' })).toBeInTheDocument()
   })
 
-  it('shows the season, yearly totals and deliveries', () => {
+  it('shows the season inside the consumption card and drops the old cards', () => {
     mocks.logs = history()
     renderPage(['view'])
+    expect(screen.getByRole('heading', { name: 'Seizoen', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Verbruik', level: 2 })).toBeInTheDocument()
     expect(screen.getAllByRole('img').some((e) => e.getAttribute('aria-label')?.startsWith('jan:'))).toBe(true)
-    expect(screen.getByText('2026*')).toBeInTheDocument()
-    expect(screen.getByText(/^\* 2026 is t\/m 13 okt/)).toBeInTheDocument()
-    expect(screen.getByText('1 Ton paars · 1 Ton oranje')).toBeInTheDocument()
-    expect(screen.getByText(/Volgende:/)).toBeInTheDocument()
+    expect(screen.queryByText('Per jaar')).toBeNull()
+    expect(screen.queryByText('Leveringen')).toBeNull()
   })
 
-  it('says so without deliveries', () => {
+  it('shows the latest change big: a delivery batch split over two storages', () => {
+    mocks.logs = history()
     renderPage(['view'])
-    expect(screen.getByText('Nog geen leveringen geregistreerd.')).toBeInTheDocument()
-    expect(screen.queryByText(/Volgende:/)).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Wijzigingen', level: 2 })).toBeInTheDocument()
+    const headline = screen.getByText('2 balen geleverd')
+    expect(headline.tagName).toBe('P')
+    expect(headline).toHaveClass('MuiTypography-h5')
+    expect(screen.getByText('1 Ton paars · 1 Ton oranje')).toBeInTheDocument()
+    expect(screen.getByText('vr 2 okt 12:00')).toBeInTheDocument()
+  })
+
+  it('says so without changes', () => {
+    renderPage(['view'])
+    expect(screen.getByText('Nog geen wijzigingen.')).toBeInTheDocument()
+  })
+
+  it('pages through the changes ten at a time', () => {
+    mocks.logs = Array.from({ length: 25 }, (_, k) => log(new Date(2026, 8, 1 + k % 28, 8, k), 1))
+    renderPage(['view'])
+    expect(screen.getAllByText(/ eruit$|1 baal eruit/).length).toBe(10)
+    fireEvent.click(screen.getByRole('button', { name: 'Meer…' }))
+    expect(screen.getAllByText(/1 baal eruit/).length).toBe(20)
+    fireEvent.click(screen.getByRole('button', { name: 'Meer…' }))
+    expect(screen.getAllByText(/1 baal eruit/).length).toBe(25)
+    expect(screen.queryByRole('button', { name: 'Meer…' })).toBeNull()
+  })
+
+  it('renders a move batch with an arrow', () => {
+    mocks.logs = [
+      log(new Date(2026, 9, 5, 9, 12), 2, 'move', 'hooi', 'ton-roze', 'mv-1'),
+      log(new Date(2026, 9, 5, 9, 12), 2, 'move', 'hooi', 'ton-blauw', 'mv-1'),
+    ]
+    renderPage(['view'])
+    expect(screen.getByText('2 balen verplaatst')).toBeInTheDocument()
+    expect(screen.getByText(/→/)).toBeInTheDocument()
   })
 
   it('shows the koker card only for shute feeds', () => {

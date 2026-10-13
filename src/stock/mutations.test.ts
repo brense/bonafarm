@@ -91,12 +91,16 @@ describe('planChangeLine', () => {
     expect(plans[1].log.batchId).toBe('mv-X')
     expect(plans[0].batch).toEqual({ path: 'organisations/tanthof/batches/mv-X', data: { type: 'move', uid: 'u1' } })
     expect(plans[0].item?.op).toEqual({ kind: 'increment', by: -2 })
+    expect(plans[0].log.previousAmount).toBeDefined()
+    expect(plans[1].log.previousAmount).toBeUndefined()
     expect(plans[1].item).toBeUndefined()
   })
 
   it('bin to bin moves both items', () => {
     const plans = planChangeLine({ feedId: 'geit', amount: 1, fromStorageId: 'ton', toStorageId: 'ton2' }, ctx)
     expect(plans.map((p) => p.log.type)).toEqual(['move', 'move'])
+    expect(plans[0].log.previousAmount).toBeDefined()
+    expect(plans[1].log.previousAmount).toBeUndefined()
     expect(plans[1].item?.op).toEqual({ kind: 'increment', by: 1 })
     expect(plans[1].item?.path).toBe('organisations/tanthof/items/ton2_geit')
   })
