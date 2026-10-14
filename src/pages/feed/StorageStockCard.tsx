@@ -1,6 +1,7 @@
 import { Box, Divider, Stack, Typography } from '@mui/material'
 import type { Unit } from '../../model/types.ts'
 import { CardSurface } from '../../stock/SearchList.tsx'
+import { FeedRow } from '../../stock/FeedRow.tsx'
 import { formatAmount, unitLabel } from '../../stock/stock.ts'
 import Track from './Track.tsx'
 
@@ -8,45 +9,55 @@ export interface StorageRow {
   storageId: string
   name: string
   amount: number
-  /** Weekly consumption out of this storage; null while the logs load. */
-  ratePerWeek: number | null
+  /** Change not written yet (may be 0). */
+  pending: number
 }
 
 interface Props {
   rows: StorageRow[]
   unit: Unit
+  swipeMax?: number
+  mayChange: boolean
+  /** Signed: negative takes feed out, positive puts it in. */
+  onChange: (storageId: string, signedDelta: number) => void
 }
 
-export default function StorageStockCard({ rows, unit }: Props) {
-  const max = Math.max(...rows.map((r) => r.amount), 0)
+export default function StorageStockCard({ rows, unit, swipeMax, mayChange, onChange }: Props) {
+  const shownRows = rows
+    .map((r) => ({ ...r, shown: r.amount + r.pending }))
+    // Sorted on the written amount: a row must not jump away while taps are still pending.
+    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, 'nl'))
+  const max = Math.max(...shownRows.map((r) => r.shown), 0)
   return (
     <CardSurface>
       <Box sx={{ p: 2 }}>
-        <Typography variant="h6" component="h2">
+        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
           Voorraad
         </Typography>
-        <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 1 }}>
-          Per opslag, en hoe lang het bij het huidige verbruik duurt
-        </Typography>
         <Stack divider={<Divider />} spacing={1.25}>
-          {rows.map((r) => (
+          {shownRows.map((r) => (
             <Box key={r.storageId}>
-              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {r.name}
-                </Typography>
-                <Typography variant="body2" component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {formatAmount(r.amount)} {unitLabel(unit, r.amount)}
-                </Typography>
-              </Stack>
-              <Track fraction={max > 0 ? r.amount / max : 0} />
-              {r.ratePerWeek !== null && (
-                <Typography variant="body2" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
-                  {r.ratePerWeek > 0
-                    ? `nog ±${Math.round((r.amount / r.ratePerWeek) * 7)} dagen bij ${formatAmount(r.ratePerWeek)} ${unit}/week`
-                    : 'geen verbruik uit deze opslag in 12 weken'}
-                </Typography>
-              )}
+              <Box sx={{ mx: -2 }}>
+                <FeedRow
+                  bare
+                  surface="var(--row-surface)"
+                  name={r.name}
+                  active
+                  detail={{ text: `${formatAmount(r.shown)} ${unitLabel(unit, r.shown)}`, color: r.shown === 0 ? 'text.disabled' : 'text.primary' }}
+                  badge={r.pending !== 0 ? (r.pending > 0 ? `+${formatAmount(r.pending)}` : `−${formatAmount(-r.pending)}`) : undefined}
+                  swipeMax={swipeMax}
+                  maxMinus={r.shown}
+                  minusDisabled={r.shown <= 0}
+                  emptyLabel="Geen voorraad"
+                  gesture={mayChange ? 'both' : 'none'}
+                  onSwipe={(signed) => onChange(r.storageId, signed)}
+                  onMinus={() => onChange(r.storageId, -1)}
+                  onPlus={() => onChange(r.storageId, 1)}
+                />
+              </Box>
+              <Box sx={{ px: 2, pb: 1 }}>
+                <Track fraction={max > 0 ? r.shown / max : 0} />
+              </Box>
             </Box>
           ))}
         </Stack>

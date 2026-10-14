@@ -1,13 +1,15 @@
-import { Box, Chip, CircularProgress, Divider, Skeleton, Stack, Typography } from '@mui/material'
+import { Box, Chip, CircularProgress, Divider, Skeleton, Snackbar, Stack, Typography } from '@mui/material'
 import { alpha, type Theme } from '@mui/material/styles'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
+import { useAuth } from '../auth/useAuth.ts'
 import { ID_PATTERN } from '../model/types.ts'
 import { can } from '../org/roles.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { useOrgData } from '../org/useOrgData.ts'
 import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
-import { completeYears, consumptionPerMonth, monthStart, monthlyStats, ratePerStorage, seasonality, shuteStats } from '../stock/consumption.ts'
+import { completeYears, consumptionPerMonth, monthStart, monthlyStats, seasonality, shuteStats } from '../stock/consumption.ts'
+import { applyMutations, planChangeLine, type ChangeContext, type MutationPlan } from '../stock/mutations.ts'
 import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
@@ -17,6 +19,7 @@ import { dateShort, monthYear } from './feed/format.ts'
 import SeasonSection from './feed/SeasonSection.tsx'
 import ShuteCard from './feed/ShuteCard.tsx'
 import StorageStockCard from './feed/StorageStockCard.tsx'
+import { usePendingChanges } from './feed/usePendingChanges.ts'
 import Page from './Page.tsx'
 
 const ADVICE_WEEKS = 12
@@ -62,6 +65,50 @@ export default function FeedPage() {
   const valid = ID_PATTERN.test(feedId)
   const logs = useFeedLogs(orgId, valid ? feedId : null)
   const [nowMs] = useState(() => Date.now())
+  const { user } = useAuth()
+  const [snack, setSnack] = useState<string | null>(null)
+  const mayChange = can(roles, 'feed') && user !== null
+  const uid = user?.uid ?? null
+
+  const commit = useCallback(
+    (changes: Map<string, number>) => {
+      if (uid === null || orgId === null) return
+      const ctx: ChangeContext = {
+        orgId,
+        uid,
+        counted: (id) => storageTypes.get(storages.get(id)?.typeId ?? '')?.behaviour === 'counted',
+        current: (storageId, id) => items.get(`${storageId}_${id}`)?.amount ?? 0,
+        newId: () => crypto.randomUUID().slice(0, 8),
+      }
+      const plans: MutationPlan[] = []
+      const parts: string[] = []
+      const unit = feeds.get(feedId)?.unit
+      try {
+        for (const [storageId, delta] of changes) {
+          if (delta === 0) continue
+          plans.push(
+            ...planChangeLine(
+              { feedId, amount: Math.abs(delta), fromStorageId: delta < 0 ? storageId : null, toStorageId: delta < 0 ? null : storageId },
+              ctx,
+            ),
+          )
+          const abs = Math.abs(delta)
+          parts.push(`${storages.get(storageId)?.name ?? storageId}: ${delta < 0 ? '−' : '+'}${formatAmount(abs)}${unit ? ` ${unitLabel(unit, abs)}` : ''}`)
+        }
+      } catch {
+        setSnack('Niet opgeslagen')
+        return
+      }
+      if (plans.length === 0) return
+      applyMutations(plans).catch((err: { code?: string }) => {
+        console.warn('Mutation rejected', err)
+        setSnack(`Niet opgeslagen (${err.code ?? 'fout'})`)
+      })
+      setSnack(parts.join(' · '))
+    },
+    [uid, orgId, storageTypes, storages, items, feeds, feedId],
+  )
+  const { pending, add } = usePendingChanges(commit)
   const schedule = useMemo(() => deliverySchedule(new Date(nowMs)), [nowMs])
 
   const row = useMemo(
@@ -201,27 +248,20 @@ export default function FeedPage() {
           </Box>
         </CardSurface>
 
-        {row.perStorage.length > 0 &&
-          (logs === null ? (
-            <CardSurface>
-              <Box sx={{ p: 2 }}>
-                <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-                  Voorraad
-                </Typography>
-                <Skeleton variant="rounded" height={90} />
-              </Box>
-            </CardSurface>
-          ) : (
-            <StorageStockCard
-              unit={unit}
-              rows={row.perStorage.map((st) => ({
-                storageId: st.storageId,
-                name: st.storageName,
-                amount: st.amount,
-                ratePerWeek: ratePerStorage(logs, row.feedId, st.storageId, nowMs),
-              }))}
-            />
-          ))}
+        {row.perStorage.length > 0 && (
+          <StorageStockCard
+            unit={unit}
+            swipeMax={feeds.get(feedId)?.swipeMax}
+            mayChange={mayChange}
+            onChange={add}
+            rows={row.perStorage.map((st) => ({
+              storageId: st.storageId,
+              name: st.storageName,
+              amount: st.amount,
+              pending: pending.get(st.storageId) ?? 0,
+            }))}
+          />
+        )}
 
         <CardSurface>
           <Box sx={{ p: 2 }}>
@@ -297,6 +337,7 @@ export default function FeedPage() {
 
         <ChangesCard logs={logs} unit={unit} nowMs={nowMs} storageName={(id) => storages.get(id)?.name ?? id} />
       </Stack>
+      <Snackbar open={snack !== null} autoHideDuration={3000} onClose={() => setSnack(null)} message={snack} />
     </Page>
   )
 }

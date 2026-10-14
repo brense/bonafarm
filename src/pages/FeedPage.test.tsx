@@ -1,15 +1,21 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
+import { AuthContext } from '../auth/context.ts'
 import { OrgContext } from '../org/context.ts'
 import { OrgDataContext } from '../org/dataContext.ts'
+import { applyMutations } from '../stock/mutations.ts'
 import type { FeedLog } from '../stock/useFeedLogs.ts'
 import ThemeProvider from '../ThemeProvider.tsx'
 import FeedPage from './FeedPage.tsx'
 
 vi.mock('../lib/firebase.ts', () => ({ db: {} }))
 const mocks = vi.hoisted(() => ({ logs: [] as unknown[] | null }))
+vi.mock('../stock/mutations.ts', async (orig) => ({
+  ...(await orig<typeof import('../stock/mutations.ts')>()),
+  applyMutations: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('../stock/useFeedLogs.ts', () => ({ useFeedLogs: () => mocks.logs }))
 
 const NOW = new Date(2026, 9, 13, 12).getTime()
@@ -20,6 +26,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -69,10 +76,11 @@ function shuteHistory(): FeedLog[] {
   ]
 }
 
-function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles'], path = '/stock/hooi', amount = 7.5) {
+function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles'], path = '/stock/hooi', amount = 7.5, itemMap = items(amount)) {
   return render(
+    <AuthContext.Provider value={{ user: { uid: 'u1' } as never, loading: false, signOut: async () => {} }}>
     <OrgContext.Provider value={{ orgId: 'test', roles, status: 'ready' }}>
-      <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items: items(amount), loading: false, error: null }}>
+      <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items: itemMap, loading: false, error: null }}>
         <ThemeProvider>
           <MemoryRouter initialEntries={[path]}>
             <Routes>
@@ -82,7 +90,8 @@ function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['r
           </MemoryRouter>
         </ThemeProvider>
       </OrgDataContext.Provider>
-    </OrgContext.Provider>,
+    </OrgContext.Provider>
+    </AuthContext.Provider>,
   )
 }
 
@@ -96,7 +105,7 @@ describe('FeedPage', () => {
     renderPage(['view'])
     expect(screen.getByRole('region', { name: 'Hooi' })).toBeInTheDocument()
     expect(screen.getByText('Hooi')).toBeInTheDocument()
-    expect(screen.getByText(/^7,5/, { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getAllByText(/^7,5/, { selector: 'p' })[0]).toBeInTheDocument()
     expect(screen.getAllByText('balen')[0]).toBeInTheDocument()
     expect(screen.queryByText('Ton roze 7,5')).toBeNull()
   })
@@ -123,12 +132,57 @@ describe('FeedPage', () => {
     expect(screen.getByText('−1')).toBeInTheDocument()
   })
 
-  it('shows stock per storage with the days left', () => {
-    mocks.logs = weeklyDispenses()
-    renderPage(['view'], '/stock/hooi', 7.5)
+  it('shows stock per storage without buttons for viewers', () => {
+    renderPage(['view'])
     expect(screen.getByRole('heading', { name: 'Voorraad' })).toBeInTheDocument()
-    expect(screen.getAllByText('Ton roze').length).toBeGreaterThan(0)
-    expect(screen.getByText(/^nog ±\d+ dagen bij 1 baal\/week/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ton roze min' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ton roze plus' })).toBeNull()
+    expect(screen.getByText('Ton roze')).toBeInTheDocument()
+    expect(screen.getByText('7,5 balen')).toBeInTheDocument()
+  })
+
+  it('coalesces taps on min into one dispense', async () => {
+    vi.mocked(applyMutations).mockClear()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    renderPage(['feed'])
+    fireEvent.click(screen.getByRole('button', { name: 'Ton roze min' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ton roze min' }))
+    expect(screen.getByText('−2')).toBeInTheDocument()
+    expect(screen.getByText('5,5 balen')).toBeInTheDocument()
+    expect(applyMutations).not.toHaveBeenCalled()
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(applyMutations).toHaveBeenCalledTimes(1)
+    const plans = vi.mocked(applyMutations).mock.calls[0][0]
+    expect(plans).toHaveLength(1)
+    expect(plans[0].log.type).toBe('dispense')
+    expect(plans[0].log.storageId).toBe('ton-roze')
+    expect(plans[0].log.amount).toBe(2)
+    expect(screen.getByText('Ton roze: −2 balen')).toBeInTheDocument()
+  })
+
+  it('writes a plus as a correction', () => {
+    vi.mocked(applyMutations).mockClear()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    renderPage(['feed'])
+    fireEvent.click(screen.getByRole('button', { name: 'Ton roze plus' }))
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    const plans = vi.mocked(applyMutations).mock.calls[0][0]
+    expect(plans[0].log.type).toBe('correction')
+    expect(plans[0].log.amount).toBe(1)
+  })
+
+  it('sorts the storages by amount, largest first', () => {
+    const two = new Map<string, Item>([
+      ['ton-roze_hooi', { storageId: 'ton-roze', feedId: 'hooi', amount: 2, updatedAt: {} as Item['updatedAt'] }],
+      ['ton-blauw_hooi', { storageId: 'ton-blauw', feedId: 'hooi', amount: 5, updatedAt: {} as Item['updatedAt'] }],
+    ])
+    renderPage(['view'], '/stock/hooi', 7, two)
+    const names = screen.getAllByText(/^Ton /).map((e) => e.textContent)
+    expect(names).toEqual(['Ton blauw', 'Ton roze'])
   })
 
   it('draws the monthly bar chart with a title for the current month', () => {
