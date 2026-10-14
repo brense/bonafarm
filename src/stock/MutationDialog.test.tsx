@@ -5,6 +5,7 @@ import { OrgContext } from '../org/context.ts'
 import { OrgDataContext, type OrgDataValue } from '../org/dataContext.ts'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
 import MutationDialog from './MutationDialog.tsx'
+import type { MutationPreset } from './mutationDialogContext.ts'
 import { applyMutations } from './mutations.ts'
 
 vi.mock('../lib/firebase.ts', () => ({ db: {} }))
@@ -52,14 +53,14 @@ const data: OrgDataValue = {
   error: null,
 }
 
-function setup(value: OrgDataValue = data) {
+function setup(value: OrgDataValue = data, preset?: MutationPreset) {
   const onDone = vi.fn()
   const onClose = vi.fn()
   render(
     <OrgContext.Provider value={{ orgId: 'test', roles: ['feed'], status: 'ready' }}>
       <AuthContext.Provider value={{ user: { uid: 'u1' } as never, loading: false, signOut: async () => {} }}>
         <OrgDataContext.Provider value={value}>
-          <MutationDialog open onClose={onClose} onDone={onDone} />
+          <MutationDialog open onClose={onClose} onDone={onDone} preset={preset} />
         </OrgDataContext.Provider>
       </AuthContext.Provider>
     </OrgContext.Provider>,
@@ -69,7 +70,7 @@ function setup(value: OrgDataValue = data) {
 
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 /** The compact sub row of a storage in the cart list. */
-const subRow = (name: string) => within(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText(name).parentElement!.parentElement!)
+const subRow = (name: string) => within(within(screen.getByRole('list', { name: 'Wijzigingen' })).getByText(name).parentElement!.parentElement!.parentElement!.parentElement!)
 /** The answered cards fold away and the line joins the cart. */
 const lineCommitted = () => waitFor(() => expect(screen.queryAllByRole('button', { name: /^Terug naar:/ })).toHaveLength(0), { timeout: 4000 })
 
@@ -441,5 +442,28 @@ describe('MutationDialog', () => {
     const items = within(screen.getByRole('list', { name: 'Voerlijst' })).getAllByRole('listitem')
     expect(items).toHaveLength(1)
     expect(items[0].textContent).toContain('Stro')
+  })
+
+  it('opens an out preset with the from question answered and asks where it went', () => {
+    setup(data, { feedId: 'geit', direction: 'out', amount: 1, storageId: 'ton' })
+    const from = screen.getByRole('button', { name: 'Terug naar: Uit welke opslag?' })
+    expect(within(from).getByText('Ton roze')).toBeTruthy()
+    expect(within(from).getByText('−1 zak')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Terug naar: Welke voorraad wil je wijzigen?' })).toBeTruthy()
+    expect(screen.getByText('Waar is de zak naartoe?')).toBeTruthy()
+    expect(screen.queryByRole('list', { name: 'Uit welke opslag?' })).toBeNull()
+    expect((screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('caps an out preset at the stock in its storage', () => {
+    setup(data, { feedId: 'geit', direction: 'out', amount: 5, storageId: 'ton' })
+    expect(within(screen.getByRole('button', { name: 'Terug naar: Uit welke opslag?' })).getByText('−3 zakken')).toBeTruthy()
+  })
+
+  it('opens an in preset as a finished, saveable line', () => {
+    setup(data, { feedId: 'hooi', direction: 'in', amount: 1, storageId: 'stal' })
+    expect(screen.getByText('1 wijziging')).toBeTruthy()
+    expect(subRow('Kalverstal').getByText('+1 baal')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Opslaan' }) as HTMLButtonElement).disabled).toBe(false)
   })
 })

@@ -26,13 +26,14 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import { useState, type ReactElement } from 'react'
+import { useCallback, useState, type ReactElement } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth.ts'
 import { useBranding } from '../branding/useBranding.ts'
 import { useOrg } from '../org/useOrg.ts'
 import { can, visibleTabs, type Tab } from '../org/roles.ts'
 import MutationDialog from '../stock/MutationDialog.tsx'
+import { MutationDialogContext, type MutationPreset } from '../stock/mutationDialogContext.ts'
 
 const TAB_META: Record<Tab, { label: string; icon: ReactElement }> = {
   stock: { label: 'Voorraad', icon: <InventoryIcon /> },
@@ -98,11 +99,20 @@ export default function AppShell() {
   const [dialOpen, setDialOpen] = useState(false)
   const [mutating, setMutating] = useState(false)
   const [snack, setSnack] = useState<string | null>(null)
+  const [preset, setPreset] = useState<MutationPreset | null>(null)
+  const [presetKey, setPresetKey] = useState(0)
   const mayFeed = can(roles, 'feed')
+  /** A new open remounts the dialog (via its key) so it starts with fresh state. */
+  const openMutation = useCallback((p?: MutationPreset) => {
+    setPreset(p ?? null)
+    setPresetKey((k) => k + 1)
+    setMutating(true)
+  }, [])
 
   if (!current) return <Navigate to={`/${tabs[0]}`} replace />
 
   return (
+    <MutationDialogContext.Provider value={openMutation}>
     <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
       <AppBar
         position="fixed"
@@ -166,12 +176,12 @@ export default function AppShell() {
             slotProps={{ tooltip: { title: 'Wijziging maken', open: true } }}
             onClick={() => {
               setDialOpen(false)
-              setMutating(true)
+              openMutation()
             }}
           />
         </SpeedDial>
       )}
-      <MutationDialog open={mutating} onClose={() => setMutating(false)} onDone={setSnack} />
+      <MutationDialog key={presetKey} preset={preset} open={mutating} onClose={() => setMutating(false)} onDone={setSnack} />
       <Snackbar open={snack !== null} autoHideDuration={3000} onClose={() => setSnack(null)} message={snack} />
 
       {!desktop && (
@@ -201,5 +211,6 @@ export default function AppShell() {
         </Paper>
       )}
     </Box>
+    </MutationDialogContext.Provider>
   )
 }

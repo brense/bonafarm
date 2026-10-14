@@ -1,21 +1,16 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
-import { AuthContext } from '../auth/context.ts'
 import { OrgContext } from '../org/context.ts'
 import { OrgDataContext } from '../org/dataContext.ts'
-import { applyMutations } from '../stock/mutations.ts'
+import { MutationDialogContext } from '../stock/mutationDialogContext.ts'
 import type { FeedLog } from '../stock/useFeedLogs.ts'
 import ThemeProvider from '../ThemeProvider.tsx'
 import FeedPage from './FeedPage.tsx'
 
 vi.mock('../lib/firebase.ts', () => ({ db: {} }))
 const mocks = vi.hoisted(() => ({ logs: [] as unknown[] | null }))
-vi.mock('../stock/mutations.ts', async (orig) => ({
-  ...(await orig<typeof import('../stock/mutations.ts')>()),
-  applyMutations: vi.fn().mockResolvedValue(undefined),
-}))
 vi.mock('../stock/useFeedLogs.ts', () => ({ useFeedLogs: () => mocks.logs }))
 
 const NOW = new Date(2026, 9, 13, 12).getTime()
@@ -26,7 +21,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
-  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -76,9 +70,9 @@ function shuteHistory(): FeedLog[] {
   ]
 }
 
-function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles'], path = '/stock/hooi', amount = 7.5, itemMap = items(amount)) {
+function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['roles'], path = '/stock/hooi', amount = 7.5, itemMap = items(amount), openSpy: () => void = () => {}) {
   return render(
-    <AuthContext.Provider value={{ user: { uid: 'u1' } as never, loading: false, signOut: async () => {} }}>
+    <MutationDialogContext.Provider value={openSpy}>
     <OrgContext.Provider value={{ orgId: 'test', roles, status: 'ready' }}>
       <OrgDataContext.Provider value={{ feeds, storages, storageTypes, storageGroups: new Map(), items: itemMap, loading: false, error: null }}>
         <ThemeProvider>
@@ -91,7 +85,7 @@ function renderPage(roles: Parameters<typeof OrgContext.Provider>[0]['value']['r
         </ThemeProvider>
       </OrgDataContext.Provider>
     </OrgContext.Provider>
-    </AuthContext.Provider>,
+    </MutationDialogContext.Provider>,
   )
 }
 
@@ -141,38 +135,18 @@ describe('FeedPage', () => {
     expect(screen.getByText('7,5 balen')).toBeInTheDocument()
   })
 
-  it('coalesces taps on min into one dispense', async () => {
-    vi.mocked(applyMutations).mockClear()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    renderPage(['feed'])
+  it('opens the change dialog pre-filled for a tap on min', () => {
+    const spy = vi.fn()
+    renderPage(['feed'], '/stock/hooi', 7.5, items(7.5), spy)
     fireEvent.click(screen.getByRole('button', { name: 'Ton roze min' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Ton roze min' }))
-    expect(screen.getByText('−2')).toBeInTheDocument()
-    expect(screen.getByText('5,5 balen')).toBeInTheDocument()
-    expect(applyMutations).not.toHaveBeenCalled()
-    act(() => {
-      vi.advanceTimersByTime(2000)
-    })
-    expect(applyMutations).toHaveBeenCalledTimes(1)
-    const plans = vi.mocked(applyMutations).mock.calls[0][0]
-    expect(plans).toHaveLength(1)
-    expect(plans[0].log.type).toBe('dispense')
-    expect(plans[0].log.storageId).toBe('ton-roze')
-    expect(plans[0].log.amount).toBe(2)
-    expect(screen.getByText('Ton roze: −2 balen')).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledWith({ feedId: 'hooi', direction: 'out', amount: 1, storageId: 'ton-roze' })
   })
 
-  it('writes a plus as a correction', () => {
-    vi.mocked(applyMutations).mockClear()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    renderPage(['feed'])
+  it('opens the change dialog for a tap on plus as an in change', () => {
+    const spy = vi.fn()
+    renderPage(['feed'], '/stock/hooi', 7.5, items(7.5), spy)
     fireEvent.click(screen.getByRole('button', { name: 'Ton roze plus' }))
-    act(() => {
-      vi.advanceTimersByTime(2000)
-    })
-    const plans = vi.mocked(applyMutations).mock.calls[0][0]
-    expect(plans[0].log.type).toBe('correction')
-    expect(plans[0].log.amount).toBe(1)
+    expect(spy).toHaveBeenCalledWith({ feedId: 'hooi', direction: 'in', amount: 1, storageId: 'ton-roze' })
   })
 
   it('sorts the storages by amount, largest first', () => {

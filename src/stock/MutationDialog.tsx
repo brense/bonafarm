@@ -31,6 +31,7 @@ import type { Feed } from '../model/types.ts'
 import { applyMutations, planChangeLine, type Change } from './mutations.ts'
 import { FeedRow } from './FeedRow.tsx'
 import { CardSurface, SearchList } from './SearchList.tsx'
+import type { MutationPreset } from './mutationDialogContext.ts'
 import { formatAmount, unitLabel } from './stock.ts'
 import { useRecentLogs } from './useRecentLogs.ts'
 
@@ -38,6 +39,8 @@ interface Props {
   open: boolean
   onClose: () => void
   onDone: (message: string) => void
+  /** Pre-fills the first line, e.g. from a tap on the feed page; the caller remounts for a new preset. */
+  preset?: MutationPreset | null
 }
 
 /** An amount allocated to a storage; `null` means consumed (verbruik). */
@@ -130,14 +133,27 @@ function QuestionCollapse({ in: show, motion, children, onExited }: { in?: boole
   )
 }
 
-export default function MutationDialog({ open, onClose, onDone }: Props) {
+/** The line a preset stands for; an 'out' preset is capped by the stock in its storage (null when none). */
+function lineFromPreset(preset: MutationPreset, stock: number): Line | null {
+  const base = { id: ++nextLineId, feedId: preset.feedId, direction: preset.direction }
+  if (preset.direction === 'in') {
+    return { ...base, amount: preset.amount, sources: [], targets: [{ storageId: preset.storageId, amount: preset.amount }] }
+  }
+  const amount = round2(Math.min(preset.amount, stock))
+  if (amount <= 0) return null
+  return { ...base, amount, sources: [{ storageId: preset.storageId, amount }], targets: [] }
+}
+
+export default function MutationDialog({ open, onClose, onDone, preset }: Props) {
   const { user } = useAuth()
   const { orgId } = useOrg()
   const { feeds, storages, storageTypes, items } = useOrgData()
   const recent = useRecentLogs(orgId, 12, open)
   const [search, setSearch] = useState('')
-  const [line, setLine] = useState<Line | null>(null)
-  const [cart, setCart] = useState<CartLine[]>([])
+  // An 'in' preset is already complete, so it starts in the cart; an 'out' preset still needs its target.
+  const [presetLine] = useState<Line | null>(() => (preset ? lineFromPreset(preset, items.get(`${preset.storageId}_${preset.feedId}`)?.amount ?? 0) : null))
+  const [line, setLine] = useState<Line | null>(presetLine?.direction === 'out' ? presetLine : null)
+  const [cart, setCart] = useState<CartLine[]>(presetLine?.direction === 'in' ? [presetLine] : [])
   const [notice, setNotice] = useState<{ id: number; text: string; severity: 'success' | 'warning'; open: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageQuery, setStorageQuery] = useState('')

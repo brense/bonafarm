@@ -2,7 +2,7 @@ import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import RemoveIcon from '@mui/icons-material/Remove'
 import { Box, Chip, IconButton, ListItem, ListItemText, Stack, Typography } from '@mui/material'
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { formatAmount } from './stock.ts'
 
 const denseButtonSx = { width: 40, height: 40, '& svg': { fontSize: 24 } }
@@ -80,7 +80,7 @@ function useSwipeAmount(onSwipe: (signedAmount: number) => void, allowMinus = tr
   return { offset, dragging, handlers }
 }
 
-export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, gesture = 'both', secondary, dense, swipeMax = DEFAULT_SWIPE_MAX, bare, surface = 'background.default', onClear, onSwipe, onMinus, onPlus }: { name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; /** Small second line under the name, e.g. current stock. */ secondary?: string; /** Largest amount a full swipe stands for. */ swipeMax?: number; /** Render as a plain div (the caller supplies the list item). */ bare?: boolean; /** Background colour that covers the swipe backdrop. */ surface?: string; /** Which buttons and swipe direction the row reacts to. */ gesture?: 'minus' | 'plus' | 'both' | 'none'; /** Compact variant for sub items: small grey name, 40px buttons. */ dense?: boolean; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus?: () => void }) {
+export function FeedRow({ below, name, active, detail, badge, minusDisabled, maxMinus = Infinity, maxPlus = Infinity, emptyLabel, gesture = 'both', secondary, dense, swipeMax = DEFAULT_SWIPE_MAX, bare, surface = 'background.default', onClear, onSwipe, onMinus, onPlus }: { /** Shown under the name and amount, left of the buttons. */ below?: ReactNode; name: string; active: boolean; minusDisabled?: boolean; badge?: string; maxMinus?: number; maxPlus?: number; emptyLabel?: string; /** Small second line under the name, e.g. current stock. */ secondary?: string; /** Largest amount a full swipe stands for. */ swipeMax?: number; /** Render as a plain div (the caller supplies the list item). */ bare?: boolean; /** Background colour that covers the swipe backdrop. */ surface?: string; /** Which buttons and swipe direction the row reacts to. */ gesture?: 'minus' | 'plus' | 'both' | 'none'; /** Compact variant for sub items: small grey name, 40px buttons. */ dense?: boolean; onClear?: () => void; detail?: { text: string; color: string }; onSwipe: (signed: number) => void; onMinus?: () => void; onPlus?: () => void }) {
   const { offset, dragging, handlers } = useSwipeAmount(onSwipe, gesture === 'minus' || gesture === 'both', gesture === 'plus' || gesture === 'both', swipeMax)
   const raw = swipeAmount(offset, swipeMax)
   const cap = offset > 0 ? maxMinus : maxPlus
@@ -120,21 +120,26 @@ export function FeedRow({ name, active, detail, badge, minusDisabled, maxMinus =
           transition: dragging ? 'none' : 'transform 0.2s ease',
         }}
       >
-        <ListItemText
-          primary={name}
-          secondary={secondary}
-          sx={{ minWidth: 96 }}
-          slotProps={{ primary: { variant: dense ? 'body2' : undefined, sx: { fontWeight: active ? 700 : 400, color: dense ? 'text.secondary' : undefined } }, secondary: { sx: { fontSize: '0.75rem', color: 'text.secondary' } } }}
-        />
-        {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1, flexShrink: 1, maxWidth: 96 }} />}
-        {detail && (
-          <Typography variant={dense ? 'body2' : undefined} sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
-        )}
-        {onClear && (
-          <IconButton aria-label={`${name} wissen`} onClick={onClear} sx={{ width: 40, height: 40, mr: 1 }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        )}
+        <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <ListItemText
+              primary={name}
+              secondary={secondary}
+              sx={{ minWidth: 96 }}
+              slotProps={{ primary: { variant: dense ? 'body2' : undefined, sx: { fontWeight: active ? 700 : 400, color: dense ? 'text.secondary' : undefined } }, secondary: { sx: { fontSize: '0.75rem', color: 'text.secondary' } } }}
+            />
+            {badge && <Chip size="small" variant="outlined" label={badge} sx={{ mr: 1, flexShrink: 1, maxWidth: 96 }} />}
+            {detail && (
+              <Typography variant={dense ? 'body2' : undefined} sx={{ fontWeight: 700, color: detail.color, mr: 1, whiteSpace: 'nowrap' }}>{detail.text}</Typography>
+            )}
+            {onClear && (
+              <IconButton aria-label={`${name} wissen`} onClick={onClear} sx={{ width: 40, height: 40, mr: 1 }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+          {below}
+        </Box>
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
           {(gesture === 'minus' || gesture === 'both') && (
             <IconButton aria-label={`${name} min`} color="secondary" disabled={minusDisabled} onClick={onMinus} sx={dense ? denseButtonSx : iconButtonSx}>
