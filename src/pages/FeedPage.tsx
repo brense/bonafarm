@@ -11,6 +11,7 @@ import { completeYears, consumptionPerMonth, monthStart, monthlyStats, seasonali
 import { useMutationDialog } from '../stock/mutationDialogContext.ts'
 import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
+import { agoLabel, stockLeftSentence, usageSentence } from '../stock/summaryText.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
 import BarChart from './feed/BarChart.tsx'
 import ChangesTimeline from '../stock/changes/ChangesTimeline.tsx'
@@ -28,12 +29,6 @@ const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'succes
   ok: 'success',
   overstock: 'info',
   inactive: 'default',
-}
-
-function agoLabel(days: number): string {
-  if (days === 0) return 'vandaag'
-  if (days === 1) return 'gisteren'
-  return `${days} dagen geleden`
 }
 
 function signed(n: number): string {
@@ -128,11 +123,10 @@ export default function FeedPage() {
   let stockLine: string | null = null
   let usageLine: string | null = null
   if (advice && rate > 0 && advice.dueInDays !== null) {
-    const days = advice.dueInDays
-    stockLine = days <= 0 ? (rough ? 'Mogelijk niet genoeg voorraad' : 'Voorraad is op') : `Nog ${rough ? '±' : ''}${days} dagen voorraad`
-    usageLine = `Gem. verbruik per week ${formatAmount(rate)} ${unitLabel(unit, rate)}`
+    stockLine = stockLeftSentence(advice, rough)
+    usageLine = usageSentence(rate, unit)
   } else if (advice && rate === 0) {
-    usageLine = 'Geen verbruik in de laatste 12 weken'
+    usageLine = usageSentence(0, unit)
   }
 
   // The card takes the same tint as the row on the stock list when the feed may run out.

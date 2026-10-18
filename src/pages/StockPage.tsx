@@ -35,6 +35,7 @@ import {
   type AdviceStatus,
 } from '../stock/advice.ts'
 import { formatAmount, stockPerFeed, unitLabel, type FeedStock } from '../stock/stock.ts'
+import { agoLabel, stockLeftText, usageText } from '../stock/summaryText.ts'
 import { useRecentLogs } from '../stock/useRecentLogs.ts'
 import Page from './Page.tsx'
 
@@ -108,10 +109,9 @@ function shuteMeta(k: ShuteEstimate, unit: Row['unit'], a: Advice): string {
   return `levering ${formatAmount(k.delivered)} ${unitLabel(unit, k.delivered)}${ago}`
 }
 
-
 /**
- * When it runs out. Bins are counted, so "op" is a fact; kokers and stables
- * are estimates, so the wording stays tentative.
+ * When it runs out, for the mobile list. Bins are counted, so "op" is a fact;
+ * kokers and stables are estimates, so the wording stays tentative.
  */
 function runsOut(row: Row, a: Advice): string {
   if (a.dueInDays === null) return ''
@@ -188,42 +188,41 @@ export default function StockPage() {
           <Table
             size="medium"
             aria-label="Voorraad per voer"
-            sx={{ '& th': { whiteSpace: 'nowrap' }, '& td': { py: 1.5 }, '& th:not(:nth-of-type(4)), & td:not(:nth-of-type(4))': { width: '1%', whiteSpace: 'nowrap' } }}
+            sx={{ '& th': { whiteSpace: 'nowrap' }, '& td': { py: 1.5 }, '& th:not(:first-of-type), & td:not(:first-of-type)': { width: '1%', whiteSpace: 'nowrap' } }}
           >
             <TableHead>
               <TableRow>
                 <TableCell>Voer</TableCell>
                 <TableCell align="right">Voorraad</TableCell>
-                <TableCell align="right">Per week</TableCell>
                 <TableCell>Status</TableCell>
-                {ordering && <TableCell align="right">Bestellen</TableCell>}
+                <TableCell>Nog</TableCell>
+                <TableCell align="right">Verbruik per week</TableCell>
+                <TableCell>Laatste levering</TableCell>
+                {ordering && <TableCell align="right">Bestel advies</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
-              {visible.map((r) => (
-                <TableRow key={r.feedId} hover onClick={() => navigate(`/stock/${r.feedId}`)} sx={[rowSx(r, 'table') as never, { cursor: 'pointer' }]}>
-                  <TableCell sx={{ fontWeight: 500 }}>{r.name}</TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
-                    {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
-                  </TableCell>
-                  <TableCell align="right">{r.ratePerWeek !== null ? formatAmount(r.ratePerWeek) : ''}</TableCell>
-                  <TableCell>
-                    {r.advice && (
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <StatusChip advice={r.advice} />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {[r.shute ? shuteMeta(r.shute, r.unit, r.advice) : '', runsOut(r, r.advice)].filter(Boolean).join(' · ')}
-                        </Typography>
-                      </Stack>
-                    )}
-                  </TableCell>
-                  {ordering && (
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: r.advice?.orderQty ? 700 : 400 }}>
-                      {r.advice?.orderQty ? `${formatAmount(r.advice.orderQty)} ${unitLabel(r.unit, r.advice.orderQty)}` : ''}
+              {visible.map((r) => {
+                const rough = r.isShute || r.inStable
+                const lastDelivery = r.shute && r.shute.lastDeliveryMs === null ? 'geen in 12 weken' : r.advice?.daysSinceDelivery != null ? agoLabel(r.advice.daysSinceDelivery) : ''
+                return (
+                  <TableRow key={r.feedId} hover onClick={() => navigate(`/stock/${r.feedId}`)} sx={[rowSx(r, 'table') as never, { cursor: 'pointer' }]}>
+                    <TableCell sx={{ fontWeight: 500 }}>{r.name}</TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
+                      {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
+                    <TableCell>{r.advice && <StatusChip advice={r.advice} />}</TableCell>
+                    <TableCell>{r.advice ? (stockLeftText(r.advice, rough) ?? '') : ''}</TableCell>
+                    <TableCell align="right">{r.ratePerWeek ? usageText(r.ratePerWeek, r.unit) : ''}</TableCell>
+                    <TableCell>{lastDelivery}</TableCell>
+                    {ordering && (
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                        {r.advice?.orderQty ? `${formatAmount(r.advice.orderQty)} ${unitLabel(r.unit, r.advice.orderQty)}` : ''}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         ) : (
