@@ -1,29 +1,30 @@
 import CheckIcon from '@mui/icons-material/Check'
 import { Box, Button, Skeleton, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { formatAmount } from '../../stock/stock.ts'
-import { CardSurface } from '../../stock/SearchList.tsx'
-import type { FeedLog } from '../../stock/useFeedLogs.ts'
-import { buildChanges } from './changes.ts'
+import { formatAmount } from '../stock.ts'
+import { CardSurface } from '../SearchList.tsx'
+import { buildChanges, type ChangeLog, type Perspective } from './changes.ts'
 import { changeDateTime, relativeTime } from './format.ts'
 
 interface Props {
-  /** Ascending, as the hook returns them; null while loading. */
-  logs: FeedLog[] | null
+  /** Newest first; null while loading. */
+  logs: ChangeLog[] | null
   /** Only used to format the dates. */
   nowMs: number
-  storageName: (id: string) => string
+  perspective: Perspective
+  /** For lists that fetch more themselves once everything loaded is shown. */
+  loadMore?: { available: boolean; load: () => void }
 }
 
 const PAGE = 10
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const SIGN_COLOR = { '+': 'primary.main', '−': 'error.main', '': 'text.primary' } as const
 
-export default function ChangesCard({ logs, nowMs, storageName }: Props) {
+export default function ChangesTimeline({ logs, nowMs, perspective, loadMore }: Props) {
   const [shown, setShown] = useState(PAGE)
   const entries = useMemo(
-    () => (logs ? buildChanges([...logs].reverse(), storageName) : null),
-    [logs, storageName],
+    () => (logs ? buildChanges(logs, perspective) : null),
+    [logs, perspective],
   )
   const visible = (entries ?? []).slice(0, shown)
   return (
@@ -49,10 +50,10 @@ export default function ChangesCard({ logs, nowMs, storageName }: Props) {
                   <Box component="li" key={e.key} sx={{ display: 'flex', alignItems: 'center', minHeight: 56 }}>
                     <Box sx={{ width: 112, flexShrink: 0, textAlign: 'right' }}>
                       <Typography variant="body2" sx={{ fontFamily: MONO }}>
-                        {changeDateTime(e.timestampMs, nowMs)}
+                        {e.timestampMs === null ? 'wordt opgeslagen…' : changeDateTime(e.timestampMs, nowMs)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {relativeTime(e.timestampMs, nowMs)}
+                        {e.timestampMs === null ? '' : relativeTime(e.timestampMs, nowMs)}
                       </Typography>
                     </Box>
                     <Box sx={{ width: 40, flexShrink: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -96,8 +97,8 @@ export default function ChangesCard({ logs, nowMs, storageName }: Props) {
                 )
               })}
             </Box>
-            {entries.length > shown && (
-              <Button variant="text" onClick={() => setShown((n) => n + PAGE)}>
+            {(entries.length > shown || loadMore?.available) && (
+              <Button variant="text" onClick={() => (entries.length > shown ? setShown((n) => n + PAGE) : loadMore?.load())}>
                 Meer…
               </Button>
             )}

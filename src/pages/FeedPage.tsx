@@ -13,8 +13,8 @@ import { CardSurface } from '../stock/SearchList.tsx'
 import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
 import { useFeedLogs } from '../stock/useFeedLogs.ts'
 import BarChart from './feed/BarChart.tsx'
-import ChangesCard from './feed/ChangesCard.tsx'
-import { dateShort, monthYear } from './feed/format.ts'
+import ChangesTimeline from '../stock/changes/ChangesTimeline.tsx'
+import { dateShort, monthYear } from '../stock/changes/format.ts'
 import SeasonSection from './feed/SeasonSection.tsx'
 import ShuteCard from './feed/ShuteCard.tsx'
 import StorageStockCard from './feed/StorageStockCard.tsx'
@@ -88,6 +88,7 @@ export default function FeedPage() {
     return { ratePerWeek, shute, advice }
   }, [row, logs, nowMs, schedule])
 
+  const newestFirst = useMemo(() => (logs ? [...logs].reverse() : null), [logs])
   const stats = useMemo(() => (logs ? monthlyStats(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
 
   const detail = useMemo(() => {
@@ -292,7 +293,11 @@ export default function FeedPage() {
         {row.isShute &&
           (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
 
-        <ChangesCard logs={logs} nowMs={nowMs} storageName={(id) => storages.get(id)?.name ?? id} />
+        <ChangesTimeline
+          logs={newestFirst}
+          nowMs={nowMs}
+          perspective={{ kind: 'feed', storageName: (id) => storages.get(id)?.name ?? id }}
+        />
       </Stack>
     </Page>
   )

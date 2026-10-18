@@ -1,4 +1,4 @@
-import { MONTHS } from '../../stock/months.ts'
+import { MONTHS } from '../months.ts'
 
 export const dateShort = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
 export const dateShortYear = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })

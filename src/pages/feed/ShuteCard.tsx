@@ -1,7 +1,7 @@
 import { Box, Chip, Stack, Typography } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { CardSurface } from '../../stock/SearchList.tsx'
-import { dayMonth, dayMonthYear } from './format.ts'
+import { dayMonth, dayMonthYear } from '../../stock/changes/format.ts'
 
 const DAY_MS = 86_400_000
 

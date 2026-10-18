@@ -27,10 +27,8 @@ import AmountSheet, { type AmountMode } from '../stock/AmountSheet.tsx'
 import { applyMutation, planMutation } from '../stock/mutations.ts'
 import { formatAmount, unitLabel } from '../stock/stock.ts'
 import StorageAvatar from '../storage/StorageAvatar.tsx'
-import { LOG_LABEL } from '../stock/logLabels.ts'
+import ChangesTimeline from '../stock/changes/ChangesTimeline.tsx'
 import { useStorageLogs } from '../stock/useStorageLogs.ts'
-
-const timeNl = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 interface Target {
   feedId: string
@@ -43,7 +41,9 @@ export default function StoragePage() {
   const { user } = useAuth()
   const { orgId, roles } = useOrg()
   const { storages, storageTypes, feeds, items, loading } = useOrgData()
-  const logs = useStorageLogs(orgId, ID_PATTERN.test(storageId) ? storageId : null)
+  const [limit, setLimit] = useState(20)
+  const [nowMs] = useState(() => Date.now())
+  const logs = useStorageLogs(orgId, ID_PATTERN.test(storageId) ? storageId : null, limit)
   const [target, setTarget] = useState<Target | null>(null)
   /** Feed picker: which feeds to offer and which mode the sheet opens in afterwards. */
   const [picking, setPicking] = useState<{ feeds: Array<{ id: string; name: string }>; mode: AmountMode } | null>(null)
@@ -201,25 +201,14 @@ export default function StoragePage() {
         </Stack>
       )}
 
-      {logs && logs.length > 0 && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="overline" color="text.secondary" component="h2">
-            Laatste mutaties
-          </Typography>
-          <List dense disablePadding>
-            {logs.map((l) => (
-              <ListItem key={l.id} disableGutters>
-                <ListItemText
-                  primary={`${feeds.get(l.feedId)?.name ?? l.feedId} · ${l.type === 'empty' ? LOG_LABEL.empty : `${formatAmount(l.amount)} ${LOG_LABEL[l.type]}`}${
-                    l.type === 'count' && l.previousAmount !== undefined ? ` (was ${formatAmount(l.previousAmount)})` : ''
-                  }`}
-                  secondary={l.timestampMs === null ? 'wordt opgeslagen…' : timeNl.format(l.timestampMs)}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      )}
+      <Box sx={{ mt: 3 }}>
+        <ChangesTimeline
+          logs={logs}
+          nowMs={nowMs}
+          perspective={{ kind: 'storage', storageId, feedName: (id) => feeds.get(id)?.name ?? id }}
+          loadMore={{ available: logs !== null && logs.length >= limit, load: () => setLimit((n) => n + 20) }}
+        />
+      </Box>
 
       <Dialog open={picking !== null} onClose={() => setPicking(null)} fullWidth>
         <DialogTitle>Welk voer?</DialogTitle>

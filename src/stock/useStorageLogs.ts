@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { LogType } from '../model/types.ts'
+import type { ChangeLog } from './changes/changes.ts'
 import { paths } from '../model/paths.ts'
 
-export interface StorageLog {
-  id: string
-  type: LogType
-  feedId: string
-  amount: number
-  previousAmount?: number
-  timestampMs: number | null
-}
+export type StorageLog = ChangeLog
 
 /** The latest few logs of one storage (composite index storageId + timestamp desc). */
 export function useStorageLogs(orgId: string | null, storageId: string | null, count = 5) {
@@ -28,14 +22,16 @@ export function useStorageLogs(orgId: string | null, storageId: string | null, c
         query(collection(db, paths.logs(orgId)), where('storageId', '==', storageId), orderBy('timestamp', 'desc'), limit(count)),
         (snap) =>
           setLogs(
-            snap.docs.map((d) => {
+            snap.docs.map((d): StorageLog => {
               const data = d.data()
               return {
                 id: d.id,
                 type: data.type as LogType,
                 feedId: data.feedId as string,
+                storageId: data.storageId as string,
                 amount: data.amount as number,
-                previousAmount: data.previousAmount as number | undefined,
+                ...(typeof data.previousAmount === 'number' ? { previousAmount: data.previousAmount } : {}),
+                ...(typeof data.batchId === 'string' ? { batchId: data.batchId } : {}),
                 // Pending writes have no server timestamp yet.
                 timestampMs: data.timestamp ? (data.timestamp as { toMillis(): number }).toMillis() : null,
               }
