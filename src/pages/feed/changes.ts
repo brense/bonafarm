@@ -1,18 +1,21 @@
-import type { LogType, Unit } from '../../model/types.ts'
+import type { LogType } from '../../model/types.ts'
 import { LOG_LABEL } from '../../stock/logLabels.ts'
-import { formatAmount, unitLabel } from '../../stock/stock.ts'
+import { formatAmount } from '../../stock/stock.ts'
 import type { FeedLog } from '../../stock/useFeedLogs.ts'
-import { changeDateTime } from './format.ts'
 
 export type ChangeKind = 'added' | 'consumed' | 'empty' | 'move' | 'count'
 
 export interface ChangeEntry {
   key: string
   kind: ChangeKind
-  headline: string
-  detail: string
-  date: string
+  sign: '+' | '−' | ''
+  amount: number | null
+  names: string
+  label: string
+  timestampMs: number
 }
+
+type View = Pick<ChangeEntry, 'sign' | 'amount' | 'names' | 'label'>
 
 /** Feed-centric wording: the feed page shows the history of one feed, not of a storage. */
 const FEED_LABEL: Record<LogType, string> = { ...LOG_LABEL, delivery: 'toegevoegd', dispense: 'verbruikt' }
@@ -27,16 +30,16 @@ const KIND: Record<LogType, ChangeKind> = {
   count: 'count',
 }
 
-function amountText(unit: Unit, amount: number): string {
-  return `${formatAmount(amount)} ${unitLabel(unit, amount)}`
-}
+const SIGN: Record<ChangeKind, ChangeEntry['sign']> = { added: '+', consumed: '−', move: '', count: '', empty: '' }
 
-function single(log: FeedLog, unit: Unit, name: (id: string) => string): { headline: string; detail: string } {
-  let headline: string
-  if (log.type === 'empty') headline = LOG_LABEL.empty.replace(/^k/, 'K')
-  else if (log.type === 'count' && log.previousAmount !== undefined) headline = `${amountText(unit, log.amount)} geteld (was ${formatAmount(log.previousAmount)})`
-  else headline = `${amountText(unit, log.amount)} ${FEED_LABEL[log.type]}`
-  return { headline, detail: name(log.storageId) }
+function single(log: FeedLog, name: (id: string) => string): View {
+  const kind = KIND[log.type]
+  if (log.type === 'empty') return { sign: '', amount: null, names: 'Koker leeg gemaakt', label: name(log.storageId) }
+  const label =
+    log.type === 'count'
+      ? log.previousAmount !== undefined ? `geteld (was ${formatAmount(log.previousAmount)})` : 'geteld'
+      : FEED_LABEL[log.type]
+  return { sign: SIGN[kind], amount: log.amount, names: name(log.storageId), label }
 }
 
 /**
@@ -66,28 +69,27 @@ export function moveHalves(asc: FeedLog[], batchId?: string): [FeedLog, FeedLog]
   return src === 0 ? [x, y] : [y, x]
 }
 
-function batch(group: FeedLog[], unit: Unit, name: (id: string) => string): { headline: string; detail: string } {
+function batch(group: FeedLog[], name: (id: string) => string): View {
   // `group` is newest first; the two halves of a move are written in order, out first.
   const asc = [...group].reverse()
-  const first = asc[0]
   if (asc.every((l) => l.type === 'delivery')) {
     const per = new Map<string, number>()
     for (const l of asc) per.set(l.storageId, (per.get(l.storageId) ?? 0) + l.amount)
     const sum = asc.reduce((n, l) => n + l.amount, 0)
-    const detail =
+    const names =
       per.size === 1 ? name([...per.keys()][0]) : [...per].map(([id, a]) => `${formatAmount(a)} ${name(id)}`).join(' · ')
-    return { headline: `${amountText(unit, sum)} toegevoegd`, detail }
+    return { sign: '+', amount: sum, names, label: FEED_LABEL.delivery }
   }
   if (asc.some((l) => l.type === 'move')) {
     const [from, to] = moveHalves(asc, group[0].batchId)
-    return { headline: `${amountText(unit, from.amount)} verplaatst`, detail: `${name(from.storageId)} → ${name(to.storageId)}` }
+    return { sign: '', amount: from.amount, names: `${name(from.storageId)} → ${name(to.storageId)}`, label: FEED_LABEL.move }
   }
   const names = [...new Set(asc.map((l) => name(l.storageId)))].join(' · ')
-  return { headline: single(first, unit, name).headline, detail: names }
+  return { ...single(asc[0], name), names }
 }
 
 /** Groups logs (newest first) that share a batch into one entry each, newest first. */
-export function buildChanges(logsNewestFirst: FeedLog[], unit: Unit, name: (id: string) => string, nowMs: number): ChangeEntry[] {
+export function buildChanges(logsNewestFirst: FeedLog[], name: (id: string) => string): ChangeEntry[] {
   const groups: FeedLog[][] = []
   const byBatch = new Map<string, FeedLog[]>()
   for (const l of logsNewestFirst) {
@@ -109,7 +111,7 @@ export function buildChanges(logsNewestFirst: FeedLog[], unit: Unit, name: (id: 
       g.length > 1 && g.every((l) => l.type === 'delivery') ? 'added'
       : g.length > 1 && g.some((l) => l.type === 'move') ? 'move'
       : KIND[(g.length > 1 ? asc0 : g[0]).type]
-    const view = g.length === 1 ? single(g[0], unit, name) : batch(g, unit, name)
-    return { key: `${g[0].batchId ?? g[0].timestampMs}-${i}`, kind, ...view, date: changeDateTime(g[0].timestampMs, nowMs) }
+    const view = g.length === 1 ? single(g[0], name) : batch(g, name)
+    return { key: `${g[0].batchId ?? g[0].timestampMs}-${i}`, kind, ...view, timestampMs: g[0].timestampMs }
   })
 }

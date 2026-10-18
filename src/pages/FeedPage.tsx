@@ -292,7 +292,7 @@ export default function FeedPage() {
         {row.isShute &&
           (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
 
-        <ChangesCard logs={logs} unit={unit} nowMs={nowMs} storageName={(id) => storages.get(id)?.name ?? id} />
+        <ChangesCard logs={logs} nowMs={nowMs} storageName={(id) => storages.get(id)?.name ?? id} />
       </Stack>
     </Page>
   )

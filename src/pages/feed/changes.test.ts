@@ -8,7 +8,7 @@ const name = (id: string) => id.toUpperCase()
 function l(id: string, storageId: string, type: FeedLog['type'], extra: Partial<FeedLog> = {}): FeedLog {
   return { id, type, feedId: 'f', storageId, amount: 2, timestampMs: T, batchId: 'mv-out1', ...extra }
 }
-const detail = (logsNewestFirst: FeedLog[]) => buildChanges(logsNewestFirst, 'baal', name, T)[0].detail
+const detail = (logsNewestFirst: FeedLog[]) => buildChanges(logsNewestFirst, name)[0].names
 
 describe('move direction', () => {
   it('(a) a fill half marks the destination', () => {
@@ -32,24 +32,27 @@ describe('move direction', () => {
 
 describe('feed wording and kind', () => {
   const one = (type: FeedLog['type'], extra: Partial<FeedLog> = {}) =>
-    buildChanges([l('a', 's', type, { batchId: undefined, ...extra })], 'baal', name, T)[0]
+    buildChanges([l('a', 's', type, { batchId: undefined, ...extra })], name)[0]
   it('dispense is consumed', () => {
     const e = one('dispense', { amount: 1 })
     expect(e.kind).toBe('consumed')
-    expect(e.headline).toBe('1 baal verbruikt')
+    expect(e).toMatchObject({ sign: '−', amount: 1, names: 'S', label: 'verbruikt' })
   })
   it('a delivery batch is added', () => {
     const e = buildChanges(
       [l('a', 'x', 'delivery', { batchId: 'b' }), l('b', 'y', 'delivery', { batchId: 'b' })],
-      'baal',
       name,
-      T,
     )[0]
     expect(e.kind).toBe('added')
-    expect(e.headline).toBe('4 balen toegevoegd')
+    expect(e).toMatchObject({ sign: '+', amount: 4, label: 'toegevoegd' })
   })
   it('empty and move kinds', () => {
     expect(one('empty').kind).toBe('empty')
-    expect(buildChanges([l('x', 'b', 'move'), l('y', 'a', 'move')], 'baal', name, T)[0].kind).toBe('move')
+    expect(buildChanges([l('x', 'b', 'move'), l('y', 'a', 'move')], name)[0].kind).toBe('move')
+  })
+  it('count and empty entries', () => {
+    expect(one('count', { amount: 6, previousAmount: 8 })).toMatchObject({ kind: 'count', sign: '', amount: 6, label: 'geteld (was 8)' })
+    expect(one('count', { amount: 6 }).label).toBe('geteld')
+    expect(one('empty')).toMatchObject({ sign: '', amount: null, names: 'Koker leeg gemaakt', label: 'S' })
   })
 })

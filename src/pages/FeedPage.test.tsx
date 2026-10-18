@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Feed, Item, Storage, StorageType } from '../model/types.ts'
@@ -176,14 +176,13 @@ describe('FeedPage', () => {
     expect(screen.queryByText('Leveringen')).toBeNull()
   })
 
-  it('shows the latest change big: a delivery batch split over two storages', () => {
+  it('shows a delivery batch split over two storages', () => {
     mocks.logs = history()
     renderPage(['view'])
     expect(screen.getByRole('heading', { name: 'Wijzigingen', level: 2 })).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Wijzigingen' })).toBeInTheDocument()
-    const headline = screen.getByText('2 balen toegevoegd')
-    expect(headline.tagName).toBe('P')
-    expect(headline).toHaveClass('MuiTypography-h5')
+    expect(screen.getByText('+2')).toBeInTheDocument()
+    expect(screen.getByText('toegevoegd')).toBeInTheDocument()
     expect(screen.getByText('1 Ton paars · 1 Ton oranje')).toBeInTheDocument()
     expect(screen.getByText('vr 2 okt 12:00')).toBeInTheDocument()
   })
@@ -196,11 +195,11 @@ describe('FeedPage', () => {
   it('pages through the changes ten at a time', () => {
     mocks.logs = Array.from({ length: 25 }, (_, k) => log(new Date(2026, 8, 1 + k % 28, 8, k), 1))
     renderPage(['view'])
-    expect(screen.getAllByText(/1 baal verbruikt/).length).toBe(10)
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getAllByRole('listitem').length).toBe(10)
     fireEvent.click(screen.getByRole('button', { name: 'Meer…' }))
-    expect(screen.getAllByText(/1 baal verbruikt/).length).toBe(20)
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getAllByRole('listitem').length).toBe(20)
     fireEvent.click(screen.getByRole('button', { name: 'Meer…' }))
-    expect(screen.getAllByText(/1 baal verbruikt/).length).toBe(25)
+    expect(within(screen.getByRole('list', { name: 'Wijzigingen' })).getAllByRole('listitem').length).toBe(25)
     expect(screen.queryByRole('button', { name: 'Meer…' })).toBeNull()
   })
 
@@ -210,8 +209,8 @@ describe('FeedPage', () => {
       log(new Date(2026, 9, 5, 9, 12), 2, 'move', 'hooi', 'ton-blauw', 'mv-1'),
     ]
     renderPage(['view'])
-    expect(screen.getByText('2 balen verplaatst')).toBeInTheDocument()
-    expect(screen.getByText(/→/)).toBeInTheDocument()
+    expect(screen.getByText('verplaatst')).toBeInTheDocument()
+    expect(screen.getByText('Ton roze → Ton blauw')).toBeInTheDocument()
   })
 
   it('shows the koker card only for shute feeds', () => {

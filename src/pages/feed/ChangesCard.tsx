@@ -1,33 +1,29 @@
+import CheckIcon from '@mui/icons-material/Check'
 import { Box, Button, Skeleton, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
-import type { Unit } from '../../model/types.ts'
+import { formatAmount } from '../../stock/stock.ts'
 import { CardSurface } from '../../stock/SearchList.tsx'
 import type { FeedLog } from '../../stock/useFeedLogs.ts'
-import { buildChanges, type ChangeKind } from './changes.ts'
+import { buildChanges } from './changes.ts'
+import { changeDateTime, relativeTime } from './format.ts'
 
 interface Props {
   /** Ascending, as the hook returns them; null while loading. */
   logs: FeedLog[] | null
-  unit: Unit
+  /** Only used to format the dates. */
   nowMs: number
   storageName: (id: string) => string
 }
 
 const PAGE = 10
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
+const SIGN_COLOR = { '+': 'primary.main', '−': 'error.main', '': 'text.primary' } as const
 
-const DOT_COLOR: Record<ChangeKind, string> = {
-  added: 'success.main',
-  consumed: 'text.secondary',
-  empty: 'warning.main',
-  move: 'info.main',
-  count: 'text.secondary',
-}
-
-export default function ChangesCard({ logs, unit, nowMs, storageName }: Props) {
+export default function ChangesCard({ logs, nowMs, storageName }: Props) {
   const [shown, setShown] = useState(PAGE)
   const entries = useMemo(
-    () => (logs ? buildChanges([...logs].reverse(), unit, storageName, nowMs) : null),
-    [logs, unit, storageName, nowMs],
+    () => (logs ? buildChanges([...logs].reverse(), storageName) : null),
+    [logs, storageName],
   )
   const visible = (entries ?? []).slice(0, shown)
   return (
@@ -48,45 +44,53 @@ export default function ChangesCard({ logs, unit, nowMs, storageName }: Props) {
               {visible.map((e, i) => {
                 const first = i === 0
                 const last = i === visible.length - 1
-                const color = DOT_COLOR[e.kind]
+                const done = e.kind === 'empty'
                 return (
-                  <Box component="li" key={e.key} sx={{ display: 'flex', gap: 1.5 }}>
-                    <Box sx={{ width: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          mt: first ? 1.25 : 0.75,
-                          boxSizing: 'border-box',
-                          borderRadius: '50%',
-                          border: 2,
-                          borderColor: color,
-                          bgcolor: first ? color : 'transparent',
-                        }}
-                      />
-                      {!last && <Box sx={{ width: 2, flex: 1, bgcolor: 'divider' }} />}
+                  <Box component="li" key={e.key} sx={{ display: 'flex', alignItems: 'center', minHeight: 56 }}>
+                    <Box sx={{ width: 112, flexShrink: 0, textAlign: 'right' }}>
+                      <Typography variant="body2" sx={{ fontFamily: MONO }}>
+                        {changeDateTime(e.timestampMs, nowMs)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {relativeTime(e.timestampMs, nowMs)}
+                      </Typography>
                     </Box>
-                    <Box sx={{ flex: 1, minWidth: 0, pb: 2 }}>
-                      {first ? (
-                        <>
-                          <Typography variant="h5" component="p">
-                            {e.headline}
-                          </Typography>
-                          <Typography variant="body1">{e.detail}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {e.date}
-                          </Typography>
-                        </>
+                    <Box sx={{ width: 40, flexShrink: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Box sx={{ width: 2, flex: 1, bgcolor: first ? 'transparent' : 'divider' }} />
+                      {done ? (
+                        <Box
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            boxSizing: 'border-box',
+                            borderRadius: '50%',
+                            border: 2,
+                            borderColor: 'success.main',
+                            color: 'success.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <CheckIcon fontSize="small" />
+                        </Box>
                       ) : (
-                        <>
-                          <Typography variant="body1" component="p" sx={{ fontWeight: 500 }}>
-                            {e.headline}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {e.detail ? `${e.detail} · ${e.date}` : e.date}
-                          </Typography>
-                        </>
+                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'action.active' }} />
                       )}
+                      <Box sx={{ width: 2, flex: 1, bgcolor: last ? 'transparent' : 'divider' }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0, py: 1 }}>
+                      <Typography variant="body1" component="p">
+                        {e.amount !== null && (
+                          <Box component="span" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: SIGN_COLOR[e.sign], mr: 0.75 }}>
+                            {`${e.sign}${formatAmount(e.amount)}`}
+                          </Box>
+                        )}
+                        <span>{e.names}</span>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {e.label}
+                      </Typography>
                     </Box>
                   </Box>
                 )

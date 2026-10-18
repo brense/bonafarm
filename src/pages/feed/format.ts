@@ -18,3 +18,20 @@ export function changeDateTime(ms: number, nowMs: number): string {
   const sameYear = new Date(ms).getFullYear() === new Date(nowMs).getFullYear()
   return (sameYear ? changeDate : changeDateYear).format(ms).replace(',', '')
 }
+
+const rtf = new Intl.RelativeTimeFormat('nl', { numeric: 'auto' })
+const MINUTE = 60_000
+const HOUR = 60 * MINUTE
+const DAY = 24 * HOUR
+
+/** `zojuist`, `2 uur geleden`, `gisteren`, `3 dagen geleden`, `vorige maand`, `vorig jaar`. */
+export function relativeTime(ms: number, nowMs: number): string {
+  const age = Math.max(0, nowMs - ms)
+  if (age < MINUTE / 2) return 'zojuist'
+  if (age < HOUR) return rtf.format(-Math.round(age / MINUTE), 'minute')
+  if (age < DAY) return rtf.format(-Math.round(age / HOUR), 'hour')
+  if (age < 7 * DAY) return rtf.format(-Math.round(age / DAY), 'day')
+  if (age < 35 * DAY) return rtf.format(-Math.round(age / (7 * DAY)), 'week')
+  if (age < 365 * DAY) return rtf.format(-Math.round(age / (30 * DAY)), 'month')
+  return rtf.format(-Math.round(age / (365 * DAY)), 'year')
+}
