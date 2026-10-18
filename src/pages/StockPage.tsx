@@ -194,8 +194,8 @@ export default function StockPage() {
               <TableRow>
                 <TableCell>Voer</TableCell>
                 <TableCell>Voorraad</TableCell>
-                <TableCell>Verbruik per week</TableCell>
                 <TableCell>Genoeg voor</TableCell>
+                <TableCell>Verbruik per week</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Laatste levering</TableCell>
                 {ordering && <TableCell>Bestel advies</TableCell>}
@@ -211,8 +211,8 @@ export default function StockPage() {
                     <TableCell sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
                       {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
                     </TableCell>
-                    <TableCell>{r.ratePerWeek ? usageText(r.ratePerWeek, r.unit) : ''}</TableCell>
                     <TableCell>{r.advice ? (stockLeftText(r.advice, rough) ?? '') : ''}</TableCell>
+                    <TableCell>{r.ratePerWeek ? usageText(r.ratePerWeek, r.unit) : ''}</TableCell>
                     <TableCell>{r.advice && <StatusChip advice={r.advice} />}</TableCell>
                     <TableCell>{lastDelivery}</TableCell>
                     {ordering && (
