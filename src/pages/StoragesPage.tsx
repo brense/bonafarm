@@ -10,7 +10,7 @@ import {
   type CollisionDetection,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, rectSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import AddIcon from '@mui/icons-material/Add'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
@@ -37,6 +37,8 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
@@ -117,6 +119,8 @@ export default function StoragesPage() {
   const { orgId, roles } = useOrg()
   const { storages, storageTypes, storageGroups, feeds, items, loading } = useOrgData()
   const navigate = useNavigate()
+  const theme = useTheme()
+  const wide = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
   const mayEdit = canEditCatalogue(roles)
   const [editing, setEditing] = useState(false)
   const [snack, setSnack] = useState<string | null>(null)
@@ -292,7 +296,7 @@ export default function StoragesPage() {
   const menuStorage = menu?.storageId ? storages.get(menu.storageId) : undefined
 
   return (
-    <Page title="Opslagen">
+    <Page title="Opslagen" maxWidth={wide ? 'xl' : 'md'}>
       {mayEdit && !loading && (
         <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }} useFlexGap>
           <Button variant={editing ? 'contained' : 'outlined'} onClick={() => setEditing((e) => !e)}>
@@ -314,8 +318,15 @@ export default function StoragesPage() {
         <Typography color="text.secondary">Nog geen opslag in deze organisatie.</Typography>
       ) : (
         <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
-          <Stack spacing={3}>
-            <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 3,
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(auto-fill, minmax(360px, 1fr))' },
+              alignItems: 'start',
+            }}
+          >
+            <SortableContext items={groupIds} strategy={wide ? rectSortingStrategy : verticalListSortingStrategy}>
               {groups
                 .filter((g) => g.id !== UNGROUPED)
                 .map((g) => (
@@ -329,7 +340,7 @@ export default function StoragesPage() {
               .map((g) => (
                 <Box key={g.id}>{renderGroup(g, <Box sx={{ width: 40 }} />)}</Box>
               ))}
-          </Stack>
+          </Box>
         </DndContext>
       )}
 
