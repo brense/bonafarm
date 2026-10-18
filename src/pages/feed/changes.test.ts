@@ -29,3 +29,27 @@ describe('move direction', () => {
     expect(detail([late, early])).toBe('A → B')
   })
 })
+
+describe('feed wording and kind', () => {
+  const one = (type: FeedLog['type'], extra: Partial<FeedLog> = {}) =>
+    buildChanges([l('a', 's', type, { batchId: undefined, ...extra })], 'baal', name, T)[0]
+  it('dispense is consumed', () => {
+    const e = one('dispense', { amount: 1 })
+    expect(e.kind).toBe('consumed')
+    expect(e.headline).toBe('1 baal verbruikt')
+  })
+  it('a delivery batch is added', () => {
+    const e = buildChanges(
+      [l('a', 'x', 'delivery', { batchId: 'b' }), l('b', 'y', 'delivery', { batchId: 'b' })],
+      'baal',
+      name,
+      T,
+    )[0]
+    expect(e.kind).toBe('added')
+    expect(e.headline).toBe('4 balen toegevoegd')
+  })
+  it('empty and move kinds', () => {
+    expect(one('empty').kind).toBe('empty')
+    expect(buildChanges([l('x', 'b', 'move'), l('y', 'a', 'move')], 'baal', name, T)[0].kind).toBe('move')
+  })
+})
