@@ -80,7 +80,7 @@ const ACCENT = { critical: 'error', warning: 'warning' } as const
 
 function rowSx(row: Row, kind: 'list' | 'table'): SxProps<Theme> {
   const e = emphasis(row)
-  const edge = kind === 'list' ? { borderLeft: '4px solid transparent', px: 1.5, mx: -1.5, width: 'calc(100% + 24px)' } : { '& td:first-of-type': { borderLeft: '4px solid transparent' } }
+  const edge = kind === 'list' ? { borderLeft: '4px solid transparent', px: 1.5 } : { '& td:first-of-type': { borderLeft: '4px solid transparent' } }
   if (e === 'critical' || e === 'warning') {
     return (t) => {
       const c = t.palette[ACCENT[e]].main
@@ -175,15 +175,15 @@ export default function StockPage() {
   const visible = rows
 
   return (
-    <Page title="Voorraad" maxWidth={wide ? false : 'md'} flush={wide}>
+    <Page title="Voorraad" maxWidth={wide ? false : 'md'} flush>
       <Stack spacing={2}>
-        {error && <Alert severity="error">Kon de voorraad niet laden ({error}).</Alert>}
+        {error && <Alert severity="error" sx={{ mx: 2 }}>Kon de voorraad niet laden ({error}).</Alert>}
         {loading ? (
           <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}>
             <CircularProgress />
           </Box>
         ) : visible.length === 0 ? (
-          <Typography color="text.secondary">{rows.length === 0 ? 'Nog geen voer in deze organisatie.' : 'Geen voer gevonden.'}</Typography>
+          <Typography color="text.secondary" sx={{ px: 2 }}>{rows.length === 0 ? 'Nog geen voer in deze organisatie.' : 'Geen voer gevonden.'}</Typography>
         ) : wide ? (
           <Table
             size="medium"
