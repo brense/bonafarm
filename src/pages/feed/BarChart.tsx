@@ -34,7 +34,7 @@ export default function BarChart({ labels, values, average, unit, highlightLast 
   const last = values.length - 1
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ width: '100%', height: 'auto', maxHeight: 200, display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ width: '100%', height: 'auto', maxWidth: 560, display: 'block', margin: '0 auto' }}>
       {[0, max].map((v) => (
         <g key={v}>
           <line x1={LEFT} x2={W - RIGHT} y1={y(v)} y2={y(v)} stroke={theme.palette.divider} strokeWidth={1} />
