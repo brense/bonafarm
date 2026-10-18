@@ -48,8 +48,8 @@ export default function ChangesTimeline({ logs, nowMs, perspective, loadMore }: 
                 const done = e.kind === 'empty'
                 return (
                   <Box component="li" key={e.key} sx={{ display: 'flex', alignItems: 'center', minHeight: 56 }}>
-                    <Box sx={{ width: 112, flexShrink: 0, textAlign: 'right' }}>
-                      <Typography variant="body2" sx={{ fontFamily: MONO }}>
+                    <Box sx={{ width: 124, flexShrink: 0, textAlign: 'right' }}>
+                      <Typography variant="body2" sx={{ fontFamily: MONO, whiteSpace: 'nowrap' }}>
                         {e.timestampMs === null ? 'wordt opgeslagen…' : changeDateTime(e.timestampMs, nowMs)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">

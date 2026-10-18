@@ -296,7 +296,7 @@ export default function StoragesPage() {
   const menuStorage = menu?.storageId ? storages.get(menu.storageId) : undefined
 
   return (
-    <Page title="Opslagen" maxWidth={wide ? 'xl' : 'md'}>
+    <Page title="Opslagen" maxWidth={wide ? false : 'md'}>
       {mayEdit && !loading && (
         <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }} useFlexGap>
           <Button variant={editing ? 'contained' : 'outlined'} onClick={() => setEditing((e) => !e)}>

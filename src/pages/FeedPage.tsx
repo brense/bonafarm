@@ -145,7 +145,7 @@ export default function FeedPage() {
   const delta = stats ? signed(stats.thisMonth - stats.lastYearToDate) : ''
 
   return (
-    <Page title={row.name} maxWidth={wide ? 'lg' : 'md'}>
+    <Page title={row.name} maxWidth={wide ? false : 'md'}>
       <Box
         sx={{
           display: 'grid',
@@ -153,8 +153,11 @@ export default function FeedPage() {
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
             md: 'minmax(0, 1fr) minmax(0, 1fr)',
+            lg: 'repeat(3, minmax(0, 1fr))',
           },
-          gridTemplateRows: { md: hasStorage ? 'auto auto 1fr' : 'auto 1fr' },
+          // md: summary, Voorraad and Verbruik stack left, Wijzigingen right. lg: three columns.
+          // The last row takes the slack so the spanning Wijzigingen column cannot pull the others apart.
+          gridTemplateRows: { md: hasStorage ? 'auto auto 1fr' : 'auto 1fr', lg: hasStorage ? 'auto 1fr' : '1fr' },
           alignItems: 'start',
         }}
       >
@@ -249,8 +252,8 @@ export default function FeedPage() {
         <Stack
           spacing={2}
           sx={{
-            gridColumn: { md: '2' },
-            gridRow: { md: `1 / span ${lastLeftRow}` },
+            gridColumn: { md: '1', lg: '2' },
+            gridRow: { md: String(lastLeftRow), lg: `1 / span ${lastLeftRow - 1}` },
           }}
         >
           <CardSurface>
@@ -324,7 +327,7 @@ export default function FeedPage() {
           {row.isShute && (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
         </Stack>
 
-        <Box sx={{ gridColumn: { md: '1' }, gridRow: { md: String(lastLeftRow) } }}>
+        <Box sx={{ gridColumn: { md: '2', lg: '3' }, gridRow: { md: `1 / span ${lastLeftRow}`, lg: `1 / span ${lastLeftRow - 1}` } }}>
           <ChangesTimeline
             logs={newestFirst}
             nowMs={nowMs}

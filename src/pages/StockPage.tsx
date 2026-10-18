@@ -175,7 +175,7 @@ export default function StockPage() {
   const visible = rows
 
   return (
-    <Page title="Voorraad" maxWidth={wide ? 'xl' : 'md'}>
+    <Page title="Voorraad" maxWidth={wide ? false : 'md'}>
       <Stack spacing={2}>
         {error && <Alert severity="error">Kon de voorraad niet laden ({error}).</Alert>}
         {loading ? (
