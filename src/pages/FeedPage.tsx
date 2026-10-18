@@ -1,71 +1,45 @@
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Divider,
-  Skeleton,
-  Stack,
-  Typography,
-  useMediaQuery,
-} from "@mui/material";
-import { alpha, useTheme, type Theme } from "@mui/material/styles";
-import { useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router";
-import { ID_PATTERN } from "../model/types.ts";
-import { can } from "../org/roles.ts";
-import { useOrg } from "../org/useOrg.ts";
-import { useOrgData } from "../org/useOrgData.ts";
-import {
-  STATUS_LABEL,
-  adviseFeed,
-  consumptionPerWeek,
-  deliverySchedule,
-  estimateShuteStock,
-  type AdviceStatus,
-} from "../stock/advice.ts";
-import {
-  completeYears,
-  consumptionPerMonth,
-  monthStart,
-  monthlyStats,
-  seasonality,
-  shuteStats,
-} from "../stock/consumption.ts";
-import { useMutationDialog } from "../stock/mutationDialogContext.ts";
-import { CardSurface } from "../stock/SearchList.tsx";
-import { formatAmount, stockPerFeed, unitLabel } from "../stock/stock.ts";
-import { useFeedLogs } from "../stock/useFeedLogs.ts";
-import BarChart from "./feed/BarChart.tsx";
-import ChangesTimeline from "../stock/changes/ChangesTimeline.tsx";
-import { dateShort, monthYear } from "../stock/changes/format.ts";
-import SeasonSection from "./feed/SeasonSection.tsx";
-import ShuteCard from "./feed/ShuteCard.tsx";
-import StorageStockCard from "./feed/StorageStockCard.tsx";
-import Page from "./Page.tsx";
+import { Box, Chip, CircularProgress, Divider, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material'
+import { alpha, useTheme, type Theme } from '@mui/material/styles'
+import { useMemo, useState } from 'react'
+import { Navigate, useParams } from 'react-router'
+import { ID_PATTERN } from '../model/types.ts'
+import { can } from '../org/roles.ts'
+import { useOrg } from '../org/useOrg.ts'
+import { useOrgData } from '../org/useOrgData.ts'
+import { STATUS_LABEL, adviseFeed, consumptionPerWeek, deliverySchedule, estimateShuteStock, type AdviceStatus } from '../stock/advice.ts'
+import { completeYears, consumptionPerMonth, monthStart, monthlyStats, seasonality, shuteStats } from '../stock/consumption.ts'
+import { useMutationDialog } from '../stock/mutationDialogContext.ts'
+import { CardSurface } from '../stock/SearchList.tsx'
+import { formatAmount, stockPerFeed, unitLabel } from '../stock/stock.ts'
+import { useFeedLogs } from '../stock/useFeedLogs.ts'
+import BarChart from './feed/BarChart.tsx'
+import ChangesTimeline from '../stock/changes/ChangesTimeline.tsx'
+import { dateShort, monthYear } from '../stock/changes/format.ts'
+import SeasonSection from './feed/SeasonSection.tsx'
+import ShuteCard from './feed/ShuteCard.tsx'
+import StorageStockCard from './feed/StorageStockCard.tsx'
+import Page from './Page.tsx'
 
-const ADVICE_WEEKS = 12;
+const ADVICE_WEEKS = 12
 
-const CHIP_COLOR: Record<
-  AdviceStatus,
-  "error" | "warning" | "default" | "success" | "info"
-> = {
-  critical: "error",
-  warning: "warning",
-  ok: "success",
-  overstock: "info",
-  inactive: "default",
-};
+const CHIP_COLOR: Record<AdviceStatus, 'error' | 'warning' | 'default' | 'success' | 'info'> = {
+  critical: 'error',
+  warning: 'warning',
+  ok: 'success',
+  overstock: 'info',
+  inactive: 'default',
+}
 
 function agoLabel(days: number): string {
-  if (days === 0) return "vandaag";
-  if (days === 1) return "gisteren";
-  return `${days} dagen geleden`;
+  if (days === 0) return 'vandaag'
+  if (days === 1) return 'gisteren'
+  return `${days} dagen geleden`
 }
 
 function signed(n: number): string {
-  const r = Math.round(n * 10) / 10;
-  if (r === 0) return "±0";
-  return r > 0 ? `+${formatAmount(r)}` : `−${formatAmount(-r)}`;
+  const r = Math.round(n * 10) / 10
+  if (r === 0) return '±0'
+  return r > 0 ? `+${formatAmount(r)}` : `−${formatAmount(-r)}`
 }
 
 function SkeletonCard({ title }: { title: string }) {
@@ -78,172 +52,122 @@ function SkeletonCard({ title }: { title: string }) {
         <Skeleton variant="rounded" height={90} />
       </Box>
     </CardSurface>
-  );
+  )
 }
 
 /** One feed: stock, advice and how consumption compares to last year. */
 export default function FeedPage() {
-  const { feedId = "" } = useParams();
-  const theme = useTheme();
-  const wide = useMediaQuery(theme.breakpoints.up("md"), { noSsr: true });
-  const { orgId, roles } = useOrg();
-  const { feeds, storages, storageTypes, items, loading } = useOrgData();
-  const valid = ID_PATTERN.test(feedId);
-  const logs = useFeedLogs(orgId, valid ? feedId : null);
-  const [nowMs] = useState(() => Date.now());
-  const openMutation = useMutationDialog();
-  const mayChange = can(roles, "feed");
-  const schedule = useMemo(() => deliverySchedule(new Date(nowMs)), [nowMs]);
+  const { feedId = '' } = useParams()
+  const theme = useTheme()
+  const wide = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
+  const { orgId, roles } = useOrg()
+  const { feeds, storages, storageTypes, items, loading } = useOrgData()
+  const valid = ID_PATTERN.test(feedId)
+  const logs = useFeedLogs(orgId, valid ? feedId : null)
+  const [nowMs] = useState(() => Date.now())
+  const openMutation = useMutationDialog()
+  const mayChange = can(roles, 'feed')
+  const schedule = useMemo(() => deliverySchedule(new Date(nowMs)), [nowMs])
 
-  const row = useMemo(
-    () =>
-      stockPerFeed(feeds, storages, storageTypes, items).find(
-        (r) => r.feedId === feedId,
-      ),
-    [feeds, storages, storageTypes, items, feedId],
-  );
+  const row = useMemo(() => stockPerFeed(feeds, storages, storageTypes, items).find((r) => r.feedId === feedId), [feeds, storages, storageTypes, items, feedId])
 
   const computed = useMemo(() => {
-    if (!row || logs === null) return null;
-    const ratePerWeek = consumptionPerWeek(
-      logs,
-      row.feedId,
-      nowMs,
-      ADVICE_WEEKS,
-    );
-    const lastDelivery = logs
-      .filter((l) => l.feedId === row.feedId && l.type === "delivery")
-      .at(-1);
-    const shute = row.isShute
-      ? estimateShuteStock(logs, row.feedId, nowMs, ratePerWeek)
-      : null;
+    if (!row || logs === null) return null
+    const ratePerWeek = consumptionPerWeek(logs, row.feedId, nowMs, ADVICE_WEEKS)
+    const lastDelivery = logs.filter((l) => l.feedId === row.feedId && l.type === 'delivery').at(-1)
+    const shute = row.isShute ? estimateShuteStock(logs, row.feedId, nowMs, ratePerWeek) : null
     const advice = adviseFeed({
       stock: shute ? Math.max(row.total, shute.onHand) : row.total,
       ratePerWeek,
       isShute: row.isShute,
-      lastDeliveryMs: shute
-        ? shute.lastDeliveryMs
-        : (lastDelivery?.timestampMs ?? null),
+      lastDeliveryMs: shute ? shute.lastDeliveryMs : (lastDelivery?.timestampMs ?? null),
       nowMs,
       schedule,
-    });
-    return { ratePerWeek, shute, advice };
-  }, [row, logs, nowMs, schedule]);
+    })
+    return { ratePerWeek, shute, advice }
+  }, [row, logs, nowMs, schedule])
 
-  const newestFirst = useMemo(
-    () => (logs ? [...logs].reverse() : null),
-    [logs],
-  );
-  const stats = useMemo(
-    () => (logs ? monthlyStats(logs, feedId, nowMs) : null),
-    [logs, feedId, nowMs],
-  );
+  const newestFirst = useMemo(() => (logs ? [...logs].reverse() : null), [logs])
+  const stats = useMemo(() => (logs ? monthlyStats(logs, feedId, nowMs) : null), [logs, feedId, nowMs])
 
   const detail = useMemo(() => {
-    if (!logs) return null;
-    const now = new Date(nowMs);
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const perMonth = consumptionPerMonth(
-      logs,
-      feedId,
-      monthStart(y, m - 11),
-      nowMs,
-    );
-    const monthStarts = Array.from(
-      { length: 12 },
-      (_, k) => new Date(y, m - 11 + k, 1),
-    );
+    if (!logs) return null
+    const now = new Date(nowMs)
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const perMonth = consumptionPerMonth(logs, feedId, monthStart(y, m - 11), nowMs)
+    const monthStarts = Array.from({ length: 12 }, (_, k) => new Date(y, m - 11 + k, 1))
     return {
       monthStarts,
-      monthValues: monthStarts.map(
-        (d) =>
-          perMonth.get(
-            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-          ) ?? 0,
-      ),
+      monthValues: monthStarts.map((d) => perMonth.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) ?? 0),
       seasonality: seasonality(logs, feedId, nowMs),
       completeYears: completeYears(logs, feedId, nowMs),
       shute: shuteStats(logs, feedId),
-    };
-  }, [logs, feedId, nowMs]);
+    }
+  }, [logs, feedId, nowMs])
 
   if (loading) {
     return (
-      <Box sx={{ py: 6, display: "grid", placeItems: "center" }}>
+      <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}>
         <CircularProgress />
       </Box>
-    );
+    )
   }
-  if (!valid || !row) return <Navigate to="/stock" replace />;
+  if (!valid || !row) return <Navigate to="/stock" replace />
 
-  const { unit } = row;
-  const advice = computed?.advice ?? null;
-  const rate = computed?.ratePerWeek ?? 0;
-  const shute = computed?.shute ?? null;
-  const amount = shute ? Math.max(row.total, shute.onHand) : row.total;
-  const rough = row.isShute || row.inStable;
-  const mayOrder = can(roles, "order");
-  const nextDate = dateShort.format(schedule.next);
+  const { unit } = row
+  const advice = computed?.advice ?? null
+  const rate = computed?.ratePerWeek ?? 0
+  const shute = computed?.shute ?? null
+  const amount = shute ? Math.max(row.total, shute.onHand) : row.total
+  const rough = row.isShute || row.inStable
+  const mayOrder = can(roles, 'order')
+  const nextDate = dateShort.format(schedule.next)
 
   /** Two short lines: how long the stock lasts, and the usage it is based on. */
-  let stockLine: string | null = null;
-  let usageLine: string | null = null;
+  let stockLine: string | null = null
+  let usageLine: string | null = null
   if (advice && rate > 0 && advice.dueInDays !== null) {
-    const days = advice.dueInDays;
-    stockLine =
-      days <= 0
-        ? rough
-          ? "Mogelijk niet genoeg voorraad"
-          : "Voorraad is op"
-        : `Nog ${rough ? "±" : ""}${days} dagen voorraad`;
-    usageLine = `Gem. verbruik per week ${formatAmount(rate)} ${unitLabel(unit, rate)}`;
+    const days = advice.dueInDays
+    stockLine = days <= 0 ? (rough ? 'Mogelijk niet genoeg voorraad' : 'Voorraad is op') : `Nog ${rough ? '±' : ''}${days} dagen voorraad`
+    usageLine = `Gem. verbruik per week ${formatAmount(rate)} ${unitLabel(unit, rate)}`
   } else if (advice && rate === 0) {
-    usageLine = "Geen verbruik in de laatste 12 weken";
+    usageLine = 'Geen verbruik in de laatste 12 weken'
   }
 
   // The card takes the same tint as the row on the stock list when the feed may run out.
-  const tint =
-    advice?.status === "critical"
-      ? "error"
-      : advice?.status === "warning"
-        ? "warning"
-        : null;
+  const tint = advice?.status === 'critical' ? 'error' : advice?.status === 'warning' ? 'warning' : null
   const summarySx = tint
     ? (t: Theme) => ({
         bgcolor: alpha(t.palette[tint].main, 0.1),
         borderLeft: `4px solid ${t.palette[tint].main}`,
       })
-    : undefined;
+    : undefined
 
   // Desktop: summary, Voorraad (if any) and Wijzigingen fill column 1; Verbruik spans those rows in column 2.
-  const hasStorage = row.perStorage.length > 0;
-  const lastLeftRow = hasStorage ? 3 : 2;
+  const hasStorage = row.perStorage.length > 0
+  const lastLeftRow = hasStorage ? 3 : 2
 
-  const delta = stats ? signed(stats.thisMonth - stats.lastYearToDate) : "";
+  const delta = stats ? signed(stats.thisMonth - stats.lastYearToDate) : ''
 
   return (
-    <Page title={row.name} maxWidth={wide ? "lg" : "md"}>
+    <Page title={row.name} maxWidth={wide ? 'lg' : 'md'}>
       <Box
         sx={{
-          display: "grid",
+          display: 'grid',
           gap: 2,
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            md: "minmax(0, 1fr) minmax(0, 1fr)",
+            xs: 'minmax(0, 1fr)',
+            md: 'minmax(0, 1fr) minmax(0, 1fr)',
           },
-          gridTemplateRows: { md: hasStorage ? "auto auto 1fr" : "auto 1fr" },
-          alignItems: "start",
+          gridTemplateRows: { md: hasStorage ? 'auto auto 1fr' : 'auto 1fr' },
+          alignItems: 'start',
         }}
       >
-        <Box sx={{ gridColumn: { md: "1" }, gridRow: { md: "1" } }}>
+        <Box sx={{ gridColumn: { md: '1' }, gridRow: { md: '1' } }}>
           <CardSurface sx={summarySx}>
             <Box sx={{ p: 2 }}>
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ alignItems: "center", justifyContent: "space-between" }}
-              >
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="h6" component="h2">
                   {row.name}
                 </Typography>
@@ -252,18 +176,14 @@ export default function FeedPage() {
                     size="small"
                     label={STATUS_LABEL[advice.status]}
                     color={CHIP_COLOR[advice.status]}
-                    variant={advice.status === "ok" ? "outlined" : "filled"}
+                    variant={advice.status === 'ok' ? 'outlined' : 'filled'}
                   />
                 )}
               </Stack>
               <Typography variant="h3" component="p">
-                {shute ? "≈ " : ""}
-                {formatAmount(amount)}{" "}
-                <Typography
-                  component="span"
-                  variant="h6"
-                  color="text.secondary"
-                >
+                {shute ? '≈ ' : ''}
+                {formatAmount(amount)}{' '}
+                <Typography component="span" variant="h6" color="text.secondary">
                   {unitLabel(unit, amount)}
                 </Typography>
               </Typography>
@@ -278,11 +198,7 @@ export default function FeedPage() {
                 </Typography>
               )}
               {advice && advice.daysSinceDelivery !== null && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  component="p"
-                >
+                <Typography variant="body2" color="text.secondary" component="p">
                   Laatste levering {agoLabel(advice.daysSinceDelivery)}
                 </Typography>
               )}
@@ -292,15 +208,14 @@ export default function FeedPage() {
                   <Typography variant="subtitle2" component="h3">
                     Bestel advies
                   </Typography>
-                  {advice.status === "inactive" ? (
+                  {advice.status === 'inactive' ? (
                     <Typography variant="body2" color="text.secondary">
                       Niet in gebruik: geen verbruik en geen voorraad.
                     </Typography>
                   ) : advice.orderQty > 0 ? (
                     <>
                       <Typography variant="h5" component="p">
-                        {formatAmount(advice.orderQty)}{" "}
-                        {unitLabel(unit, advice.orderQty)}
+                        {formatAmount(advice.orderQty)} {unitLabel(unit, advice.orderQty)}
                       </Typography>
                     </>
                   ) : (
@@ -315,7 +230,7 @@ export default function FeedPage() {
         </Box>
 
         {hasStorage && (
-          <Box sx={{ gridColumn: { md: "1" }, gridRow: { md: "2" } }}>
+          <Box sx={{ gridColumn: { md: '1' }, gridRow: { md: '2' } }}>
             <StorageStockCard
               unit={unit}
               swipeMax={feeds.get(feedId)?.swipeMax}
@@ -323,7 +238,7 @@ export default function FeedPage() {
               onChange={(storageId, signedAmount) =>
                 openMutation({
                   feedId,
-                  direction: signedAmount < 0 ? "out" : "in",
+                  direction: signedAmount < 0 ? 'out' : 'in',
                   amount: Math.abs(signedAmount),
                   storageId,
                 })
@@ -340,7 +255,7 @@ export default function FeedPage() {
         <Stack
           spacing={2}
           sx={{
-            gridColumn: { md: "2" },
+            gridColumn: { md: '2' },
             gridRow: { md: `1 / span ${lastLeftRow}` },
           }}
         >
@@ -353,12 +268,8 @@ export default function FeedPage() {
                 <Stack spacing={1.5}>
                   <Box>
                     <Typography variant="h4" component="p">
-                      {formatAmount(stats.average ?? 0)}{" "}
-                      <Typography
-                        component="span"
-                        variant="h6"
-                        color="text.secondary"
-                      >
+                      {formatAmount(stats.average ?? 0)}{' '}
+                      <Typography component="span" variant="h6" color="text.secondary">
                         {unitLabel(unit, stats.average ?? 0)}
                       </Typography>
                     </Typography>
@@ -367,12 +278,7 @@ export default function FeedPage() {
                     </Typography>
                   </Box>
                   <Box>
-                    <Stack
-                      direction="row"
-                      spacing={2}
-                      useFlexGap
-                      sx={{ flexWrap: "wrap" }}
-                    >
+                    <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           Deze maand
@@ -399,13 +305,8 @@ export default function FeedPage() {
                       </Box>
                     </Stack>
                     {stats.lastYearFull !== stats.lastYearToDate && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 0.5 }}
-                      >
-                        vorig jaar hele maand:{" "}
-                        {formatAmount(stats.lastYearFull)}
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        vorig jaar hele maand: {formatAmount(stats.lastYearFull)}
                       </Typography>
                     )}
                   </Box>
@@ -419,40 +320,27 @@ export default function FeedPage() {
                       title={`Verbruik per maand, ${monthYear(detail.monthStarts[0])} t/m ${monthYear(detail.monthStarts[11])}`}
                     />
                   )}
-                  {detail && (
-                    <SeasonSection
-                      seasonality={detail.seasonality}
-                      years={detail.completeYears}
-                      unit={unit}
-                    />
-                  )}
+                  {detail && <SeasonSection seasonality={detail.seasonality} years={detail.completeYears} unit={unit} />}
                 </Stack>
               ) : (
                 <Skeleton variant="rounded" height={120} />
               )}
             </Box>
           </CardSurface>
-          {row.isShute &&
-            (detail ? (
-              <ShuteCard {...detail.shute} nowMs={nowMs} />
-            ) : (
-              <SkeletonCard title="Koker" />
-            ))}
+          {row.isShute && (detail ? <ShuteCard {...detail.shute} nowMs={nowMs} /> : <SkeletonCard title="Koker" />)}
         </Stack>
 
-        <Box
-          sx={{ gridColumn: { md: "1" }, gridRow: { md: String(lastLeftRow) } }}
-        >
+        <Box sx={{ gridColumn: { md: '1' }, gridRow: { md: String(lastLeftRow) } }}>
           <ChangesTimeline
             logs={newestFirst}
             nowMs={nowMs}
             perspective={{
-              kind: "feed",
+              kind: 'feed',
               storageName: (id) => storages.get(id)?.name ?? id,
             }}
           />
         </Box>
       </Box>
     </Page>
-  );
+  )
 }
