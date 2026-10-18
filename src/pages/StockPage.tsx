@@ -175,7 +175,7 @@ export default function StockPage() {
   const visible = rows
 
   return (
-    <Page title="Voorraad">
+    <Page title="Voorraad" maxWidth={wide ? 'xl' : 'md'}>
       <Stack spacing={2}>
         {error && <Alert severity="error">Kon de voorraad niet laden ({error}).</Alert>}
         {loading ? (
@@ -185,7 +185,11 @@ export default function StockPage() {
         ) : visible.length === 0 ? (
           <Typography color="text.secondary">{rows.length === 0 ? 'Nog geen voer in deze organisatie.' : 'Geen voer gevonden.'}</Typography>
         ) : wide ? (
-          <Table size="small" aria-label="Voorraad per voer">
+          <Table
+            size="medium"
+            aria-label="Voorraad per voer"
+            sx={{ '& th': { whiteSpace: 'nowrap' }, '& td': { py: 1.5 }, '& th:not(:nth-of-type(4)), & td:not(:nth-of-type(4))': { width: '1%', whiteSpace: 'nowrap' } }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell>Voer</TableCell>
@@ -207,7 +211,7 @@ export default function StockPage() {
                     {r.advice && (
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <StatusChip advice={r.advice} />
-                        <Typography variant="caption" color="text.secondary" noWrap>
+                        <Typography variant="body2" color="text.secondary" noWrap>
                           {[r.shute ? shuteMeta(r.shute, r.unit, r.advice) : '', runsOut(r, r.advice)].filter(Boolean).join(' · ')}
                         </Typography>
                       </Stack>
