@@ -8,19 +8,18 @@ export function agoLabel(days: number): string {
   return `${days} dagen geleden`
 }
 
-/** Short form: how long the stock lasts. Null when there is no usage to base it on. */
+/** Short form: how many days the stock lasts, never below 0 ("±0 dagen" when nothing is left). Null when there is no usage to base it on. */
 export function stockLeftText(advice: Advice, rough: boolean): string | null {
   if (advice.dueInDays === null) return null
-  const days = advice.dueInDays
-  if (days <= 0) return rough ? 'Mogelijk niet genoeg' : 'Op'
+  const days = Math.max(0, advice.dueInDays)
   return `${rough ? '±' : ''}${days} dagen`
 }
 
-/** Sentence form of {@link stockLeftText}, as on the feed summary card. */
+/** Sentence form for the feed summary card; spells out an empty stock instead of "0 dagen". */
 export function stockLeftSentence(advice: Advice, rough: boolean): string | null {
   const text = stockLeftText(advice, rough)
   if (text === null) return null
-  if (advice.dueInDays! <= 0) return rough ? `${text} voorraad` : 'Voorraad is op'
+  if (advice.dueInDays! <= 0) return rough ? 'Mogelijk niet genoeg voorraad' : 'Voorraad is op'
   return `Nog ${text} voorraad`
 }
 

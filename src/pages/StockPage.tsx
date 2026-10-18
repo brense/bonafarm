@@ -195,7 +195,7 @@ export default function StockPage() {
                 <TableCell>Voer</TableCell>
                 <TableCell>Voorraad</TableCell>
                 <TableCell>Verbruik per week</TableCell>
-                <TableCell>Nog</TableCell>
+                <TableCell>Genoeg voor</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Laatste levering</TableCell>
                 {ordering && <TableCell>Bestel advies</TableCell>}

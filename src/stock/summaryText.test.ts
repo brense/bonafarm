@@ -14,8 +14,9 @@ describe('summaryText', () => {
     expect(stockLeftText(advice(null), false)).toBeNull()
     expect(stockLeftText(advice(8), false)).toBe('8 dagen')
     expect(stockLeftText(advice(23), true)).toBe('±23 dagen')
-    expect(stockLeftText(advice(0), false)).toBe('Op')
-    expect(stockLeftText(advice(0), true)).toBe('Mogelijk niet genoeg')
+    expect(stockLeftText(advice(0), false)).toBe('0 dagen')
+    expect(stockLeftText(advice(0), true)).toBe('±0 dagen')
+    expect(stockLeftText(advice(-4), true)).toBe('±0 dagen')
   })
   it('stockLeftSentence', () => {
     expect(stockLeftSentence(advice(null), false)).toBeNull()
