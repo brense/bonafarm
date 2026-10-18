@@ -11,7 +11,7 @@ interface Props extends PropsWithChildren {
 /** Common page frame: content width; the title is only the accessible name of the section. */
 export default function Page({ title, maxWidth = 'md', flush = false, children }: Props) {
   return (
-    <Container maxWidth={maxWidth} disableGutters={flush} component="section" aria-label={title} sx={{ py: 2 }}>
+    <Container maxWidth={maxWidth} disableGutters={flush} component="section" aria-label={title} sx={{ py: flush ? 0 : 2 }}>
       {children}
     </Container>
   )
