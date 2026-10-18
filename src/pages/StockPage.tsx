@@ -188,17 +188,17 @@ export default function StockPage() {
           <Table
             size="medium"
             aria-label="Voorraad per voer"
-            sx={{ '& th': { whiteSpace: 'nowrap' }, '& td': { py: 1.5 }, '& th:not(:first-of-type), & td:not(:first-of-type)': { width: '1%', whiteSpace: 'nowrap' } }}
+            sx={{ '& th, & td': { whiteSpace: 'nowrap' }, '& td': { py: 1.5 } }}
           >
             <TableHead>
               <TableRow>
                 <TableCell>Voer</TableCell>
-                <TableCell align="right">Voorraad</TableCell>
+                <TableCell>Voorraad</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Nog</TableCell>
-                <TableCell align="right">Verbruik per week</TableCell>
+                <TableCell>Verbruik per week</TableCell>
                 <TableCell>Laatste levering</TableCell>
-                {ordering && <TableCell align="right">Bestel advies</TableCell>}
+                {ordering && <TableCell>Bestel advies</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -208,15 +208,15 @@ export default function StockPage() {
                 return (
                   <TableRow key={r.feedId} hover onClick={() => navigate(`/stock/${r.feedId}`)} sx={[rowSx(r, 'table') as never, { cursor: 'pointer' }]}>
                     <TableCell sx={{ fontWeight: 500 }}>{r.name}</TableCell>
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
+                    <TableCell sx={{ whiteSpace: 'nowrap', fontWeight: emphasis(r) === 'none' || emphasis(r) === 'empty' ? 400 : 700, color: amountColor(r) }}>
                       {r.shute ? '≈ ' : ''}{formatAmount(shownAmount(r))} {unitLabel(r.unit, shownAmount(r))}
                     </TableCell>
                     <TableCell>{r.advice && <StatusChip advice={r.advice} />}</TableCell>
                     <TableCell>{r.advice ? (stockLeftText(r.advice, rough) ?? '') : ''}</TableCell>
-                    <TableCell align="right">{r.ratePerWeek ? usageText(r.ratePerWeek, r.unit) : ''}</TableCell>
+                    <TableCell>{r.ratePerWeek ? usageText(r.ratePerWeek, r.unit) : ''}</TableCell>
                     <TableCell>{lastDelivery}</TableCell>
                     {ordering && (
-                      <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                      <TableCell sx={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
                         {r.advice?.orderQty ? `${formatAmount(r.advice.orderQty)} ${unitLabel(r.unit, r.advice.orderQty)}` : ''}
                       </TableCell>
                     )}
